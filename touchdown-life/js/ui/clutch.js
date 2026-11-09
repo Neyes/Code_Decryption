@@ -3,6 +3,10 @@
 // 수비: 상대 포메이션을 읽고 수비 콜 → 타이밍. 키커: 파워·정확도 두 번 탭. 펀터: 비거리·방향.
 import { POSITIONS, LEVEL_AVG, clamp } from '../engine/core.js';
 import { spriteCanvas, bigText, pixelText, vivid, shade, OUT } from './pixel.js';
+import { runLivePlay, conceptsFor, CONCEPTS, DEF_CALLS } from './liveplay.js';
+const LIVE_POS = new Set(['QB', 'RB', 'WR', 'TE', 'CB', 'S', 'LB', 'EDGE', 'DT']);
+const LIVE_TELLS = { run: TELLS_RUN(), pass: ['샷건, 리시버 넷이 넓게', '트립스 오른쪽', '엠티 백필드, 리시버 다섯', '쿼터백이 세이프티를 오래 본다'] };
+function TELLS_RUN() { return ['I 포메이션, 풀백이 보인다', '타이트 엔드 둘, 헤비 세트', '러닝백이 쿼터백 바로 뒤에']; }
 
 const W = 192, H = 96, YARDS = 48, PPY = W / YARDS;
 const R = Math.random;
@@ -56,7 +60,7 @@ class Clutch {
   constructor(root, c, done) {
     this.root = root; this.c = c; this.done = done;
     const p = c.player, g = c.game;
-    this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side;
+    this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.live = LIVE_POS.has(p.pos);
     this.mode = p.pos === 'K' ? 'kick' : p.pos === 'P' ? 'punt' : this.side === 'D' ? 'defense' : 'offense';
     this.final = !!g.final;
     this.drivesTotal = this.mode === 'kick' || this.mode === 'punt' ? (this.final ? 4 : 3) : (this.final ? 4 : 3);
@@ -83,7 +87,7 @@ class Clutch {
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
       <div class="cl-board"><div class="cl-team"><small>${esc(c.myName)}</small><b id="cl-pf">0</b></div><div class="cl-mid"><span id="cl-q" class="cl-q">1Q</span><small id="cl-dd"></small></div><div class="cl-team"><small>${esc(c.oppName)}</small><b id="cl-pa">0</b></div></div>
       <div class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</div>
-      <canvas id="cl-field" width="${W}" height="${H}" class="cl-field" aria-label="필드"></canvas>
+      <canvas id="cl-field" width="${W}" height="${H}" class="cl-field" aria-label="필드"></canvas><div id="cl-live" class="cl-live" hidden></div>
       <p id="cl-msg" class="cl-msg"></p>
       <div id="cl-actions" class="cl-actions"></div>
       <div class="cl-foot"><button class="ghost" data-cl="auto">자동으로 마무리</button></div></div>`;
@@ -149,6 +153,7 @@ class Clutch {
   }
   showPlays(plays) {
     this.board(this.dd());
+    if (this.live) return this.showConcepts(c => this.runLive({ concept: c }).then(o => this.resolveLive(o)));
     this.actions(plays.map((x, i) => `<button class="choice" data-play="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
     this.root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => this.meter(plays[+b.dataset.play], zone => this.resolveOffense(plays[+b.dataset.play], zone)));
   }
@@ -200,6 +205,14 @@ class Clutch {
     this.actions(`<button class="choice" data-x="pat"><strong>PAT (1점)</strong><div class="hint">거의 확실하다</div></button><button class="choice" data-x="two"><strong>2점 컨버전</strong><div class="hint">2야드에서 한 번 더 승부</div></button>`);
     this.root.querySelector('[data-x="pat"]').onclick = () => { const ok = R() < .95; if (ok) this.pf += 1; this.endDrive(ok ? '터치다운 + PAT' : '터치다운, PAT 실패'); };
     this.root.querySelector('[data-x="two"]').onclick = () => {
+      if (this.live) {
+        this.msg('2점 컨버전! 플레이를 고르세요.');
+        const save = this.d; this.d = { ...save, ball: 98, toGo: 2, first: 100, goal: true };
+        return this.showConcepts(c => this.runLive({ concept: c }).then(o => {
+          this.d = save; const ok = !!o.td; this.mergeStats(o.stats); if (ok) this.pf += 2; this.snap(ok ? 'perfect' : 'miss', ok, false);
+          this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
+        }));
+      }
       const plays = (PLAYS[this.pos] || PLAYS.WR).filter(x => !x.need || x.need(this.p));
       this.msg('2점 컨버전! 플레이를 고르세요.');
       this.actions(plays.map((x, i) => `<button class="choice" data-two="${i}"><strong>${esc(x.name)}</strong></button>`).join(''));
@@ -212,6 +225,7 @@ class Clutch {
   }
   // ───────── 수비 ─────────
   defensePick() {
+    if (this.live) return this.defenseLive();
     const d = this.d, group = ['DT', 'EDGE'].includes(this.pos) ? 'front' : this.pos === 'LB' ? 'lb' : 'db';
     // 상대 플레이 (상황에 맞게) + 70% 맞는 힌트
     const toGoal = 100 - d.ball;
@@ -265,6 +279,83 @@ class Clutch {
       this.msg(esc(text));
       this.defensePick();
     });
+  }
+  // ───────── 실시간 플레이 ─────────
+  showConcepts(cb) {
+    const list = conceptsFor(this.pos);
+    this.actions(`<p class="tiny" style="opacity:.75">${this.pos === 'QB' ? '스냅 뒤 원하는 곳을 탭하면 패스 · 끌면 스크램블 · 공을 넘기면 볼 캐리어를 조작' : '손가락을 대고 끌면 내 선수(노란 표시)가 달려요 · 공이 오면 노란 원으로'}</p>` + list.map((x, i) => `<button class="choice" data-cc="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
+    this.root.querySelectorAll('[data-cc]').forEach(b => b.onclick = () => cb(list[+b.dataset.cc]));
+  }
+  async runLive({ concept, defCall = null }) {
+    const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
+    const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
+    const control = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' }[this.pos];
+    this.actions(''); this.msg(offense ? '스냅! 내 선수는 노란 표시예요.' : '상대가 스냅한다. 내 수비수(노란 표시)를 움직이세요.');
+    const field = this.$('cl-field'), host = this.$('cl-live');
+    field.hidden = true; host.hidden = false; this.liveActive = true;
+    const out = await runLivePlay(host, {
+      ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, concept, defCall, control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
+      me: { attrs: this.p.attrs, ovr: this.p.ovr }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
+      offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
+      endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
+      away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
+      hint: offense ? (this.pos === 'QB' ? '탭: 패스 · 끌기: 이동 · 스페이스: 가장 빈 리시버' : '끌기: 이동 · 공을 들고 탭: 저크') : '끌기: 이동 · 볼 캐리어에 닿으면 태클',
+    });
+    host.hidden = true; host.innerHTML = ''; field.hidden = false; this.liveActive = false;
+    return out;
+  }
+  mergeStats(st = {}) { for (const [k, v] of Object.entries(st)) inc(this.line, k, v); }
+  resolveLive(o) {
+    const d = this.d;
+    this.mergeStats(o.stats);
+    const zone = o.td || o.gain >= 15 ? 'perfect' : (!o.incomplete && !o.turnover && !o.sack && (o.gain >= Math.min(d.toGo, 5))) ? 'good' : 'miss';
+    this.snap(zone, !!o.td, !!o.turnover);
+    if (o.turnover) return this.endDrive(o.turnover === 'INT' ? '인터셉트! 공격권을 잃었다.' : '펌블! 공격권을 잃었다.');
+    if (o.td) { this.pf += 6; this.pop('TOUCHDOWN!', '#F2C230', true); return this.afterTD(); }
+    if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
+    d.snaps++;
+    const text = o.incomplete ? '패스 인컴플리트.' : o.sack ? `색. ${-o.gain}야드 손실.` : o.gain >= 0 ? `${o.gain}야드 전진.` : `${-o.gain}야드 손실.`;
+    if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; this.pop('FIRST DOWN', '#FFFFFF'); }
+    else { d.down++; d.toGo = d.first - d.ball; }
+    if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive('4번째 다운 실패, 공격권 넘김'); }
+    if (d.snaps >= 9) { const dist = 100 - d.ball + 17; if (dist <= 50 && R() < .8) { this.pf += 3; return this.endDrive(`시간에 쫓겨 ${dist}야드 필드골`); } return this.endDrive('시간이 다 됐다'); }
+    this.cam = clamp(d.ball + 8, 24, 76);
+    this.msg(esc(text));
+    this.offensePick();
+  }
+  defenseLive() {
+    const d = this.d, toGoal = 100 - d.ball;
+    const pool = CONCEPTS.filter(c => !(toGoal < 20 && c.id === 'verts'));
+    const runBias = d.toGo <= 2 ? .6 : d.toGo >= 8 ? .2 : .4;
+    const runs = pool.filter(c => c.run), passes = pool.filter(c => !c.run);
+    const concept = R() < runBias ? pick(runs) : pick(passes);
+    const tellRun = R() < .7 ? !!concept.run : !concept.run;
+    this.board(this.dd());
+    this.msg(`상대 포메이션: <b>${esc(pick(tellRun ? LIVE_TELLS.run : LIVE_TELLS.pass))}</b>`);
+    this.actions(`<p class="tiny" style="opacity:.75">수비 콜을 고르면 스냅. 손가락으로 내 수비수를 움직여 커버하고, 공이 떨어지는 노란 원으로 가면 인터셉트를 노릴 수 있어요.</p>` + DEF_CALLS.map((x, i) => `<button class="choice" data-dc="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
+    this.root.querySelectorAll('[data-dc]').forEach(b => b.onclick = () => this.runLive({ concept, defCall: DEF_CALLS[+b.dataset.dc].id }).then(o => this.resolveLiveDefense(o)));
+  }
+  resolveLiveDefense(o) {
+    const d = this.d;
+    this.mergeStats(o.stats);
+    const mine = o.stats || {}, big = mine.sack || mine.dint || mine.tfl || mine.ff;
+    const zone = big || o.turnover ? 'perfect' : (o.incomplete || o.gain <= 3) ? 'good' : 'miss';
+    this.snap(zone, !!big, !!o.td, !!o.turnover);
+    if (o.turnover) { if (o.pickSix) this.pf += 7; return this.endDrive(o.turnover === 'INT' ? (o.pickSix ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '펌블을 유도해 공격권을 빼앗았다'); }
+    if (o.td) { this.pa += 7; return this.endDrive('터치다운을 허용했다'); }
+    if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
+    d.snaps++;
+    if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
+    else { d.down++; d.toGo = d.first - d.ball; }
+    if (d.down === 4 || d.snaps >= 8) {
+      const dist = 100 - d.ball + 17;
+      if (dist <= 52) { const ok = R() < clamp(.95 - (dist - 20) * .012, .4, .95); if (ok) this.pa += 3; this.pop(ok ? 'FG GOOD' : 'FG MISS', ok ? '#E85A5A' : '#F2C230'); return this.endDrive(ok ? `상대 ${dist}야드 필드골` : `상대 ${dist}야드 필드골 실패`); }
+      if (d.toGo <= 2 && d.ball >= 45 && R() < .5) { this.msg('상대가 4번째 다운에 승부를 건다!'); return this.defenseLive(); }
+      this.pop('STOP!', '#F2C230'); return this.endDrive('수비 성공, 상대 펀트');
+    }
+    this.cam = clamp(d.ball - 4, 24, 76);
+    this.msg(o.incomplete ? '패스 인컴플리트!' : o.gain <= 0 ? '막아 냈다!' : `${o.gain}야드를 내줬다.`);
+    this.defensePick();
   }
   // ───────── 키커 ─────────
   kickSetup(story, last) {
@@ -349,6 +440,7 @@ class Clutch {
   }
   yx(y) { return (y - (this.cam - YARDS / 2)) * PPY; }
   draw(now) {
+    if (this.liveActive) return;
     const ctx = this.ctx, d = this.d || { ball: 25, first: 35 };
     let ballY = d.ball, carrierX = null, pose = 'stand';
     const a = this.anim;

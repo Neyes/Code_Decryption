@@ -23,6 +23,7 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, .3); color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body); word-break: keep-all; overflow-wrap: anywhere; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 25; background: var(--bg); }
@@ -360,3 +361,7 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .pane-tabs button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
 .pane-tabs button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .roll.anim i { left: var(--to); } .result-box.reveal, .scene.reveal { animation: none; } }
+
+/* 실시간 플레이 */
+.cl-live canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; height: auto; aspect-ratio: 160 / 210; image-rendering: pixelated; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.lp-hint { text-align: center; font-size: 12px; opacity: .75; margin-top: 6px; }
