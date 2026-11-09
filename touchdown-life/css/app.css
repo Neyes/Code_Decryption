@@ -223,3 +223,140 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .px-anim .f2 { position: absolute; inset: 0; animation: frame2 .9s steps(1) infinite; }
 @keyframes frame2 { 0% { opacity: 0; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .px-anim .f2 { display: none; } }
+
+/* ───────── 연출 오버레이 ───────── */
+.fx { position: fixed; inset: 0; z-index: 90; overflow: auto; animation: fade .2s ease-out; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.fx.dark { background: var(--board); color: var(--board-ink); }
+.fx.light { background: var(--bg); color: var(--ink); }
+.fx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; z-index: 1; }
+.fx-body { position: relative; z-index: 2; max-width: 480px; margin: 0 auto; min-height: 100%; display: grid; align-content: center; gap: 6px; text-align: center; padding-block: 56px 32px; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.fx h2 { font-size: 28px; font-weight: 900; letter-spacing: -.02em; line-height: 1.25; }
+.fx .lead { opacity: .82; margin-top: 4px; }
+.fx.dark .eyebrow { color: var(--board-flag); }
+.fx-skip { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); z-index: 3; border: 0; border-radius: 999px; padding: 8px 14px; background: rgba(255, 255, 255, .14); color: inherit; font-weight: 800; font-size: 13px; }
+.fx.light .fx-skip { background: var(--surface-2); }
+.fx .scene { border-radius: 14px; }
+/* 시즌 진행 */
+.fx-season { text-align: left; }
+.fx-season h2, .fx-season .eyebrow { text-align: left; }
+.fx-wl { font-family: var(--font-num); font-size: 18px; margin-top: 4px; } .fx-wl b { font-size: 34px; font-weight: 800; }
+.fx-progress { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .15); overflow: hidden; margin: 8px 0 10px; }
+.fx-progress i { display: block; height: 100%; width: 100%; background: var(--board-flag); transform-origin: left; animation: grow linear both; }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.fx-games { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.fx-games li { display: grid; grid-template-columns: 52px 1fr 40px; gap: 8px; align-items: center; background: rgba(255, 255, 255, .07); border-radius: 12px; padding: 8px 10px; font-size: 14px; opacity: 0; animation: slideIn .3s ease-out both; }
+.fx-games li.win .grow b { color: #7FE0A0; } .fx-games li.loss .grow b { color: #FF9A9A; }
+.fx-games li.big { outline: 2px solid var(--board-flag); }
+.fx-games li small { display: block; opacity: .7; font-size: 12px; }
+.fx-games .tag { font-size: 11.5px; opacity: .75; font-weight: 700; }
+.fx-games .gr { font-family: var(--font-num); font-weight: 800; font-size: 18px; text-align: right; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+/* 성장 공개 */
+.fx-growth h2 { font-family: var(--font-num); font-size: 40px; }
+.fx-growth h2 .ovr-to { color: var(--accent); }
+.fx-growth .growth-grid .g { animation: pop .45s ease-out both; }
+.fx-growth .g b.done { animation: pop .3s ease-out; }
+.fx-growth .g em { display: block; font-style: normal; font-weight: 800; font-size: 12px; }
+.fx-tag { display: inline-block; margin: 8px auto 0; padding: 6px 12px; border-radius: 999px; background: var(--red-soft); color: var(--red); font-weight: 800; font-size: 13px; }
+.fx-tag.green { background: var(--accent-soft); color: var(--accent); }
+/* 세리머니 */
+.fx-ceremony { position: relative; }
+.fx-ceremony .spot { position: absolute; left: 50%; top: -60px; width: 320px; height: 420px; transform: translateX(-50%); background: radial-gradient(ellipse at top, rgba(255, 240, 180, .35), transparent 65%); pointer-events: none; }
+.fx-trophy { width: 120px; height: 120px; margin: 0 auto; animation: drop .9s cubic-bezier(.3, 1.6, .5, 1) both; }
+.fx-hero { width: 110px; height: 140px; margin: 0 auto; animation: rise .7s .4s ease-out both; }
+@keyframes drop { from { transform: translateY(-160px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fx-ceremony h2 { animation: pop .5s .6s ease-out both; color: var(--board-flag); }
+/* 타이틀 카드 */
+.fx-title .year { font-family: var(--font-num); font-size: 96px; font-weight: 800; line-height: 1; color: var(--board-flag); animation: zoomIn .6s cubic-bezier(.2, 1.4, .4, 1) both; }
+.fx-title h2 { animation: fadeUp .5s .35s both; }
+.fx-title .scene { animation: fadeUp .5s both; }
+@keyframes zoomIn { from { transform: scale(2.2); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fadeUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* 드래프트 */
+.fx-draft .pick-in span { display: inline-block; font-family: var(--font-num); font-weight: 800; font-size: 28px; letter-spacing: .08em; padding: 10px 16px; border: 2px solid var(--board-flag); color: var(--board-flag); animation: blink .4s steps(1) 4, fadeOutUp .3s 1.6s forwards; }
+.fx-draft .reveal { margin-top: 6px; padding: 16px; border-radius: 16px; background: var(--team); color: #fff; opacity: 0; animation: pop .5s 1.8s cubic-bezier(.2, 1.5, .4, 1) forwards; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.fx-draft .reveal h2 { font-size: 30px; }
+.fx-draft .reveal-scene { margin-top: 10px; opacity: 0; animation: fadeUp .5s 2.1s forwards; }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes fadeOutUp { to { opacity: 0; transform: translateY(-10px); height: 0; padding: 0; margin: 0; } }
+/* 계약서 */
+.fx-sign .paper { background: #FBF7EE; color: #2A2320; border-radius: 10px; padding: 18px; text-align: left; position: relative; transform: rotate(-1.5deg); border-top: 8px solid var(--team); animation: rise .5s both; }
+.fx-sign .paper .kv span { color: #7A6A5A; } .fx-sign .paper .kv { border-color: #E6DCCB; }
+.fx-sign .sig { width: 70%; height: 50px; margin-top: 10px; }
+.fx-sign .sig path { fill: none; stroke: #1E3A8A; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw 1.2s .5s ease-in-out forwards; }
+.fx-sign .stamp { position: absolute; right: 16px; bottom: 18px; border: 3px solid #C83A3A; color: #C83A3A; font-weight: 900; padding: 4px 10px; border-radius: 8px; transform: rotate(-12deg) scale(2); opacity: 0; animation: stamp .3s 1.8s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes stamp { to { transform: rotate(-12deg) scale(1); opacity: 1; } }
+/* 부상 */
+.fx-injury .flash { position: fixed; inset: 0; background: #C83A3A; opacity: 0; animation: flash .7s ease-out; pointer-events: none; }
+.fx-injury h2 { color: #FF9A9A; }
+@keyframes flash { 0% { opacity: .65; } 100% { opacity: 0; } }
+/* 은퇴식 */
+.fx-retire .banner { margin: 8px auto 0; width: 150px; padding: 18px 10px 26px; background: var(--board-flag); color: var(--board); clip-path: polygon(0 0, 100% 0, 100% 86%, 50% 100%, 0 86%); animation: rise 1.2s ease-out both; }
+.fx-retire .banner b { display: block; font-family: var(--font-num); font-size: 72px; line-height: 1; }
+.fx-retire .banner span { font-weight: 800; font-size: 13px; }
+/* 카드 뽑기 */
+.fx-gacha .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; perspective: 600px; }
+.gcard { position: relative; height: 150px; transform-style: preserve-3d; animation: flip .6s ease-out both; }
+.gcard .back, .gcard .front { position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden; display: grid; align-content: center; gap: 4px; padding: 10px; }
+.gcard .back { background: repeating-linear-gradient(45deg, #2B3346 0 6px, #232A3B 6px 12px); transform: rotateY(180deg); }
+.gcard .front { background: #2B3346; border: 2px solid #8A93A6; }
+.gcard .front small { font-weight: 900; } .gcard .front b { font-size: 14px; } .gcard .front span { font-size: 11.5px; opacity: .8; }
+.gcard.rare .front { border-color: #5AB4F0; box-shadow: 0 0 14px rgba(90, 180, 240, .5); } .gcard.rare small { color: #5AB4F0; }
+.gcard.epic .front { border-color: #B07CF0; box-shadow: 0 0 18px rgba(176, 124, 240, .6); } .gcard.epic small { color: #C9A2FF; }
+.gcard.legend .front { border-color: #F2C230; box-shadow: 0 0 24px rgba(242, 194, 48, .8); } .gcard.legend small { color: #F2C230; }
+@keyframes flip { from { transform: rotateY(180deg); } to { transform: rotateY(0); } }
+/* VS · 결과 */
+.fx-vs .vs-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-top: 10px; }
+.fx-vs .vs-row span { background: var(--team); color: #fff; border-radius: 12px; padding: 12px 8px; font-weight: 900; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+.fx-vs .vs-row span:first-child { animation: fromLeft .5s both; } .fx-vs .vs-row span:last-child { animation: fromRight .5s both; }
+.fx-vs .vs-row b { font-family: var(--font-num); font-size: 34px; color: var(--board-flag); animation: pop .4s .45s both; }
+@keyframes fromLeft { from { transform: translateX(-80px); opacity: 0; } } @keyframes fromRight { from { transform: translateX(80px); opacity: 0; } }
+.fx-result .score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-top: 6px; }
+.fx-result .score b { font-family: var(--font-num); font-size: 48px; font-weight: 800; }
+.fx-result.win h2 { color: var(--board-flag); } .fx-result.loss h2 { color: #FF9A9A; }
+
+/* ───────── 직접 플레이 ───────── */
+.clutch { position: fixed; inset: 0; z-index: 85; background: var(--board); color: var(--board-ink); overflow: auto; padding-block: calc(10px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)); padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+.clutch > * { max-width: 520px; margin-left: auto; margin-right: auto; }
+.cl-board { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; text-align: center; background: rgba(0, 0, 0, .35); border-radius: 14px; padding: 8px; }
+.cl-board b { font-family: var(--font-num); font-size: 36px; font-weight: 800; display: block; line-height: 1; }
+.cl-board small { font-size: 12px; opacity: .8; font-weight: 700; }
+.cl-mid { display: grid; gap: 2px; justify-items: center; }
+.cl-q { background: var(--board-flag); color: var(--board); border-radius: 8px; padding: 2px 8px; font-weight: 900; font-size: 12px; }
+.cl-mid small { font-family: var(--font-num); font-size: 14px; }
+.cl-title { text-align: center; font-size: 12.5px; font-weight: 800; color: var(--board-flag); margin: 6px auto 4px; }
+.cl-field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 12px; }
+.cl-msg { min-height: 44px; margin: 8px auto 4px; font-size: 14.5px; line-height: 1.45; }
+.cl-actions { display: grid; gap: 8px; }
+.clutch .choice { margin-top: 0; background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .16); color: inherit; }
+.clutch .choice:hover { background: rgba(255, 255, 255, .14); border-color: var(--board-flag); }
+.clutch .choice .hint { color: inherit; opacity: .7; }
+.cl-meter { position: relative; height: 40px; border-radius: 12px; background: rgba(232, 90, 90, .35); overflow: hidden; cursor: pointer; touch-action: manipulation; }
+.cl-meter .zone { position: absolute; top: 0; bottom: 0; }
+.cl-meter .zone.good { background: rgba(107, 216, 138, .65); } .cl-meter .zone.perfect { background: #F2C230; } .cl-meter .zone.need { background: rgba(107, 216, 138, .55); }
+.cl-meter i { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: #FFFFFF; box-shadow: 0 0 0 2px var(--board); border-radius: 2px; }
+.cl-meter .cl-zone { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-num); font-size: 22px; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, .8); animation: pop .3s; }
+.cl-meter.perfect .cl-zone, .cl-meter.ok .cl-zone { color: var(--board-flag); } .cl-meter.miss .cl-zone, .cl-meter.bad .cl-zone { color: #FF9A9A; }
+.cl-tap { font-size: 18px; padding: 16px; }
+.cl-foot { margin-top: 8px; }
+.clutch .ghost { color: inherit; opacity: .7; }
+/* 빅게임 카드 · 주사위 */
+.big-card .vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; text-align: center; margin-top: 10px; }
+.big-card .vs b { font-family: var(--font-num); font-size: 22px; }
+.big-card .vs span { font-weight: 800; }
+.roll.anim i { animation: needle 1.2s cubic-bezier(.2, .9, .3, 1) both; }
+@keyframes needle { 0% { left: 0; } 30% { left: 92%; } 55% { left: 12%; } 75% { left: 70%; } 100% { left: var(--to); } }
+.result-box.reveal { animation: fadeUp .4s 1.15s both; }
+.scene.reveal { animation: fadeUp .4s 1.2s both; }
+.badge-pop { position: fixed; left: 50%; top: calc(70px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 95; background: var(--board); color: var(--board-flag); border: 2px solid var(--board-flag); border-radius: 14px; padding: 10px 16px; font-weight: 900; animation: pop .4s ease-out, fadeOutUp .4s 2.4s forwards; pointer-events: none; }
+.title-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.title-chip { border-radius: 12px; padding: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.title-chip b { display: block; font-size: 14px; } .title-chip span { font-size: 11.5px; color: var(--muted); }
+.title-chip.got { background: var(--gold-soft); border-color: transparent; } .title-chip.got b { color: var(--gold); }
+.title-chip:not(.got) b { color: var(--faint); }
+.pane-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
+.pane-tabs button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
+.pane-tabs button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .roll.anim i { left: var(--to); } .result-box.reveal, .scene.reveal { animation: none; } }

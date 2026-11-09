@@ -107,7 +107,25 @@ export function startSeasonSim(s) {
     games, segments: segmentsFor(games.length), segLabels: SEGMENT_LABEL[key], seg: 0, line: emptyLine(), post: { rounds: [], result: null, done: false },
     injury: null, injuries: [], injuryChance: injuryChance(s), training: s.training, cards: [], cardPoints: cardPoints(s), final: null, standings: null, depthRank: null,
   };
+  markFeatured(s, r);
   return s.season;
+}
+// 대학 라이벌전 (실제 이름). 시즌 마지막 정규 경기를 라이벌전으로 바꿉니다.
+export const RIVALRIES = [['OSU', 'MICH', '더 게임'], ['BAMA', 'AUB', '아이언 볼'], ['TEX', 'OU', '레드 리버 라이벌리'], ['UGA', 'UF', '플로리다-조지아전'], ['CLEM', 'SC', '팰머토 볼'],
+  ['USC', 'ND', '주얼드 셜레일러'], ['LSU', 'MISS', '매그놀리아 볼'], ['IOWA', 'NEB', '히어로즈 게임'], ['UTAH', 'BYU', '홀리 워'], ['ORE', 'UW', '북서부 라이벌전'], ['FSU', 'MIA', '선샤인 스테이트 라이벌전']];
+// 시즌마다 직접 플레이할 수 있는 '빅게임' 하나: 고교 홈커밍 라이벌전, 대학 라이벌전, NFL 디비전 라이벌 나이트 경기.
+function markFeatured(s, r) {
+  const z = s.season, last = z.games.length - 1;
+  let idx = last, title = s.stage === 'hs' ? '홈커밍 라이벌전' : s.stage === 'cfl' ? '노동절 클래식' : '시즌 마지막 라이벌전';
+  if (s.stage === 'college') {
+    const rv = RIVALRIES.find(x => x.includes(s.team.id));
+    if (rv) { const oid = rv[0] === s.team.id ? rv[1] : rv[0], c = COLLEGE_BY_ID[oid]; z.games[last] = { ...z.games[last], oppId: oid, oppName: c.ko, oppStr: clamp(c.prestige + gauss(r) * 4, 20, 99), conf: c.conf === COLLEGE_BY_ID[s.team.id].conf }; title = rv[2]; }
+  } else if (s.stage === 'nfl') {
+    const div = z.games.map((g, i) => [g, i]).filter(([g]) => g.div).map(x => x[1]);
+    idx = div.length ? div.at(-1) : last; title = '선데이 나이트 디비전 라이벌전';
+  }
+  z.games[idx] = { ...z.games[idx], featured: true, title };
+  z.featured = idx;
 }
 // 시즌 중 선택 카드가 나오는 구간 (나이가 어릴수록 많이). 첫 시즌은 한 번만 멈춥니다.
 function cardPoints(s) {
@@ -335,6 +353,45 @@ function postOpponent(s, r, roundIdx, total) {
   const c = pick(r, strong.length ? strong : pool);
   return { oppId: c.id, oppName: c.ko, oppStr: c.prestige + 2 + depthFactor * 4 + gauss(r) * 4 };
 }
+// 한 라운드씩 진행하는 포스트시즌 (빅게임으로 멈출 수 있게).
+export function planPostseason(s, r) {
+  const z = s.season, plan = postseasonPlan(s, r);
+  z.post = { rounds: [], result: plan ? null : '포스트시즌 진출 실패', done: !plan, plan, idx: 0 };
+  return z.post;
+}
+export function nextPostGame(s, r) {
+  const z = s.season, plan = z.post.plan, i = z.post.idx, name = plan.rounds[i];
+  const opp = postOpponent(s, r, i, plan.rounds.length);
+  return { wk: 100 + i, home: i < plan.rounds.length - 1 && r() < .6, ...opp, round: name, title: name, final: !!plan.finalName && name === plan.finalName, post: true };
+}
+export function resolvePostGame(s, r, g) {
+  const z = s.season, plan = z.post.plan;
+  z.post.rounds.push(g);
+  if (g.final && g.onField && !g.interactive) z.final = buildBroadcast(s, r, g);
+  if (g.res === 'L') { z.post.result = `${g.round} 탈락`; z.post.done = true; }
+  else if (z.post.idx >= plan.rounds.length - 1) { z.post.result = plan.finalName ? `${g.round} 우승` : `${g.round} 승리`; z.post.done = true; }
+  else z.post.idx++;
+  z.champion = !!(plan.finalName && z.post.result === `${plan.finalName} 우승`);
+}
+// 직접 플레이 결과를 경기 결과로. res: { pointsFor, pointsAgainst, line, grade, ot }
+export function interactiveGame(s, r, g, res, round = null) {
+  const z = s.season, p = s.player, side = POSITIONS[p.pos].side, str = z.teamStrength;
+  const rest = (a, b, base) => footballScore(Math.max(0, base + (a - b) * .16 + gauss(r) * 4));
+  let pf = res.pointsFor + (res.restFor ?? rest(str, g.oppStr, side === 'O' ? 6 : side === 'ST' ? 13 : 17));
+  let pa = res.pointsAgainst + (res.restAgainst ?? rest(g.oppStr, str, side === 'D' ? 6 : 17));
+  let ot = false;
+  if (pf === pa) { ot = true; if (r() < clamp(.5 + (res.grade - 65) * .02 + (str - g.oppStr) * .01, .15, .85)) pf += 3; else pa += 3; }
+  // 미니게임 밖의 나머지 경기 기록(가볍게)
+  const levelAvg = (z.key === 'NFL' ? LEVEL_AVG.NFL : z.key === 'CFL' ? LEVEL_AVG.CFL : z.teamAvg) + (g.oppStr - 50) * .12;
+  const bg = ['K', 'P'].includes(p.pos) ? {} : positionLine(s, r, p.ovr - levelAvg, .4);
+  const merged = { ...bg };
+  for (const [k, v] of Object.entries(res.line || {})) merged[k] = k === 'fglong' ? Math.max(merged[k] || 0, v) : (merged[k] || 0) + v;
+  for (const k of ['ptd', 'rtd', 'rectd']) merged[k] = res.line?.[k] || 0; // 득점 기록은 직접 플레이한 것만
+  const win = pf > pa, L = { ...merged, g: 1, gs: 1, gradeSum: res.grade };
+  add(z.line, L);
+  if (!round) { if (win) z.line.w++; else z.line.l++; }
+  return { ...g, played: true, round, res: win ? 'W' : 'L', pf, pa, line: L, grade: res.grade, snap: 1, onField: true, interactive: true, ot, plays: res.plays || [] };
+}
 export function playPostseason(s, r) {
   const z = s.season, plan = postseasonPlan(s, r);
   z.post = { rounds: [], result: plan ? null : '포스트시즌 진출 실패', done: true, plan };
@@ -403,4 +460,5 @@ export function seasonSummary(s) {
   return { games: gp, starts: L.gs, grade: gp ? round1(L.gradeSum / gp) : 0, w: L.w, l: L.l };
 }
 export function teamName(s) { return s.team.name; }
+export { footballScore };
 export { hash01 };

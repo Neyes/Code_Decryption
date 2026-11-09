@@ -1,5 +1,5 @@
 // 훈련장 · 상점: 시즌마다 상품 3개 입고(한 시즌에 하나만 구매), 스태프 계약, 개인 시설.
-import { clamp, pick, ATTR, attrsOf, overall, usd } from './core.js';
+import { clamp, pick, rng, weighted, ATTR, attrsOf, overall, POSITIONS, usd } from './core.js';
 
 // 상품: 값이 비쌀수록 많이 오릅니다. attr: 'main'(집중 육성 1순위) / 능력치 키 / null. body: 누적 피로 감소.
 export const ITEMS = [
@@ -69,8 +69,63 @@ export function buyFacility(s, id) {
   if (s.money < f.prices[lvl]) throw Error('보유 자금이 모자랍니다.');
   s.money -= f.prices[lvl]; s.shop.facilities[id] = lvl + 1;
 }
-export const staffFees = s => Object.keys(s.shop?.staff || {}).reduce((n, id) => n + (STAFF.find(x => x.id === id)?.fee || 0), 0) + (s.shop?.staff?.agent && s.contract ? Math.round((s.contract.aav || 0) * .03) : 0);
+export const staffFees = s => Object.entries(s.shop?.staff || {}).filter(([, v]) => !v.free).reduce((n, [id]) => n + (STAFF.find(x => x.id === id)?.fee || 0), 0) + (s.shop?.staff?.agent && s.contract ? Math.round((s.contract.aav || 0) * .03) : 0);
 export const growthBonus = s => ({ mult: 1 + .05 * (s.shop?.facilities?.gym || 0), focus: s.shop?.staff?.coach ? 1.2 : 1 });
 export const declineFactor = s => s.shop?.staff?.nutrition ? .75 : 1;
 export const agentBoost = s => s.shop?.staff?.agent ? 1.08 : 1;
 export { usd };
+
+// ───────── 훈련 카드 뽑기 ─────────
+// 일반 65% · 희귀 27% · 영웅 7% · 전설 1%. 10번 동안 희귀 이상이 없으면 10번째는 희귀 이상, 60번 동안 전설이 없으면 60번째는 전설.
+// 같은 해에 뽑을수록 1.5배씩 비싸집니다.
+export const RARITY = { legend: '전설', epic: '영웅', rare: '희귀', common: '일반' };
+export const RATES = { legend: .01, epic: .07, rare: .27, common: .65 };
+export const PITY = { rare: 10, legend: 60 };
+const POOL = {
+  common: [['drill', '기본기 드릴', { attr: 'rand', up: 1 }], ['ice', '아이스 배스', { body: 1 }], ['clip', '하이라이트 영상', { followers: 1.04 }], ['shake', '단백질 셰이크 한 박스', { attr: 'str', up: 1 }], ['ladder', '스피드 사다리 훈련', { attr: 'spd', up: 1 }]],
+  rare: [['lesson', '포지션 코치 원포인트 레슨', { attr: 'focus', up: 2 }], ['trainer', '개인 트레이너 1시즌 계약', { staff: 'trainer', seasons: 1 }], ['film', '필름 분석 패키지', { attr: 'mental', up: 2 }], ['pr', '홍보 매니저 1시즌 계약', { staff: 'pr', seasons: 1 }]],
+  epic: [['guru', '유명 트레이너 여름 합숙', { attr: 'focus', up: 3, all: 1 }], ['coach', '전담 포지션 코치 2시즌', { staff: 'coach', seasons: 2 }], ['spark', '각성의 순간', { potential: 1, attr: 'main', up: 2 }]],
+  legend: [['hof', '명예의 전당 레전드의 1대1 지도', { attr: 'focus', up: 4, potential: 2 }], ['notebook', '레전드의 비밀 노트', { all: 2 }]],
+};
+const PULL_BASE = { hs: 60, college: 900, nfl: 20000, cfl: 3000, military: 60, fa: 2000 };
+export const pullPrice = (s, k = 0) => Math.round((PULL_BASE[s.stage] ?? 1000) * Math.pow(1.5, (s.shop.pullYear === s.year ? s.shop.pullsThisYear || 0 : 0) + k));
+export const pullPriceN = (s, n) => Array.from({ length: n }, (_, k) => pullPrice(s, k)).reduce((a, b) => a + b, 0);
+export function pull(s, n = 1) {
+  const total = pullPriceN(s, n);
+  if (s.money < total) throw Error('보유 자금이 모자랍니다.');
+  const r = rng(s), p = s.player, out = [];
+  s.money -= total;
+  if (s.shop.pullYear !== s.year) { s.shop.pullYear = s.year; s.shop.pullsThisYear = 0; }
+  s.shop.pity ||= { rare: 0, legend: 0 };
+  for (let i = 0; i < n; i++) {
+    s.shop.pullsThisYear++; s.shop.pity.rare++; s.shop.pity.legend++;
+    let rar = weighted(r, Object.entries(RATES));
+    if (s.shop.pity.legend >= PITY.legend) rar = 'legend';
+    else if (s.shop.pity.rare >= PITY.rare && rar === 'common') rar = 'rare';
+    if (rar !== 'common') s.shop.pity.rare = 0;
+    if (rar === 'legend') s.shop.pity.legend = 0;
+    const [id, name, fx] = pick(r, POOL[rar]);
+    const lines = applyCard(s, r, fx);
+    out.push({ rarity: rar, rarityName: RARITY[rar], id, name, lines });
+  }
+  p.ovr = overall(p.pos, p.attrs); p.peak = Math.max(p.peak, p.ovr);
+  (s.shop.pulls ||= []).push(...out.map(x => ({ year: s.year, rarity: x.rarity, name: x.name })));
+  s.shop.pulls = s.shop.pulls.slice(-60);
+  return out;
+}
+function applyCard(s, r, fx) {
+  const p = s.player, keys = attrsOf(p.pos), w = POSITIONS[p.pos].w, lines = [];
+  const bump = (k, v) => { p.attrs[k] = clamp(p.attrs[k] + v, 15, 99); lines.push(`${ATTR[k][0]} +${v}`); };
+  if (fx.attr) {
+    const k = fx.attr === 'focus' || fx.attr === 'main' ? p.focus[0] : fx.attr === 'rand' ? pick(r, keys) : fx.attr === 'mental' ? (['vis', 'poise', 'acc', 'route', 'cov', 'kacc', 'cons'].find(x => keys.includes(x)) || p.focus[0]) : keys.includes(fx.attr) ? fx.attr : [...keys].sort((a, b) => w[b] - w[a])[0];
+    bump(k, fx.up);
+  }
+  if (fx.all) for (const k of keys) p.attrs[k] = clamp(p.attrs[k] + fx.all, 15, 99), lines.push(`모든 능력치 +${fx.all}`);
+  if (fx.potential) { p.potential = clamp(p.potential + fx.potential, 60, 99); lines.push('성장 속도 상승'); }
+  if (fx.body) { s.meters.body = clamp(s.meters.body - fx.body, 0, 10); lines.push(`누적 피로 −${fx.body}`); }
+  if (fx.followers) { s.followers = Math.round(s.followers * fx.followers); lines.push('팔로워 증가'); }
+  if (fx.staff) { s.shop.staff[fx.staff] = { since: s.year, until: s.year + fx.seasons, free: true }; lines.push(`${STAFF.find(x => x.id === fx.staff).name} ${fx.seasons}시즌 무료`); }
+  return [...new Set(lines)];
+}
+// 뽑기로 얻은 무료 스태프 계약 만료.
+export function expireStaff(s) { for (const [id, v] of Object.entries(s.shop?.staff || {})) if (v.free && v.until <= s.year) delete s.shop.staff[id]; }

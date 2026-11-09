@@ -5,11 +5,12 @@ import { TEAMS, TEAM_BY_ID, CFL_TEAMS, RETIRED_NUMBERS } from '../data/teams.js'
 import { COLLEGES, COLLEGE_BY_ID } from '../data/colleges.js';
 import { HIGH_SCHOOLS, SCHOOL_BY_ID } from '../data/schools.js';
 import { buildLeague, evolveLeague, depth, teamPower, contenderLabel, STARTER_SLOTS, displayName, START_YEAR } from './league.js';
-import { startSeasonSim, playGame, reviewRole, playPostseason, levelOf, roleName, computeRole, ROLE_ORDER, injuryChance } from './sim.js';
+import { startSeasonSim, playGame, reviewRole, planPostseason, nextPostGame, resolvePostGame, interactiveGame, levelOf, roleName, computeRole, ROLE_ORDER, injuryChance } from './sim.js';
 import { seasonScore, nflAwards, collegeAwards, hsAwards, cflAwards, careerScore, hallOfFame, countAwards, totals, isPro } from './awards.js';
 import { drawCard, resolveCard } from './events.js';
 import { socialSeason, ensureSocial } from './social.js';
-import { refreshStock, staffFees, growthBonus, declineFactor, agentBoost } from './shop.js';
+import { refreshStock, staffFees, growthBonus, declineFactor, agentBoost, expireStaff } from './shop.js';
+import { applyProgram, interviewFor, runOlympics } from './extras.js';
 
 export const SAVE_VERSION = 1;
 const MIN_SALARY = 885000, PS_SALARY = 320000;
@@ -61,7 +62,8 @@ export function createCareer(cfg) {
   if (!s.player.focus.length) s.player.focus = archetypeOf(cfg.pos, cfg.arch)[2].slice(0, 2);
   s.team = { kind: 'hs', id: school.id, name: school.ko, short: school.ko.replace(' 고교', ''), state: school.state };
   s.meters = { trust: 50, locker: 50, media: 50, front: 50, body: 0 };
-  s.flags = []; s.seasonMods = { playing: 0, perf: 0, injury: 0 }; s.training = 'balanced';
+  s.flags = []; s.seasonMods = { playing: 0, perf: 0, injury: 0 }; s.training = 'balanced'; s.program = 'ota';
+  s.fanTeam = TEAM_BY_ID[cfg.fanTeam] ? cfg.fanTeam : null;
   s.money = 300; s.history = []; s.season = null; s.lastSeason = null; s.card = null; s.cardResult = null; s.path = null; s.todos = []; s.moments = []; s.firsts = {};
   s.recruiting = null; s.contract = null; s.draft = null; s.teamSeasons = {}; s.legacy = null; s.retiredYear = null;
   s.league = buildLeague(START_YEAR);
@@ -108,18 +110,24 @@ export function startSeason(s) {
   s.todos = s.todos.filter(t => t.id !== 'turning');
   s.cardResult = null;
   if (s.stage === 'military') { militarySeason(s); return s; }
+  s.programLines = applyProgram(s);
   startSeasonSim(s);
+  s.autoBig = false; s.lastBig = null;
   s.phase = 'season';
   return advance(s);
 }
-// 다음 선택 카드가 나올 때까지(또는 시즌 끝까지) 진행합니다.
+// 다음 멈출 곳(선택 카드 · 빅게임 · 시즌 끝)까지 진행합니다.
 export function advance(s) {
   if (s.phase !== 'season') return s;
   s.cardResult = null;
   const r = rng(s), z = s.season;
   while (z.seg < z.segments.length) {
     const [a, b] = z.segments[z.seg];
-    for (let i = a; i < b; i++) z.games[i] = playGame(s, r, z.games[i]);
+    for (let i = z.next ?? a; i < b; i++) {
+      if (z.games[i].featured && !z.games[i].played && !s.autoBig) { z.next = i; return pauseBig(s, { ...z.games[i], idx: i }); }
+      z.games[i] = playGame(s, r, z.games[i]);
+    }
+    z.next = undefined;
     reviewRole(s, r);
     const segIdx = z.seg++;
     if (z.cardPoints.includes(segIdx)) {
@@ -127,10 +135,35 @@ export function advance(s) {
       if (card) { s.card = card; s.phase = 'card'; return s; }
     }
   }
-  playPostseason(s, r);
+  if (!z.post.plan && !z.post.done) planPostseason(s, r);
+  while (!z.post.done) {
+    const g = nextPostGame(s, r);
+    if (!s.autoBig) return pauseBig(s, g);
+    resolvePostGame(s, r, playGame(s, r, g, g.round));
+  }
   finishSeason(s);
   return s;
 }
+// 빅게임: 직접 플레이하거나 빠르게 넘길 수 있게 멈춥니다. 출전하지 못하는 역할이면 그냥 진행합니다.
+function pauseBig(s, g) {
+  s.bigGame = { ...g, myStr: s.season.teamStrength };
+  s.phase = 'bigGame';
+  return s;
+}
+export const canPlayBig = s => s.phase === 'bigGame' && !(s.season.injury?.out > 0) && !['practice', 'redshirt'].includes(s.season.role) && !(s.season.role === 'special' && s.stage === 'nfl');
+// res가 있으면 직접 플레이 결과, 없으면 자동 시뮬레이션.
+export function playBigGame(s, res = null) {
+  if (s.phase !== 'bigGame') throw Error('지금은 빅게임이 없습니다.');
+  const r = rng(s), z = s.season, g = s.bigGame;
+  const played = res && canPlayBig(s) ? interactiveGame(s, r, g, res, g.post ? g.round : null) : playGame(s, r, g, g.post ? g.round : null);
+  if (g.post) resolvePostGame(s, r, { ...played, final: g.final, round: g.round });
+  else { z.games[g.idx] = { ...played, featured: true, title: g.title }; z.next = g.idx + 1; }
+  s.lastBig = { ...played, title: g.title, round: g.round, final: g.final, post: !!g.post, champion: g.post && z.champion && z.post.done };
+  s.bigGame = null; s.phase = 'season';
+  return s.lastBig;
+}
+// 남은 빅게임을 모두 자동으로 (이번 시즌만).
+export function autoRestOfSeason(s) { s.autoBig = true; if (s.phase === 'bigGame') playBigGame(s, null); return s; }
 export function chooseCard(s, choiceId) {
   if (s.phase !== 'card' || !s.card) throw Error('선택할 카드가 없습니다.');
   const r = rng(s);
@@ -207,7 +240,7 @@ function finishSeason(s) {
   };
   rec.score = seasonScore(p.pos, L, L.g, totalGames, L.w, s.stage);
   const A = s.stage === 'hs' ? hsAwards(s, r, rec) : s.stage === 'college' ? collegeAwards(s, r, rec) : s.stage === 'cfl' ? cflAwards(s, r, rec) : nflAwards(s, r, rec);
-  rec.awards = A.awards; rec.race = A.race;
+  rec.awards = [...A.awards, ...(s.pendingAwards || [])]; rec.race = A.race; s.pendingAwards = [];
   // 첫 기록들
   if (L.g) first(s, `g:${s.stage}`, s.stage === 'nfl' ? `${s.team.name} 소속으로 NFL 데뷔전을 치렀습니다.` : s.stage === 'college' ? `${s.team.name} 유니폼을 입고 대학 무대 데뷔.` : s.stage === 'cfl' ? 'CFL 데뷔전.' : '바시티 데뷔전을 치렀습니다.');
   const td = L.ptd + L.rtd + L.rectd + L.dtd;
@@ -244,9 +277,11 @@ function finishSeason(s) {
   s.history.push(rec);
   s.lastSeason = { ...z, games: z.games.map(g => ({ wk: g.wk, oppName: g.oppName, home: g.home, res: g.res, pf: g.pf, pa: g.pa, grade: g.grade, injury: g.injury || null, line: g.line })) };
   s.season = null;
-  s.todos = s.todos.filter(t => !['report', 'broadcast', 'turning'].includes(t.id));
+  s.todos = s.todos.filter(t => !['report', 'broadcast', 'turning', 'interview', 'olympics'].includes(t.id) || (t.id === 'olympics' && !t.seen));
   s.todos.unshift({ id: 'report', year: rec.year, seen: false });
   if (z.final) { s.todos.splice(1, 0, { id: 'broadcast', year: rec.year, seen: false }); rec.broadcast = z.final; }
+  const iv = interviewFor(rec);
+  if (iv && (rec.champion || rec.awards.some(a => a.pts >= 10) || r() < .55)) s.todos.push({ id: 'interview', year: rec.year, seen: false, ...iv });
   const turn = turningPoint(s, r, rec);
   if (turn) s.todos.push({ id: 'turning', year: rec.year, seen: false, ...turn });
   refreshStock(s, r);
@@ -410,7 +445,7 @@ export function draftProjection(s) {
   const col = s.history.filter(h => h.stage === 'college'), last = col.at(-1);
   const honor = col.reduce((n, h) => n + h.awards.reduce((m, a) => m + a.pts, 0), 0);
   const tierAdj = { P4: 0, G5: -1.5, FCS: -3, JUCO: -4 }[COLLEGE_BY_ID[s.team.id]?.tier] ?? 0;
-  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8;
+  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8 + (s.flags.includes('seniorBowl') ? 1.5 : 0) + (s.flags.includes('interviewAce') ? 1 : 0);
   const pickN = v >= 84 ? 1 + Math.round((88 - Math.min(88, v)) * 1.2) : v >= 63 ? Math.round(5 + Math.pow(84 - v, 1.9) * .9) : 999;
   const pk = clamp(pickN, 1, 999);
   const round = pk <= 257 ? Math.min(7, Math.ceil(pk / 32)) : null;
@@ -421,7 +456,7 @@ function combine(s, r) {
   const p = s.player, a = k => p.attrs[k] ?? p.ovr;
   const size = { QB: .22, RB: .05, WR: 0, TE: .28, OL: .7, DT: .62, EDGE: .25, LB: .18, CB: -.02, S: .05, K: .5, P: .55 }[p.pos];
   return {
-    forty: Math.round(clamp(4.24 + (99 - (p.attrs.spd ?? p.attrs.agi ?? 55)) * .011 + size + gauss(r) * .04, 4.21, 5.6) * 100) / 100,
+    forty: Math.round(clamp(4.24 + (99 - (p.attrs.spd ?? p.attrs.agi ?? 55)) * .011 + size + gauss(r) * .04 - (s.flags.includes('combinePrep') ? .05 : 0), 4.21, 5.6) * 100) / 100,
     bench: Math.round(clamp(8 + ((p.attrs.str ?? 50) - 40) * .45 + (['OL', 'DT'].includes(p.pos) ? 8 : 0) + gauss(r) * 2, 4, 45)),
     vertical: round1(clamp(27 + ((p.attrs.agi ?? p.attrs.spd ?? 55) - 50) * .22 - size * 8 + gauss(r), 22, 44)),
     broad: Math.round(clamp(105 + ((p.attrs.spd ?? 55) - 50) * .5 - size * 16 + gauss(r) * 3, 90, 140)),
@@ -619,7 +654,9 @@ function nextYear(s, mutate) {
   s.redshirt = false; s.walkon = s.walkon && s.stage === 'college';
   if (s.flags.includes('holdoutFail')) { s.seasonMods.playing = -.2; s.flags = s.flags.filter(f => f !== 'holdoutFail'); }
   s.path = null; s.phase = 'ready';
-  s.todos = s.todos.filter(t => !t.seen || t.id === 'draft').filter(t => t.id !== 'turning');
+  s.todos = s.todos.filter(t => !t.seen || t.id === 'draft').filter(t => !['turning', 'interview'].includes(t.id));
+  expireStaff(s);
+  runOlympics(s);
   s.goal = goalFor(s);
 }
 export function setTraining(s, plan) { if (!['balanced', 'intense', 'recovery'].includes(plan)) throw Error('훈련 계획'); s.training = plan; return injuryChance(s, plan); }

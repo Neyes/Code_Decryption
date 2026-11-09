@@ -1,5 +1,12 @@
 // 앱 진입점: 상태 보관, 렌더링, 이벤트 위임, 저장.
-import { createCareer, makeCandidates, startSeason, advance, chooseCard, choosePath, chooseTurning, retireCareer, setTraining, setRedshirt } from './engine/career.js';
+import { createCareer, makeCandidates, startSeason, advance, chooseCard, choosePath, chooseTurning, retireCareer, setTraining, setRedshirt, playBigGame, autoRestOfSeason, canPlayBig, seasonLabel } from './engine/career.js';
+import { setProgram, answerInterview } from './engine/extras.js';
+import { pull } from './engine/shop.js';
+import { ATTR, attrsOf } from './engine/core.js';
+import * as FX from './ui/fx.js';
+import { openClutch, clutchLevelAvg } from './ui/clutch.js';
+import { sceneUrl, iconUrl } from './ui/pixel.js';
+import { TEAM_BY_ID } from './data/teams.js';
 import { CARD_BY_ID } from './engine/events.js';
 import { buyItem, hireStaff, buyFacility, STAFF } from './engine/shop.js';
 import { careerScore, countAwards, honorsLine, totals, isPro } from './engine/awards.js';
@@ -11,7 +18,8 @@ import { spriteUrl, portraitUrl } from './ui/pixel.js';
 const $ = sel => document.querySelector(sel);
 let state = loadCareer();
 let tab = 'home', sheetView = null, pathSel = null, focusDraft = [], bcTimer = null;
-const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', seedN: 0, cand: null, focus: [] };
+const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [] };
+let busy = false;
 V.setCardIndex(CARD_BY_ID);
 if (state && !state.player) state = null;
 
@@ -32,6 +40,7 @@ function renderSheet() {
   if ((v.kind === 'path' && !s?.path) || (v.kind === 'turning' && !s?.todos.some(t => t.id === 'turning' && !t.done))) { sheetView = null; root.innerHTML = ''; document.body.style.overflow = ''; return; }
   root.innerHTML = v.kind === 'report' ? V.reportSheet(s, v.year) : v.kind === 'path' ? V.pathSheet(s, pathSel) : v.kind === 'turning' ? V.turningSheet(s, focusDraft)
     : v.kind === 'draft' ? V.draftSheet(s) : v.kind === 'broadcast' ? V.broadcastSheet(s, v.year, v.shown) : v.kind === 'shop' ? V.shopSheet(s)
+    : v.kind === 'interview' ? V.interviewSheet(s, v.year) : v.kind === 'olympics' ? V.olympicsSheet(s, v.year) : v.kind === 'patch' ? V.patchSheet()
     : v.kind === 'settings' ? V.settingsSheet(s, storageStatus()) : v.kind === 'image' ? V.imageSheet(v.url) : v.kind === 'text' ? V.textSheet(v.text) : v.kind === 'archive' ? V.archiveSheet(listArchive()) : v.kind === 'confirm' ? V.confirmSheet(v.title, v.body, v.action, v.label) : '';
   const pbp = $('#pbp'); if (pbp) pbp.scrollTop = pbp.scrollHeight;
 }
@@ -55,6 +64,84 @@ function archiveEntry(s) {
     mvp: countAwards(s, 'mvp'), sb: countAwards(s, 'sbChamp'), awards: s.history.reduce((n, h) => n + (h.awards?.length || 0), 0), honors: honorsLine(s), hof: s.legacy?.hof?.chance ?? 0 };
 }
 function afterRetire() { archiveCareer(archiveEntry(state)); tab = 'home'; persist(); render(); window.scrollTo(0, 0); }
+async function retireShow() {
+  const L = state.legacy, num = (L?.legend || []).find(x => x.kind === 'number');
+  await FX.retirement({ name: state.player.name, number: state.player.number, team: num ? TEAM_BY_ID[num.teamId]?.ko : state.team?.name, retired: !!num, scene: stageScene('stadium', 'cheer', { confetti: true, board: 'THANK YOU' }) });
+  afterRetire(); toast('은퇴했습니다. 수고 많았어요.');
+}
+
+// ───────── 연출과 함께 진행 ─────────
+const playedList = z => z ? [...z.games.filter(g => g.played), ...(z.post?.rounds || [])] : [];
+const look = () => ({ colors: V.teamColors(state), avatar: state.player.avatar, number: state.player.number });
+const stageScene = (name, pose, extra = {}) => sceneUrl({ scene: name === 'stadium' && state.stage === 'hs' ? 'hs' : name, colors: V.teamColors(state), players: [{ pose, ...look() }], ...extra });
+function badge(text) { const b = document.createElement('div'); b.className = 'badge-pop'; b.textContent = text; document.body.appendChild(b); setTimeout(() => b.remove(), 3000); }
+const AWARD_ICON = k => ['sbChamp', 'nationalChamp', 'stateChamp', 'greyCup', 'confChamp'].includes(k) ? 'ring' : ['proBowl', 'allPro1', 'allPro2', 'allAmerican', 'consensusAA', 'allConf', 'allState', 'hsAA', 'olympicMedal', 'olympicGold'].includes(k) ? 'star' : 'trophy';
+// 엔진 한 걸음(fn) 뒤에 새로 치른 경기·부상·시즌 종료를 연출합니다.
+async function step(fn) {
+  if (busy) return;
+  busy = true;
+  const s0 = state, z0 = s0.season, before = playedList(z0).length, histLen = s0.history.length, moments = s0.moments.length;
+  const wl0 = playedList(z0).filter(g => !g.round);
+  let ok = true;
+  try { fn(); persist(); } catch (e) { console.error(e); toast(e.message || '문제가 생겼어요.'); ok = false; }
+  if (ok) {
+    try {
+      const z = state.season || state.lastSeason, all = playedList(z), fresh = all.slice(before);
+      if (fresh.length) {
+        const pose = ['K', 'P'].includes(state.player.pos) ? 'kick' : 'run';
+        await FX.seasonPlayback({ title: `${z.year} 시즌`, sub: state.history.length > histLen ? state.history.at(-1).teamName : state.team.name, sceneA: stageScene('stadium', pose), sceneB: stageScene('stadium', pose === 'run' ? 'run2' : 'stand'),
+          games: fresh.map(g => ({ tag: g.round || (g.featured ? '빅게임' : `${g.wk}주차`), opp: `${g.home ? 'vs' : '@'} ${g.oppName}`, res: g.res, pf: g.pf, pa: g.pa, line: g.injury ? `부상: ${g.injury}` : V.lineSummary(state.player.pos, g.line), grade: g.grade, big: !!(g.featured || g.round) })),
+          w0: wl0.filter(g => g.res === 'W').length, l0: wl0.filter(g => g.res === 'L').length });
+        const inj = fresh.find(g => g.injury);
+        if (inj) await FX.injury({ kind: inj.injury, games: (z.injuries.at(-1) || {}).games || '', scene: stageScene('medical', 'sad') });
+      }
+      if (state.history.length > histLen) await seasonEnd(state.history.at(-1));
+      else if (state.phase === 'bigGame') { const g = state.bigGame; await FX.versus({ title: g.title || g.round, me: state.team.name, opp: g.oppName, myColors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), scene: sceneUrl({ scene: state.stage === 'hs' ? 'hs' : 'stadium', colors: V.teamColors(state), opp: V.colorsByName(g.oppName), board: 'BIG GAME', players: [{ pose: 'stance', ...look(), x: 46 }, { pose: 'stance', colors: V.colorsByName(g.oppName), avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }) }); }
+      for (const m of state.moments.slice(moments)) if (m.kind === 'first') badge(`🏈 ${m.text}`);
+    } catch (e) { console.error(e); }
+  }
+  busy = false;
+  render(); window.scrollTo(0, 0);
+  if (state?.phase === 'offseason' && state.history.length > histLen) { markSeen('report'); openSheet({ kind: 'report', year: state.history.at(-1).year }); }
+}
+async function seasonEnd(rec) {
+  if (!rec || rec.stage === 'military') return;
+  const p = state.player, keys = Object.keys(rec.changes || {});
+  await FX.growthReveal({ year: rec.year, ovrBefore: rec.ovrBefore, ovrAfter: rec.ovrAfter, items: keys.map(k => ({ label: ATTR[k]?.[0] || k, before: rec.attrsBefore?.[k] ?? rec.attrsAfter[k] - rec.changes[k], after: rec.attrsAfter[k], focus: p.focus.includes(k) })), breakout: rec.breakout ? ATTR[rec.breakout]?.[0] : null, crossed: rec.crossed });
+  const big = [...rec.awards].filter(a => a.pts >= 5).sort((a, b) => b.pts - a.pts).slice(0, 4);
+  for (const a of big) await FX.ceremony({ eyebrow: `${rec.year} 시즌 · ${rec.teamName}`, title: a.name, sub: a.kind === 'sbChamp' ? '롬바디 트로피를 들어 올렸다!' : a.kind === 'mvp' ? '리그 최고의 선수로 뽑혔다.' : a.kind === 'heisman' ? '대학 풋볼 최고의 영예.' : '', icon: iconUrl(AWARD_ICON(a.kind)), sprite: spriteUrl({ pose: 'cheer', ...look() }), colors: V.teamColors(state) });
+}
+async function afterPath(text, kind, yearBefore, contractBefore) {
+  const s = state;
+  if (kind === 'declare' && s.draft) {
+    const d = s.draft, t = d.drafted ? TEAM_BY_ID[d.team] : null;
+    await FX.draftReveal({ year: d.year, round: d.round, inRound: d.inRound, pick: d.pick, team: t?.ko, colors: t?.colors || ['#3A4560'], drafted: d.drafted, scene: sceneUrl({ scene: 'draft', colors: t ? t.colors : ['#3A4560', '#FFFFFF'], board: t ? t.id : 'DRAFT', players: [{ pose: d.drafted ? 'cheer' : 'sad', colors: t ? t.colors : ['#5A6372', '#FFFFFF'], avatar: s.player.avatar, number: s.player.number }] }) });
+    markSeen('draft');
+  }
+  const c = s.contract;
+  if (c && c !== contractBefore && s.stage !== 'hs' && (!contractBefore || c.aav !== contractBefore.aav || c.teamId !== contractBefore.teamId) && ['nfl', 'cfl'].includes(s.stage)) {
+    await FX.signing({ team: s.team.name, years: c.years, total: usd(c.total || c.aav * c.years), aav: usd(c.aav), colors: V.teamColors(s) });
+  }
+  if (s.phase === 'ready' && s.year !== yearBefore) {
+    const stageNames = { hs: `고교 ${s.grade}학년`, college: `대학 ${s.collegeYear}학년`, nfl: `NFL ${s.proSeasons + 1}년 차`, cfl: 'CFL', military: '군 복무' };
+    await FX.titleCard({ year: s.year, label: stageNames[s.stage] || '', sub: s.team.name, scene: stageScene(s.stage === 'military' ? 'school' : 'practice', 'cheer') });
+  }
+}
+async function playBig(direct) {
+  if (busy || state.phase !== 'bigGame') return;
+  const g = state.bigGame;
+  let res = null;
+  if (direct && canPlayBig(state)) {
+    busy = true;
+    res = await openClutch(document.getElementById('clutch-root'), { player: state.player, game: g, colors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), myName: state.team.short || state.team.name, oppName: g.oppName, levelAvg: clutchLevelAvg(state) });
+    busy = false;
+  }
+  let played;
+  try { played = playBigGame(state, res); persist(); } catch (e) { toast(e.message); return; }
+  render();
+  await FX.gameResult({ title: played.title || played.round, win: played.res === 'W', pf: played.pf, pa: played.pa, me: state.team.short || state.team.name, opp: played.oppName, line: V.lineSummary(state.player.pos, played.line), grade: played.grade ?? '-', ot: played.ot, sprite: spriteUrl({ pose: played.res === 'W' ? 'cheer' : 'sad', ...look() }) });
+  await step(() => advance(state));
+}
 
 // 커리어 카드 PNG
 function shareCard() {
@@ -117,7 +204,7 @@ document.addEventListener('click', e => {
     case 'setup-create': {
       const c = makeCandidates(setup.pos, `${setup.name}:${setup.pos}:${setup.seedN}`)[setup.cand];
       try {
-        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus });
+        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus });
         persist(); tab = 'home'; render(); window.scrollTo(0, 0); toast('첫 시즌이 준비됐어요.');
       } catch (err) { toast(err.message); }
       break;
@@ -125,9 +212,16 @@ document.addEventListener('click', e => {
     // 진행
     case 'training': mutate(() => setTraining(state, v)); break;
     case 'redshirt': mutate(() => setRedshirt(state, !state.redshirt)); break;
-    case 'start-season': mutate(() => startSeason(state), () => { window.scrollTo(0, 0); if (state.phase === 'offseason') { markSeen('report'); openSheet({ kind: 'report', year: state.history.at(-1).year }); } }); break;
-    case 'advance': mutate(() => advance(state), () => { if (state.phase === 'offseason') { markSeen('report'); openSheet({ kind: 'report', year: state.history.at(-1).year }); } else window.scrollTo(0, 0); }); break;
-    case 'choose-card': mutate(() => chooseCard(state, +v), () => window.scrollTo(0, 0)); break;
+    case 'start-season': step(() => startSeason(state)); break;
+    case 'advance': step(() => advance(state)); break;
+    case 'choose-card': V.markRollFresh(true); mutate(() => chooseCard(state, +v), () => { window.scrollTo(0, 0); setTimeout(() => V.markRollFresh(false), 50); }); break;
+    case 'big-play': playBig(true); break;
+    case 'big-auto': playBig(false); break;
+    case 'big-auto-all': step(() => autoRestOfSeason(state)); break;
+    case 'program': mutate(() => setProgram(state, v)); break;
+    case 'social-pane': V.setSocialPane(v); render(); break;
+    case 'interview': { const t = state.todos.find(x => x.id === 'interview' && x.year === sheetView?.year); if (t) mutate(() => answerInterview(state, t, v), ans => { toast(ans.lines.join(' · ')); renderSheet(); }); break; }
+    case 'pull': { if (busy) break; let cards; try { cards = pull(state, +v); persist(); } catch (err) { toast(err.message); break; } busy = true; FX.gachaReveal(cards).then(() => { busy = false; renderSheet(); render(); toast(cards.map(c => `${c.rarityName} ${c.name}`).join(' · ')); }); break; }
     case 'open-todo': {
       const t = state.todos.find(x => x.id === v); if (!t) break;
       markSeen(v);
@@ -136,6 +230,8 @@ document.addEventListener('click', e => {
       else if (v === 'draft') openSheet({ kind: 'draft' });
       else if (v === 'turning') { focusDraft = [...state.player.focus]; openSheet({ kind: 'turning' }); }
       else if (v === 'shop') openSheet({ kind: 'shop' });
+      else if (v === 'interview') openSheet({ kind: 'interview', year: t.year });
+      else if (v === 'olympics') { const o = state.olympics?.[t.year]; (o?.medal ? FX.ceremony({ eyebrow: `${o.year} ${o.city} 올림픽`, title: o.name, sub: o.exemption ? '병역 특례 대상이 됐다!' : `${o.country} 국가대표`, icon: iconUrl('star'), sprite: spriteUrl({ pose: 'cheer', colors: o.country === '대한민국' ? ['#003478', '#C60C30'] : ['#0A3161', '#B31942'], avatar: state.player.avatar, number: state.player.number }) }) : Promise.resolve()).then(() => openSheet({ kind: 'olympics', year: t.year })); }
       render(); renderSheet();
       break;
     }
@@ -143,16 +239,18 @@ document.addEventListener('click', e => {
     case 'open-path': pathSel = null; openSheet({ kind: 'path' }); break;
     case 'path-pick': pathSel = v; renderSheet(); break;
     case 'path-confirm': {
-      const id = pathSel; if (!id) break;
-      const before = state.phase;
-      const text = mutate(() => choosePath(state, id));
-      if (text === undefined) break;
+      const id = pathSel; if (!id || busy) break;
+      const yearBefore = state.year, contractBefore = state.contract, kind = id.split(':')[0];
+      let text;
+      try { text = choosePath(state, id); persist(); } catch (err) { toast(err.message); break; }
       pathSel = null;
-      if (state.phase === 'retired') { closeSheet(); afterRetire(); toast('은퇴했습니다. 수고 많았어요.'); break; }
-      if (state.phase === 'offseason' && state.path) { toast(text); renderSheet(); if (state.todos.some(t => t.id === 'draft' && !t.seen)) { markSeen('draft'); openSheet({ kind: 'draft' }); } break; }
-      closeSheet(); toast(text);
-      if (state.todos.some(t => t.id === 'draft' && !t.seen)) { markSeen('draft'); openSheet({ kind: 'draft' }); }
-      void before;
+      if (state.phase === 'retired') { closeSheet(); retireShow(); break; }
+      busy = true; sheetView = null; renderSheet();
+      afterPath(text, kind, yearBefore, contractBefore).then(() => {
+        busy = false; render(); window.scrollTo(0, 0);
+        if (state.phase === 'offseason' && state.path) { toast(text); openSheet({ kind: 'path' }); }
+        else toast(text);
+      });
       break;
     }
     case 'focus-pick': focusDraft = focusDraft.includes(v) ? focusDraft.filter(x => x !== v) : [...focusDraft, v].slice(-2); renderSheet(); break;
@@ -162,7 +260,7 @@ document.addEventListener('click', e => {
     case 'staff': { const on = !state.shop.staff[v]; mutate(() => hireStaff(state, v, on), () => { toast(on ? `${STAFF.find(x => x.id === v).name}와 계약했어요.` : '계약을 해지했어요.'); renderSheet(); }); break; }
     case 'facility': mutate(() => buyFacility(state, v), () => { toast('시설을 업그레이드했어요.'); renderSheet(); }); break;
     case 'retire-ask': openSheet({ kind: 'confirm', title: '지금 은퇴할까요?', body: '은퇴하면 이 커리어는 끝나고, 은퇴 기록과 커리어 카드가 남아요.', action: 'retire-now', label: '은퇴하기' }); break;
-    case 'retire-now': mutate(() => retireCareer(state, '스스로 은퇴를 결정했습니다.'), () => { closeSheet(); afterRetire(); }); break;
+    case 'retire-now': mutate(() => retireCareer(state, '스스로 은퇴를 결정했습니다.'), () => { closeSheet(); retireShow(); }); break;
     case 'share-card': shareCard(); break;
     case 'new-career-ask': openSheet({ kind: 'confirm', title: '새 커리어를 시작할까요?', body: '지금 진행 중인 커리어는 지워져요. 필요하면 먼저 저장 파일을 내보내세요.', action: 'new-career', label: '새로 시작' }); break;
     case 'new-career': state = null; saveCareer(null); Object.assign(setup, { step: 0, cand: null, focus: [], seedN: setup.seedN + 1, name: '' }); closeSheet(); window.scrollTo(0, 0); break;
@@ -174,7 +272,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   const k = e.target.dataset?.input;
-  if (!k || k === 'import') return;
+  if (!k || k === 'import' || k === 'schoolId' || k === 'fanTeam') return;
   setup[k] = e.target.value;
   const btn = document.querySelector('[data-action="setup-next"]');
   if (btn && setup.step === 1) btn.disabled = !(setup.name.trim() && setup.number !== '' && +setup.number >= 0 && +setup.number <= 99);
@@ -182,12 +280,13 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   const k = e.target.dataset?.input;
   if (k === 'schoolId') { setup.schoolId = e.target.value; render(); }
+  if (k === 'fanTeam') { setup.fanTeam = e.target.value; render(); }
   if (k === 'import' && e.target.files?.[0]) {
     try { state = await importFile(e.target.files[0]); persist(); tab = 'home'; closeSheet(); toast('저장 파일을 불러왔어요.'); }
     catch (err) { toast(err.message); }
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetView) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (FX.fxBusy()) FX.closeFx(); else if (sheetView) closeSheet(); } });
 void getTheme; void usd;
 // 업데이트가 배포돼도 진행 중인 화면을 잃지 않도록(아티팩트 뷰어의 핫 리로드 훅).
 const hot = typeof window !== 'undefined' ? window.claude?.hot : null;
@@ -199,6 +298,7 @@ function start(data = {}) {
   render();
 }
 hot?.ready ? hot.ready(start) : start(hot?.data ?? {});
+try { if (state && localStorage.getItem('tdlife.patch') !== V.PATCH.id) { localStorage.setItem('tdlife.patch', V.PATCH.id); openSheet({ kind: 'patch' }); } } catch {}
 // 내 Claude 계정 저장소: 더 최근 저장이 있으면 그걸로 이어 갑니다.
 connectCloud().then(async c => {
   if (!c) return;

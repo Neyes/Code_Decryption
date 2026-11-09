@@ -351,3 +351,38 @@ export function portraitUrl(avatar = {}, colors = ['#1F6B3B', '#FFFFFF'], number
 }
 export function iconUrl(name) { return render('icon:' + name, 12, 12, ctx => drawIcon(ctx, name, 0, 0)); }
 export const PIXEL_READY = has;
+
+// ───────── 캔버스용 도구 (미니게임·연출) ─────────
+const spriteCache = new Map();
+// 미리 그려 둔 스프라이트 캔버스 (drawImage로 빠르게 찍기).
+export function spriteCanvas(o) {
+  if (!has()) return null;
+  const key = JSON.stringify(o);
+  if (spriteCache.has(key)) return spriteCache.get(key);
+  const c = document.createElement('canvas'); c.width = SPRITE_W; c.height = SPRITE_H;
+  drawPlayer(c.getContext('2d'), 0, 0, o);
+  spriteCache.set(key, c);
+  if (spriteCache.size > 200) spriteCache.delete(spriteCache.keys().next().value);
+  return c;
+}
+// 큰 글자: 3x5 글꼴을 scale배로, 외곽선과 함께.
+export function bigText(ctx, str, cx, cy, color, scale = 2, outline = OUT) {
+  const w = textWidth(str) * scale, x0 = Math.round(cx - w / 2), y0 = Math.round(cy - 5 * scale / 2);
+  let x = x0;
+  for (const ch of String(str).toUpperCase()) {
+    const g = FONT[ch] || FONT[' '];
+    for (let i = 0; i < 15; i++) if (g[i] === '1') {
+      const px = x + (i % 3) * scale, py = y0 + Math.floor(i / 3) * scale;
+      ctx.fillStyle = outline; ctx.fillRect(px - 1, py - 1, scale + 2, scale + 2);
+    }
+    x += 4 * scale;
+  }
+  x = x0;
+  for (const ch of String(str).toUpperCase()) {
+    const g = FONT[ch] || FONT[' '];
+    ctx.fillStyle = color;
+    for (let i = 0; i < 15; i++) if (g[i] === '1') ctx.fillRect(x + (i % 3) * scale, y0 + Math.floor(i / 3) * scale, scale, scale);
+    x += 4 * scale;
+  }
+}
+export { text as pixelText, textWidth, vivid, shade, lum, drawPlayer, OUT };

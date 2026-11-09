@@ -234,6 +234,133 @@ export const CARDS = [
       { label: '시즌이 끝나면 귀국해 입대한다', hint: '2시즌 공백 뒤 FA로 복귀', chance: C(95), ok: { text: '발표하자 한국 팬들의 응원이 쏟아졌다. 구단은 계약을 정지하기로 했다.', fx: { flags: ['enlist'], meters: { media: 12 }, followers: 1.3 } }, ng: { text: '', fx: {} } },
       { label: '미국 시민권을 취득한다', hint: '한국 팬들의 실망이 크다', chance: C(90), ok: { text: '시민권 선서를 마쳤다. 한국 커뮤니티가 들끓었다.', fx: { flags: ['militaryDone'], nat: 'US', meters: { media: -18 }, followers: .8 } }, ng: { text: '', fx: {} } },
     ] },
+  // ── 미식축구만의 순간 ──
+  { id: 'fb-4thdown', when: { stage: ['hs', 'college', 'nfl', 'cfl'], side: 'O', roleIn: ['starter', 'key'] }, eyebrow: '경기 중 · 4th & 1', title: '4번째 다운, 감독의 눈빛',
+    body: '상대 진영 38야드, 4th & 1. 펀트 팀이 사이드라인에서 대기 중인데 감독이 헤드셋을 벗고 나를 본다. "갈 수 있겠어?"',
+    choices: [
+      { label: '"갑시다." 밀어붙인다', hint: '성공하면 흐름을 가져온다', chance: C(52, 'trust', .4), ok: { text: '스냅과 동시에 2야드를 짜냈다. 퍼스트 다운! 관중석이 폭발했다.', fx: { meters: { trust: 6, media: 4 }, season: { perf: 1 } } }, ng: { text: '반 야드가 모자랐다. 턴오버 온 다운스. 상대가 그 드라이브에서 득점했다.', fx: { meters: { trust: -5 }, season: { perf: -.6 } } } },
+      { label: '펀트로 필드 포지션을 지킨다', chance: C(82), ok: { text: '펀트가 상대 5야드 라인에 멈췄다. 수비가 다음 공격을 막아 냈다.', fx: { meters: { trust: 2 } } }, ng: { text: '무난했지만 다음 날 지역 라디오가 "소심한 콜"을 성토했다.', fx: { meters: { media: -2 } } } },
+    ] },
+  { id: 'fb-2pt', when: { stage: ['hs', 'college', 'nfl', 'cfl'], side: 'O', roleIn: ['starter', 'key', 'rotation'] }, eyebrow: '종료 0:04 · 1점 차', title: '2점 컨버전이냐, 연장이냐',
+    body: '방금 터치다운으로 22-23. 킥이면 연장, 2점 컨버전이면 경기 끝. 공격 코디네이터가 2점 플레이에 내 이름을 불렀다.',
+    choices: [
+      { label: '2점 컨버전, 나에게 맡겨라', chance: C(47, 'trust', .3), ok: { text: '엔드존에 공을 꽂았다. 24-23 역전승! 동료들이 나를 깔고 앉았다.', fx: { meters: { trust: 7, locker: 6, media: 8 }, season: { perf: 1.2 }, followers: 1.25 } }, ng: { text: '골라인 앞에서 막혔다. 경기가 끝났다. 라커룸이 조용하다.', fx: { meters: { trust: -3, media: -3 }, season: { perf: -.5 } } } },
+      { label: 'PAT로 연장을 가자고 건의한다', chance: C(78), ok: { text: '연장전 첫 공격에서 결승 필드골. 이겼다.', fx: { meters: { trust: 3 } } }, ng: { text: '연장에서 졌다. "그때 2점을 갔어야"라는 말이 오래 따라다녔다.', fx: { meters: { media: -3 } } } },
+    ] },
+  { id: 'fb-trick', when: { stage: ['hs', 'college', 'nfl'], pos: ['QB', 'RB', 'WR', 'TE'] }, eyebrow: '골라인 4th & goal', title: '트릭 플레이 콜',
+    body: '4th & goal, 1야드. 코치가 웃으며 플레이 카드를 보여 준다. 공이 두 번 손을 바꾼 뒤 쿼터백이 엔드존에서 패스를 받는 그 플레이, \'필리 스페셜\' 변형이다.',
+    choices: [
+      { label: '트릭 플레이를 한다', hint: '성공하면 하이라이트, 실패하면 역적', chance: C(46), ok: { text: '수비가 완전히 속았다. 터치다운! 그날 밤 하이라이트 1위.', fx: { meters: { media: 9, trust: 4 }, season: { perf: 1.2 }, followers: 1.35 } }, ng: { text: '핸드오프가 엉켰다. 펌블. 감독이 플레이 카드를 구겨 던졌다.', fx: { meters: { trust: -5 }, season: { perf: -.7 } } } },
+      { label: '정석대로 힘으로 밀어붙인다', chance: C(64), ok: { text: '다이브로 1야드를 넘었다. 터치다운.', fx: { meters: { trust: 3 } } }, ng: { text: '골라인 스탠드에 막혔다.', fx: { meters: { trust: -1 } } } },
+    ] },
+  { id: 'fb-hailmary', when: { stage: ['hs', 'college', 'nfl'], pos: ['QB', 'WR', 'TE'] }, eyebrow: '종료 0:02 · 4점 차', title: '헤일 메리',
+    body: '마지막 한 번. 52야드. 모두가 엔드존으로 달린다. 공이 하늘 높이 떠오른다.',
+    choices: [
+      { label: '내가 직접 해결한다 (점프 캐치 / 끝까지 버티고 던진다)', chance: C(30), ok: { text: '수비수 셋 사이에서 공이 내 손에 들어왔다. 버저비터 터치다운! 경기장이 무너질 듯 흔들렸다.', fx: { meters: { media: 14, trust: 6, locker: 6 }, season: { perf: 1.5 }, followers: 1.6 } }, ng: { text: '공이 손끝을 스치고 바닥에 떨어졌다.', fx: { season: { perf: -.3 } } } },
+      { label: '공을 쳐 내 동료에게 기회를 준다', chance: C(42), ok: { text: '튕겨 나온 공을 동료가 낚아챘다. 터치다운! 내 팁이 결정적이었다.', fx: { meters: { locker: 8, media: 6 }, followers: 1.2 } }, ng: { text: '수비가 공을 쳐 냈다. 경기 끝.', fx: {} } },
+    ] },
+  { id: 'fb-iced', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['K'] }, eyebrow: '종료 0:03 · 결승 필드골', title: '아이스 더 키커',
+    body: '47야드 결승 필드골. 스냅 직전, 상대 감독이 타임아웃을 불렀다. 30초 동안 경기장 전체가 나만 본다.',
+    choices: [
+      { label: '처음부터 루틴을 다시 밟는다', chance: C(66, 'trust', .2), ok: { text: '세 걸음 뒤로, 두 걸음 옆으로. 공이 골대 한가운데를 가른다. 끝내기!', fx: { meters: { trust: 7, media: 10 }, attrs: { poise: 1 }, followers: 1.3 } }, ng: { text: '왼쪽 폴을 맞고 튕겨 나왔다.', fx: { meters: { trust: -6, media: -5 } } } },
+      { label: '헬멧을 벗고 관중석을 본다. 즐긴다', chance: C(55), ok: { text: '여유가 통했다. 결승 필드골 성공. 상대 벤치가 머리를 감쌌다.', fx: { meters: { media: 8 }, attrs: { poise: 2 } } }, ng: { text: '너무 여유를 부렸나. 짧았다.', fx: { meters: { trust: -6 } } } },
+    ] },
+  { id: 'fb-fakepunt', when: { stage: ['hs', 'college', 'nfl'], pos: ['P'] }, eyebrow: '4th & 4 · 자기 진영 45야드', title: '페이크 펀트 사인',
+    body: '스페셜팀 코치가 귀를 두 번 만졌다. 페이크 사인이다. 앞이 비어 있다.',
+    choices: [
+      { label: '공을 들고 직접 달린다', chance: C(48), ok: { text: '12야드 질주로 퍼스트 다운! 펀터가 달리자 관중이 미쳤다.', fx: { meters: { media: 9, trust: 5 }, attrs: { ath: 1 } } }, ng: { text: '2야드 앞에서 넘어졌다. 상대가 좋은 필드 포지션을 얻었다.', fx: { meters: { trust: -5 } } } },
+      { label: '못 본 척 정상적으로 찬다', chance: C(80), ok: { text: '58야드 펀트가 코너로 빠져나갔다.', fx: { meters: { trust: 1 } } }, ng: { text: '코치가 사이드라인에서 팔을 휘저었다.', fx: { meters: { trust: -3 } } } },
+    ] },
+  { id: 'fb-hardcount', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['DT', 'EDGE'] }, eyebrow: '3rd & 2', title: '쿼터백의 하드 카운트',
+    body: '상대 QB가 목소리를 높이며 스냅 카운트를 끈다. 몸이 먼저 튀어 나가고 싶다.',
+    choices: [
+      { label: '끝까지 공만 보고 출발한다', chance: C(70), ok: { text: '스냅과 동시에 터졌다. 러닝백을 백필드에서 잡았다.', fx: { season: { perf: .8 }, meters: { trust: 3 } } }, ng: { text: '반 박자 늦었다. 퍼스트 다운을 내줬다.', fx: {} } },
+      { label: '카운트를 읽고 먼저 뛴다', hint: '맞히면 색, 틀리면 페널티', chance: C(40), ok: { text: '정확히 읽었다. 블라인드 사이드 색! 펌블까지 유도했다.', fx: { season: { perf: 1.4 }, meters: { media: 5, trust: 4 } } }, ng: { text: '뉴트럴 존 침범. 5야드 페널티로 퍼스트 다운을 헌납했다.', fx: { meters: { trust: -5 } } } },
+    ] },
+  { id: 'fb-pick6', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['CB', 'S'] }, eyebrow: '경기 중', title: '쿼터백이 나를 노린다',
+    body: '상대가 세 번 연속 내 쪽으로 던졌다. 약점으로 본 모양이다. 필름에서 본 그 루트가 또 나올 것 같다.',
+    choices: [
+      { label: '일부러 공간을 주고 루트를 가로챈다', chance: C(44, 'trust', .2), ok: { text: '미끼를 물었다. 인터셉트 후 엔드존까지, 픽식스!', fx: { season: { perf: 1.6 }, meters: { media: 8, trust: 5 }, followers: 1.25 } }, ng: { text: '도박이 빗나갔다. 60야드 터치다운을 허용했다.', fx: { season: { perf: -1 }, meters: { trust: -6 } } } },
+      { label: '정석대로 붙어서 막는다', chance: C(76), ok: { text: '패스를 쳐 냈다. 상대가 내 쪽을 피하기 시작했다.', fx: { season: { perf: .5 } } }, ng: { text: '결국 한 번 뚫렸다.', fx: { meters: { trust: -2 } } } },
+    ] },
+  { id: 'fb-goalline', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['RB', 'LB', 'DT'] }, eyebrow: '골라인 스탠드', title: '1야드를 둘러싼 전쟁',
+    body: '공은 1야드 라인 위. 양쪽 라인이 서로의 헬멧을 맞댄다. 이 한 번이 경기를 가른다.',
+    choices: [
+      { label: '몸을 날려 넘는다 / 파고든다', chance: C(52, 'trust', .3), ok: { text: '파일 맨 위로 넘어갔다. 심판의 두 팔이 올라갔다(막아 냈다)!', fx: { season: { perf: 1.1 }, meters: { trust: 5, locker: 4 } } }, ng: { text: '공중에서 부딪혀 튕겨 나왔다.', fx: { meters: { body: 1 } } } },
+      { label: '틈을 보고 바깥으로 / 자리를 지킨다', chance: C(58), ok: { text: '바깥이 비어 있었다. 정답이었다.', fx: { season: { perf: .7 } } }, ng: { text: '바깥이 막혀 있었다.', fx: { meters: { trust: -2 } } } },
+    ] },
+  { id: 'fb-celebrate', when: { stage: ['hs', 'college', 'nfl'], pos: ['RB', 'WR', 'TE', 'QB', 'CB', 'S'] }, eyebrow: '터치다운 직후', title: '엔드존 세리머니',
+    body: '시즌 첫 터치다운. 동료들과 준비한 단체 세리머니가 있다. 심판은 오늘 깃발을 자주 던진다.',
+    choices: [
+      { label: '준비한 단체 세리머니!', hint: '팬들은 좋아하지만 15야드 페널티 위험', chance: C(58, 'media', .3), ok: { text: '볼링 세리머니가 전국 SNS를 달궜다.', fx: { meters: { media: 9, locker: 6 }, followers: 1.3 } }, ng: { text: '노란 깃발. 15야드 페널티. 감독이 이를 악물었다.', fx: { meters: { trust: -5 }, money: -5000 } } },
+      { label: '공을 조용히 심판에게 건넨다', chance: C(90), ok: { text: '"늘 해 본 것처럼 행동하라." 감독이 엄지를 들었다.', fx: { meters: { trust: 4 } } }, ng: { text: '', fx: {} } },
+    ] },
+  { id: 'fb-twominute', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['QB'], seg: [1, 2, 3] }, eyebrow: '2분 경고', title: '노 허들, 역전 드라이브',
+    body: '1:58 남기고 5점 차. 타임아웃 하나. 75야드를 가야 한다.',
+    choices: [
+      { label: '노 허들로 직접 콜한다', chance: C(48, 'trust', .4), ok: { text: '9플레이 75야드. 종료 12초 전 역전 터치다운 패스! "클러치"라는 별명이 붙었다.', fx: { season: { perf: 1.5 }, meters: { trust: 8, media: 9 }, attrs: { poise: 1 }, followers: 1.3 } }, ng: { text: '서두르다 인터셉트. 경기 끝.', fx: { meters: { trust: -6 }, season: { perf: -.8 } } } },
+      { label: '사이드라인 콜을 받아 차분하게', chance: C(55), ok: { text: '짧게 끊어 가며 필드골 범위까지. 동점으로 연장, 결국 이겼다.', fx: { meters: { trust: 4 } } }, ng: { text: '시계가 먼저 끝났다.', fx: { meters: { media: -2 } } } },
+    ] },
+  { id: 'fb-blindside', when: { stage: ['hs', 'college', 'nfl', 'cfl'], pos: ['OL', 'TE'] }, eyebrow: '경기 전 미팅', title: '블라인드 사이드를 지켜라',
+    body: '오늘 상대 엣지 러셔는 리그 색 1위. 쿼터백이 "내 등 뒤는 네가 맡아"라고 했다.',
+    choices: [
+      { label: '혼자 막겠다. 셋업을 깊게 잡는다', chance: C(55, 'trust', .3), ok: { text: '한 번도 쿼터백을 내주지 않았다. 상대 러셔가 고개를 저었다.', fx: { attrs: { pblk: 1 }, meters: { trust: 6 }, season: { perf: 1 } } }, ng: { text: '스피드에 두 번 뚫렸다. 쿼터백이 쓰러졌다.', fx: { meters: { trust: -5, locker: -3 } } } },
+      { label: 'TE·RB에게 칩 블록 지원을 요청한다', chance: C(80), ok: { text: '협력 블로킹이 통했다. 공격이 술술 풀렸다.', fx: { meters: { locker: 4 } } }, ng: { text: '대신 패스 옵션이 줄었다.', fx: {} } },
+    ] },
+  { id: 'fb-filmtell', when: { stage: ['college', 'nfl', 'cfl'], side: 'D' }, eyebrow: '필름룸', title: '상대 쿼터백의 버릇',
+    body: '필름을 열 번 돌려 봤다. 상대 QB는 패스 플레이 때 스냅 직전 왼발을 살짝 뒤로 뺀다.',
+    choices: [
+      { label: '수비진 전체와 공유한다', chance: C(82, 'locker', .2), ok: { text: '수비가 패스를 미리 읽었다. 그날 색 5개.', fx: { meters: { locker: 7, trust: 4 }, season: { perf: .6 } } }, ng: { text: '상대가 경기 중 버릇을 고쳤다.', fx: {} } },
+      { label: '나만 알고 결정적인 순간에 쓴다', chance: C(60), ok: { text: '4쿼터 결정적인 순간, 정확히 읽고 뛰어들었다.', fx: { season: { perf: 1.3 } } }, ng: { text: '혼자 튀어 나가다 커버리지가 깨졌다.', fx: { meters: { locker: -3, trust: -2 } } } },
+    ] },
+  { id: 'fb-international', when: { stage: ['nfl'], seg: [1] }, eyebrow: 'NFL 해외 경기', title: '런던 원정',
+    body: '이번 주는 런던에서 열리는 정규시즌 경기다. 시차는 8시간.',
+    choices: [
+      { label: '일주일 먼저 건너가 적응한다', chance: C(78), ok: { text: '몸이 가볍다. 영국 팬들 앞에서 펄펄 날았다.', fx: { season: { perf: .8 }, followers: 1.12 } }, ng: { text: '비 때문에 훈련을 거의 못 했다.', fx: {} } },
+      { label: '평소 루틴대로 직전에 간다', chance: C(55), ok: { text: '별 차이 없었다.', fx: {} }, ng: { text: '경기 내내 몸이 무거웠다.', fx: { meters: { body: 1 }, season: { perf: -.5 } } } },
+    ] },
+  { id: 'fb-thanksgiving', when: { stage: ['nfl'], seg: [2] }, eyebrow: '추수감사절', title: '온 가족이 보는 경기',
+    body: '추수감사절 낮 경기. 미국 전역 식탁 앞 TV가 이 경기를 틀어 놓는다.',
+    choices: [
+      { label: '큰 무대에서 나를 알린다', chance: C(58, 'media', .3), ok: { text: '그날 경기 MVP. 중계진이 칠면조 다리를 건넸다.', fx: { meters: { media: 8 }, followers: 1.3, season: { perf: .8 } } }, ng: { text: '조용한 하루였다.', fx: {} } },
+      { label: '경기 뒤 가족과 저녁을 먹는다', chance: C(90), ok: { text: '오랜만에 엄마가 해 준 밥. 마음이 편해졌다.', fx: { meters: { body: -1, locker: 2 } } }, ng: { text: '', fx: {} } },
+    ] },
+  { id: 'fb-docu', when: { stage: ['nfl'], seg: [0], ageMax: 27 }, eyebrow: '트레이닝 캠프', title: '리얼리티 다큐 출연 제안',
+    body: '스포츠 다큐 제작진이 팀 캠프를 밀착 취재한다. 내 이야기를 중심으로 찍고 싶다고 한다.',
+    choices: [
+      { label: '출연한다', chance: C(60, 'media', .4), ok: { text: '방송 이후 전국구 인기 선수가 됐다.', fx: { followers: 1.6, meters: { media: 9 } } }, ng: { text: '편집된 장면 하나가 논란이 됐다.', fx: { meters: { media: -6, locker: -3 } } } },
+      { label: '정중히 사양하고 훈련에 집중한다', chance: C(88), ok: { text: '코치들이 그 태도를 기억했다.', fx: { meters: { trust: 4 } } }, ng: { text: '', fx: {} } },
+    ] },
+  { id: 'fb-cutday', when: { stage: ['nfl'], seg: [0], roleIn: ['backup', 'special', 'practice'] }, eyebrow: '로스터 확정 전날', title: '컷 데이',
+    body: '내일 53인 로스터가 발표된다. 마지막 프리시즌 경기, 스페셜팀에서 뛸 기회가 왔다.',
+    choices: [
+      { label: '킥오프 커버에서 몸을 날린다', chance: C(55, 'trust', .3), ok: { text: '리터너를 20야드 라인 안쪽에서 쓰러뜨렸다. 감독이 메모했다.', fx: { meters: { trust: 8 }, season: { playing: .08 } } }, ng: { text: '너무 무리하다 발목을 접질렸다.', fx: { season: { injury: .05 }, meters: { body: 1 } } } },
+      { label: '포지션 코치에게 조언을 구한다', chance: C(72), ok: { text: '"너는 남는다. 다만 스페셜팀에서 먼저 증명해."', fx: { meters: { trust: 4 } } }, ng: { text: '코치는 말을 아꼈다.', fx: {} } },
+    ] },
+  { id: 'fb-lightning', when: { stage: ['hs', 'college'], seg: [0, 1] }, eyebrow: '경기 중단', title: '번개 경보',
+    body: '하프타임 직전, 경기장 위로 번개가 쳤다. 규정상 30분 이상 경기가 멈춘다. 라커룸이 어수선하다.',
+    choices: [
+      { label: '계속 몸을 풀며 동료들을 다독인다', chance: C(74, 'locker', .3), ok: { text: '재개 후 첫 공격에서 터치다운. 흐름을 놓치지 않았다.', fx: { meters: { locker: 6 }, season: { perf: .6 } } }, ng: { text: '대기가 길어지자 다들 지쳤다.', fx: {} } },
+      { label: '헤드폰을 끼고 혼자 집중한다', chance: C(70), ok: { text: '머릿속으로 남은 플레이를 다 그려 봤다.', fx: { attrs: { mental: 1 } } }, ng: { text: '몸이 식어 버렸다.', fx: { season: { injury: .02 } } } },
+    ] },
+  { id: 'fb-seniorbowl', when: { stage: ['college'], collegeYear: [3, 4, 5], seg: [3], minOvr: 66 }, eyebrow: '드래프트 준비', title: '시니어 보울 초청',
+    body: '드래프트 유망주들이 모이는 시니어 보울(대학 올스타전)에서 초청장이 왔다. NFL 32개 구단 스카우트가 일주일 내내 훈련을 지켜본다.',
+    choices: [
+      { label: '참가해 스카우트 앞에서 증명한다', chance: C(62), ok: { text: '1대1 드릴에서 압도했다. 드래프트 보드가 움직였다는 소문.', fx: { flags: ['seniorBowl'], meters: { media: 5 } } }, ng: { text: '평범했다. 그래도 얼굴은 알렸다.', fx: { meters: { media: 1 } } } },
+      { label: '부상 위험을 피해 불참한다', chance: C(90), ok: { text: '몸을 아끼고 컴바인을 준비한다.', fx: { flags: ['combinePrep'] } }, ng: { text: '', fx: {} } },
+    ] },
+  { id: 'fb-interview', when: { stage: ['college'], collegeYear: [3, 4, 5], seg: [2, 3], minOvr: 64 }, eyebrow: '드래프트 준비', title: '구단 인터뷰와 필기 테스트',
+    body: '컴바인에서는 15분짜리 구단 인터뷰와 필기 테스트도 본다. 화이트보드 앞에서 플레이북을 설명해야 한다.',
+    choices: [
+      { label: '필름과 플레이북을 밤새 공부한다', chance: C(76), ok: { text: '인터뷰에서 상대 수비 커버리지를 술술 설명했다. 단장들이 고개를 끄덕였다.', fx: { flags: ['interviewAce'], attrs: { mental: 1 } } }, ng: { text: '긴장해서 말이 꼬였다.', fx: {} } },
+      { label: '40야드 대시 훈련에 집중한다', chance: C(72), ok: { text: '스타트 동작이 0.05초 빨라졌다.', fx: { flags: ['combinePrep'] } }, ng: { text: '햄스트링이 살짝 당긴다.', fx: { meters: { body: 1 } } } },
+    ] },
+  { id: 'fb-visit', when: { stage: ['hs'], grade: [11, 12], seg: [1, 2] }, eyebrow: '리크루팅', title: '공식 방문 주말',
+    body: '대학 두 곳에서 공식 방문 초청이 왔다. 한 곳은 10만 관중의 명문, 한 곳은 집에서 30분 거리의 중위권 학교다.',
+    choices: [
+      { label: '명문 대학을 방문한다', chance: C(70, 'media', .2), ok: { text: '헤드코치가 직접 라커룸 투어를 해 줬다. "네 자리를 비워 두겠다."', fx: { flags: ['exposure'], followers: 1.15 } }, ng: { text: '수많은 유망주 중 하나처럼 느껴졌다.', fx: {} } },
+      { label: '가까운 학교를 방문한다', chance: C(85), ok: { text: '"너를 중심으로 팀을 만들겠다"는 말이 마음에 남았다.', fx: { meters: { locker: 3 } } }, ng: { text: '', fx: {} } },
+    ] },
   // ── 공통 ──
   { id: 'any-family', when: {}, eyebrow: '가족', title: '부모님이 경기를 보러 온다',
     body: '처음으로 부모님이 직관을 오신다. 관중석 어디쯤일까.',
@@ -261,6 +388,7 @@ function matches(s, c, seg) {
   const w = c.when, p = s.player, z = s.season;
   if (w.stage && !w.stage.includes(s.stage)) return false;
   if (w.pos && !w.pos.includes(p.pos)) return false;
+  if (w.side && POSITIONS[p.pos].side !== w.side) return false;
   if (w.ageMin && p.age < w.ageMin) return false;
   if (w.ageMax && p.age > w.ageMax) return false;
   if (w.seg && !w.seg.includes(seg)) return false;

@@ -1,6 +1,6 @@
 // 밸런스 점검: 자동 플레이어로 커리어 N개를 끝까지 돌려 분포를 출력합니다.
 // node tools/simulate.mjs [N] [포지션]
-import { createCareer, makeCandidates, startSeason, advance, chooseCard, choosePath, chooseTurning, retireCareer } from '../js/engine/career.js';
+import { createCareer, makeCandidates, startSeason, advance, chooseCard, choosePath, chooseTurning, retireCareer, playBigGame } from '../js/engine/career.js';
 import { careerScore, countAwards, hallOfFame } from '../js/engine/awards.js';
 import { HIGH_SCHOOLS } from '../js/data/schools.js';
 import { POS_ORDER } from '../js/engine/core.js';
@@ -36,6 +36,7 @@ for (let i = 0; i < N; i++) {
       if (s.phase === 'ready') { if (s.player.age >= 41) { retireCareer(s, '나이'); break; } startSeason(s); }
       else if (s.phase === 'card') { const best = s.card.choices.reduce((b, x) => x.chance > b.chance ? x : b); chooseCard(s, best.i); }
       else if (s.phase === 'season') advance(s);
+      else if (s.phase === 'bigGame') playBigGame(s, null);
       else if (s.phase === 'offseason') {
         const t = s.todos.find(x => x.id === 'turning' && !x.done);
         if (t) chooseTurning(s, t.kind === 'position' || t.kind === 'potential' ? 'accept' : 'stay');

@@ -8,9 +8,13 @@ import { ROSTER_SOURCE } from '../data/rosters.js';
 import { roleName, depthNames, injuryChance } from '../engine/sim.js';
 import { METERS, formOf } from '../engine/events.js';
 import { careerScore, countAwards, totals, isPro, hallOfFame, honorsLine } from '../engine/awards.js';
-import { talentLabel, marketValue, canRedshirt, seasonLabel, makeCandidates, draftProjection, checkRetirementNudge } from '../engine/career.js';
+import { talentLabel, marketValue, canRedshirt, seasonLabel, makeCandidates, draftProjection, checkRetirementNudge, canPlayBig } from '../engine/career.js';
+import { programsFor, programCost, INTERVIEW_TONES, titlesOf, nextOlympics, FLAG_POS } from '../engine/extras.js';
+import { pullPrice, pullPriceN, RATES, PITY, RARITY } from '../engine/shop.js';
+import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
+export const PATCH = { id: '2026-11-09b', title: '빅게임 직접 플레이와 연출', items: [['직접 플레이', '라이벌전·플레이오프·결승을 터치로 직접 플레이해요. 4번째 다운과 2점 컨버전도 내가 정해요.'], ['연출', '시즌 진행 화면, 성장 공개, 수상 세리머니, 드래프트 지명, 계약 서명, 은퇴식이 생겼어요.'], ['새 선택지', '헤일 메리, 아이스 더 키커, 트릭 플레이 등 미식축구만의 장면 21개를 더했어요.'], ['국가대표', '2028 LA 올림픽 플래그 풋볼. 한국 국적은 메달을 따면 병역 특례!'], ['훈련 카드 뽑기', '희귀 10회·전설 60회 천장이 있는 카드 뽑기와 칭호 컬렉션을 넣었어요.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { COLLEGES } from '../data/colleges.js';
@@ -29,7 +33,9 @@ export function sceneImg(s, name, pose, extra = {}) {
 function animScene(s, name, a, b, extra = {}) {
   return `<div class="px-anim">${sceneImg(s, name, a, extra)}${sceneImg(s, name, b, extra).replace('class="px scene"', 'class="px scene f2"')}</div>`;
 }
-const colorsByName = name => TEAMS.find(t => t.ko === name)?.colors || COLLEGES.find(c => c.ko === name)?.colors || ['#5A6372', '#FFFFFF'];
+const HS_COLORS = [['#B22234', '#FFFFFF'], ['#1D4F91', '#F2C230'], ['#5B2C83', '#F2C230'], ['#0B6E4F', '#FFFFFF'], ['#E35205', '#1B1A22'], ['#6B1F1F', '#C9CED6'], ['#00629B', '#FFFFFF'], ['#2B2F33', '#E5B53C']];
+const nameHash = n => [...String(n)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+export const colorsByName = name => TEAMS.find(t => t.ko === name)?.colors || COLLEGES.find(c => c.ko === name)?.colors || HS_COLORS[nameHash(name) % HS_COLORS.length];
 // 카드별 장면과 동작.
 const CARD_ART = {
   'hs-oklahoma': ['practice', 'stance'], 'hs-korean': ['locker', 'idle'], 'hs-film': ['film', 'idle'], 'hs-7on7': ['practice', 'throw'], 'hs-camp': ['practice', 'run'],
@@ -42,7 +48,7 @@ const CARD_ART = {
   'kr-broadcast': ['press', 'cheer'], 'kr-military': ['school', 'idle'], 'any-family': ['stadium', 'cheer'], 'any-diet': ['locker', 'idle'],
 };
 const kickerPose = (s, pose) => ['K', 'P'].includes(s.player.pos) && ['run', 'throw', 'stance'].includes(pose) ? 'kick' : s.player.pos === 'QB' && pose === 'run' ? 'throw' : pose;
-export const teamColors = s => s.team?.kind === 'nfl' ? TEAM_BY_ID[s.team.id].colors : s.team?.kind === 'college' ? COLLEGE_BY_ID[s.team.id].colors : ['#157347', '#FFFFFF'];
+export const teamColors = s => s.team?.kind === 'nfl' ? TEAM_BY_ID[s.team.id].colors : s.team?.kind === 'college' ? COLLEGE_BY_ID[s.team.id].colors : (s.fanTeam && TEAM_BY_ID[s.fanTeam] ? TEAM_BY_ID[s.fanTeam].colors : ['#157347', '#FFFFFF']);
 const num = n => (Math.round(n * 10) / 10).toLocaleString('ko-KR');
 // 숫자 뒤 조사: 0(십)·3(삼)·6(육)은 받침, 1·7·8은 ㄹ받침(로).
 const numBatchim = n => [0, 1, 3, 6, 7, 8].includes(Math.abs(n) % 10);
@@ -107,6 +113,7 @@ export function setupPage(st) {
       <div class="field-row"><label for="f-name">이름</label><input id="f-name" type="text" maxlength="16" placeholder="닉네임을 추천해요" value="${esc(st.name)}" data-input="name" autocomplete="off"></div>
       <div class="field-row"><label for="f-num">등번호</label><input id="f-num" type="number" min="0" max="99" inputmode="numeric" value="${esc(st.number)}" data-input="number"></div>
       <div class="field-row"><label>포지션</label><div class="pos-grid">${POS_ORDER.map(k => `<button data-action="setup-pos" data-v="${k}" class="${st.pos === k ? 'on' : ''}"><b>${k}</b><span>${POSITIONS[k].ko}</span></button>`).join('')}</div></div>
+      <div class="field-row"><label for="f-fan">응원팀</label><select id="f-fan" data-input="fanTeam"><option value="">없음 (기본 초록 유니폼)</option>${TEAMS.map(x => `<option value="${x.id}" ${st.fanTeam === x.id ? 'selected' : ''}>${esc(x.ko)}</option>`).join('')}</select><p class="tiny muted" style="margin-top:6px">고교 시절 응원팀 색 유니폼을 입어요.</p></div>
       <div class="field-row"><label>국적</label><div class="seg"><button data-action="setup-nat" data-v="US" class="${st.nat === 'US' ? 'on' : ''}">🇺🇸 미국</button><button data-action="setup-nat" data-v="KR" class="${st.nat === 'KR' ? 'on' : ''}">🇰🇷 대한민국 (유학)</button></div>
         <p class="tiny muted" style="margin-top:6px">${st.nat === 'KR' ? '한국 국적이면 언론 반응이 커지고, NFL에서 병역 결정을 내려야 하는 순간이 옵니다.' : '미국에서 나고 자란 선수로 시작합니다.'}</p></div>
       <div class="field-row"><label for="f-school">고등학교</label><select id="f-school" data-input="schoolId">${HIGH_SCHOOLS.map(h => `<option value="${h.id}" ${h.id === st.schoolId ? 'selected' : ''}>${esc(h.ko)} · ${esc(h.city)}</option>`).join('')}</select>
@@ -168,15 +175,18 @@ function cardView(s) {
     ${c.choices.map(x => `<button class="choice" data-action="choose-card" data-v="${x.i}"><strong>${esc(x.label)}</strong>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}<div class="chance">성공 확률 ${x.chance}%</div></button>`).join('')}
     <p class="tiny faint" style="margin-top:10px">선택하면 바로 반영됩니다. 확률은 보이는 그대로 굴려요.</p></section>`;
 }
-let CARD_INDEX = {};
+let CARD_INDEX = {}, rollFresh = false;
 export const setCardIndex = idx => { CARD_INDEX = idx; };
+export const markRollFresh = v => { rollFresh = v; };
 function cardResultView(s) {
   const r = s.cardResult;
   const [scn] = CARD_ART[r.id] || ['stadium'];
-  return `<section class="card">${sceneImg(s, scn, r.ok ? 'cheer' : 'sad', { alt: r.ok ? '성공' : '실패' })}<p class="eyebrow" style="margin-top:12px">선택 결과 · ${esc(r.title)}</p>
-    <div class="roll" aria-hidden="true"><span style="width:${r.chance}%"></span><i style="left:${Math.min(99, r.roll)}%"></i></div>
+  const a = rollFresh ? ' reveal' : '';
+  return `<section class="card"><p class="eyebrow">선택 결과 · ${esc(r.title)}</p>
+    <div class="roll${rollFresh ? ' anim' : ''}" aria-hidden="true" style="--to:${Math.min(99, r.roll)}%"><span style="width:${r.chance}%"></span><i style="left:${Math.min(99, r.roll)}%"></i></div>
     <div class="tiny faint">성공 ${r.chance}% · 주사위 ${r.roll}</div>
-    <div class="result-box ${r.ok ? '' : 'fail'}" style="margin-top:10px"><div class="verdict ${r.ok ? 'accent' : 'up'}">${r.ok ? '성공' : '실패'}</div><div class="small" style="margin-top:2px">"${esc(r.choice)}"</div><p style="margin-top:6px">${esc(r.text)}</p>
+    <div class="${a.trim()}" style="margin-top:10px">${sceneImg(s, scn, r.ok ? 'cheer' : 'sad', { alt: r.ok ? '성공' : '실패', confetti: r.ok })}</div>
+    <div class="result-box ${r.ok ? '' : 'fail'}${a}" style="margin-top:10px"><div class="verdict ${r.ok ? 'accent' : 'up'}">${r.ok ? '성공' : '실패'}</div><div class="small" style="margin-top:2px">"${esc(r.choice)}"</div><p style="margin-top:6px">${esc(r.text)}</p>
     ${r.lines.length ? `<div class="lines">${r.lines.map(l => `<span class="pill">${esc(l)}</span>`).join('')}</div>` : ''}</div></section>`;
 }
 function prepView(s) {
@@ -184,6 +194,7 @@ function prepView(s) {
   return `<section class="card"><div class="row between"><h3>${s.year} 시즌 준비</h3><span class="pill">${stageText(s)}</span></div>
     ${s.goal ? `<div class="result-box" style="margin-top:10px"><div class="tiny muted">이번 목표</div><b>${esc(s.goal.title)}</b><div class="tiny muted">${esc(s.goal.hint)}</div></div>` : ''}
     <div class="field-row"><label>훈련 계획</label>${plans.map(([id, l, d]) => `<button class="option ${s.training === id ? 'sel' : ''}" data-action="training" data-v="${id}"><div class="row between"><strong>${l}</strong><span class="pill ${id === 'intense' ? 'red' : id === 'recovery' ? 'green' : ''}">부상 확률 약 ${Math.round(injuryChance(s, id) * 100)}%</span></div><div class="sub">${d}</div></button>`).join('')}</div>
+    ${s.stage !== 'military' ? `<div class="field-row"><label>오프시즌 프로그램</label>${programsFor(s).map(pr => { const cost = programCost(s, pr.id), poor = cost > s.money; return `<button class="option ${(s.program || 'ota') === pr.id ? 'sel' : ''}" data-action="program" data-v="${pr.id}" ${poor ? 'disabled style="opacity:.5"' : ''}><div class="row between"><strong>${esc(pr.name)}</strong>${cost ? `<span class="pill">${usd(cost)}</span>` : ''}</div><div class="sub">${esc(pr.desc)}</div></button>`; }).join('')}</div>` : ''}
     ${canRedshirt(s) ? `<div class="field-row"><label>레드셔트</label><button class="option ${s.redshirt ? 'sel' : ''}" data-action="redshirt"><strong>${s.redshirt ? '레드셔트 시즌으로 보내기 (켜짐)' : '레드셔트 시즌으로 보내기'}</strong><div class="sub">최대 4경기만 뛰고 출전 자격 1년을 아낍니다. 대학 생활 중 한 번만 쓸 수 있어요.</div></button></div>` : ''}
     ${s.stage === 'nfl' ? depthCard(s) : ''}</section>`;
 }
@@ -198,9 +209,11 @@ const TODO_META = {
   draft: (s) => [s.draft?.drafted ? '드래프트 결과가 나왔어요' : '드래프트가 끝났어요', s.draft?.drafted ? `${s.draft.round}라운드 ${s.draft.inRound}순위` : '언드래프티 FA', 'draft', 'blue'],
   turning: (s, t) => ['전환점이 찾아왔어요', t.title, 'bolt', 'gold'],
   shop: () => ['새 상품이 입고됐어요', '번 돈으로 한 시즌에 하나를 살 수 있어요.', 'shop', ''],
+  interview: (s, t) => [t.done ? '인터뷰를 마쳤어요' : '기자들이 인터뷰를 요청했어요', t.q, 'social', 'blue'],
+  olympics: (s, t) => { const o = s.olympics?.[t.year]; return [`${t.year} 올림픽 국가대표 선발!`, o?.medal ? o.name : `${o?.country || ''} 대표 · 플래그 풋볼`, 'medal', 'gold']; },
 };
 function todoList(s) {
-  const items = s.todos.filter(t => !t.done || t.id !== 'turning').filter(t => TODO_META[t.id]);
+  const items = s.todos.filter(t => !t.done || !['turning'].includes(t.id)).filter(t => TODO_META[t.id]);
   const path = s.phase === 'offseason' && s.path;
   const rows = [
     ...(path ? [`<button class="todo" data-action="open-path"><span class="badge red">${icon('door')}</span><span class="grow"><strong>${esc(path.title)}</strong><small>다음 진로를 정할 차례예요 · ${path.options.length}개의 길</small></span><i class="new"></i>${icon('chevron', 'chev')}</button>`] : []),
@@ -220,11 +233,24 @@ export function homePage(s) {
   if (s.phase === 'ready') { main = prepView(s); dock = `<button class="primary" data-action="start-season">${s.year} ${s.stage === 'military' ? '복무 시즌 보내기' : `${seasonLabel(s)} 시즌 시작`} ${icon('arrow')}</button>`; }
   else if (s.phase === 'season') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 진행 중</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${s.cardResult ? cardResultView(s) : ''}${soFar(s)}`; dock = `<button class="primary" data-action="advance">${s.season.seg >= s.season.segments.length ? '포스트시즌으로' : '계속하기'} ${icon('arrow')}</button>`; }
   else if (s.phase === 'card') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 · 선택의 순간</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${cardView(s)}${soFar(s)}`; }
+  else if (s.phase === 'bigGame') { main = bigGameCard(s); }
   else if (s.phase === 'offseason') { main = todoList(s); dock = s.path ? `<button class="primary" data-action="open-path">다음 진로 정하기 ${icon('arrow')}</button>` : ''; }
   const nudge = s.phase === 'offseason' && checkRetirementNudge(s) ? `<p class="small muted" style="text-align:center;margin-top:6px">구단이 조심스럽게 은퇴 이야기를 꺼냈어요.</p>` : '';
   return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
     ${dock ? `<div class="dock">${dock}</div>` : ''}${nudge}
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
+}
+
+function bigGameCard(s) {
+  const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
+  const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: g.final ? 'FINAL' : 'BIG GAME', players: [{ pose: kickerPose(s, 'stance'), ...look(s), x: 46 }, { pose: 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '빅게임', 'scene');
+  const prob = Math.round(100 / (1 + Math.exp(-((g.myStr ?? 60) - (g.oppStr ?? 60)) / 9)));
+  return `<section class="card big-card">${art}<p class="eyebrow" style="margin-top:12px">${g.post ? '포스트시즌' : '정규시즌 빅게임'} · ${esc(s.year)}</p><h2>${esc(g.title || g.round)}</h2>
+    <div class="vs"><span>${esc(s.team.name)}</span><b>VS</b><span>${esc(g.oppName)}</span></div>
+    <p class="small muted" style="margin-top:8px;text-align:center">예상 승률 ${prob}% · ${g.home ? '홈 경기' : '원정 경기'}${g.final ? ' · 우승이 걸린 결승' : ''}</p>
+    ${can ? `<button class="primary" data-action="big-play" style="margin-top:14px">${icon('bolt')} 직접 플레이 (터치)</button>` : `<p class="small" style="margin-top:12px;text-align:center"><span class="pill red">${s.season.injury?.out > 0 ? '부상으로 결장' : '출전 명단에 없음'}</span> 이번 경기는 사이드라인에서 지켜봐요.</p>`}
+    <button class="secondary" data-action="big-auto" style="margin-top:8px">빠르게 진행</button>
+    <button class="ghost" data-action="big-auto-all">이번 시즌 남은 빅게임은 모두 빠르게</button></section>`;
 }
 
 // ───────── 시즌 탭 ─────────
@@ -240,8 +266,29 @@ export function seasonPage(s) {
     <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th class="l">주차</th><th class="l">상대</th><th>결과</th><th>평점</th><th class="l">내 기록</th></tr></thead><tbody>${rows}${post}</tbody></table></div></section>
     ${z.standings ? standingsCard(s, z) : ''}
     ${s.stage === 'nfl' ? `<section class="card">${depthCard(s)}</section>` : ''}
+    ${leagueCard(s)}${nationalCard(s)}
     <section class="card"><h3>시즌별 요약</h3><div style="margin-top:8px">${[...s.history].reverse().map(h => `<div class="kv"><span>${h.year} · ${esc(h.teamName)} · ${esc(h.label || '')}</span><b>${h.stage === 'military' ? '복무' : `${h.stats.g || 0}경기 · 평점 ${h.grade || '-'}`}</b></div>`).join('')}</div></section>`;
 }
+function leagueCard(s) {
+  if (s.stage === 'college') {
+    const mine = s.history.at(-1)?.stage === 'college' && s.history.at(-1).teamId === s.team.id ? s.history.at(-1) : null;
+    const rows = COLLEGES.filter(c => c.tier !== 'FCS' && c.tier !== 'JUCO').map(c => ({ c, v: c.prestige + (c.id === s.team.id && mine ? (mine.team.w - 8) * 2.5 : 0) + ((c.id.charCodeAt(0) * 7 + s.year) % 9) - 4 })).sort((a, b) => b.v - a.v).slice(0, 25);
+    return `<section class="card"><h3>대학 풋볼 톱 25</h3><p class="tiny muted">게임 속 랭킹 · 프로그램 위상과 지난 시즌 성적 반영</p><div class="table-wrap" style="margin-top:6px"><table><tbody>${rows.map((x, i) => `<tr class="${x.c.id === s.team.id ? 'mine' : ''}"><td class="l">${i + 1}</td><td class="l">${esc(x.c.ko)}</td><td class="l tiny">${esc(x.c.conf)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
+  if (s.stage !== 'nfl' && s.stage !== 'hs') return '';
+  const rows = TEAMS.map(t => ({ t, p: teamPower(s.league, t.id) })).sort((a, b) => b.p - a.p);
+  const stars = ['QB', 'WR', 'EDGE'].map(pos => leagueTop(s.league, pos, 1)[0]).filter(Boolean);
+  return `<section class="card"><h3>NFL 파워 랭킹</h3><p class="tiny muted">${s.league.year} 시즌 · 게임 속 전력</p><div class="table-wrap" style="margin-top:6px"><table><tbody>${rows.slice(0, 12).map((x, i) => `<tr class="${x.t.id === s.team?.id ? 'mine' : ''}"><td class="l">${i + 1}</td><td class="l">${esc(x.t.ko)}</td><td class="l tiny">${esc(x.t.div)}</td><td><b>${Math.round(x.p)}</b></td></tr>`).join('')}</tbody></table></div>
+    ${stars.length ? `<p class="tiny muted" style="margin-top:8px">리그 간판: ${stars.map(x => `${esc(displayName(x.name))}(${esc(TEAM_BY_ID[x.team].short)})`).join(' · ')}</p>` : ''}</section>`;
+}
+function nationalCard(s) {
+  const o = nextOlympics(s.year);
+  if (!o) return '';
+  const ok = FLAG_POS.has(s.player.pos), country = s.player.nat === 'KR' ? '대한민국' : '미국';
+  return `<section class="card"><h3>국가대표 일정</h3><div class="kv"><span>${o.year} ${esc(o.city)} 올림픽 · 플래그 풋볼</span><b>${o.real ? '실제 채택 종목' : '게임 속 가정'}</b></div>
+    <p class="small muted" style="margin-top:6px">${ok ? `${country} 대표 선발을 노려요. 소속팀에서 꾸준히 뛰어야 뽑혀요.${s.player.nat === 'KR' && !s.flags.includes('militaryDone') ? ' 메달을 따면 병역 특례(체육요원)를 받아요.' : ''}` : '플래그 풋볼은 5인제라 라인맨·키커는 대표 대상이 아니에요.'}</p></section>`;
+}
+export function lineSummary(pos, L) { return lineText(pos, L); }
 function lineText(pos, L) {
   if (!L || !Object.keys(L).length) return '출전 안 함';
   return keyStats(pos, L).slice(0, 3).filter(([, v]) => v && v !== '-' && v !== '0/0').map(([l, v]) => `${l} ${v}`).join(' · ') || '출전';
@@ -299,14 +346,40 @@ export function recordsPage(s) {
     <section class="card"><h3>시즌 기록</h3><div class="table-wrap" style="margin-top:8px"><table><thead><tr><th class="l">연도</th><th class="l">팀</th><th>G</th>${head.map(h => `<th>${h}</th>`).join('')}<th>평점</th><th>OVR</th></tr></thead><tbody>
       ${s.history.map(h => `<tr><td class="l">${h.year}</td><td class="l">${esc(shortTeam(h))}<div class="tiny faint">${esc(h.roleName || '')}</div></td><td>${h.stats.g || 0}</td>${keyStats(h.pos, h.stats).slice(0, 3).map(([, v]) => `<td>${v}</td>`).join('')}<td>${h.grade || '-'}</td><td>${h.ovrAfter}</td></tr>${h.awards?.length ? `<tr><td></td><td class="l tiny gold" colspan="${head.length + 4}">${h.awards.map(a => esc(a.name)).join(' · ')}</td></tr>` : ''}`).join('')}</tbody></table></div></section>
     <section class="card"><h3>통산 기록</h3>${totalsTable(s) || '<p class="muted small">기록이 쌓이면 여기에 보여요.</p>'}</section>
+    <section class="card"><div class="row between"><h3>칭호</h3><span class="tiny muted">${titlesOf(s).filter(x => x.got).length}/${titlesOf(s).length}</span></div><div class="title-grid" style="margin-top:8px">${titlesOf(s).map(x => `<div class="title-chip ${x.got ? 'got' : ''}"><b>${x.got ? '🏅 ' : ''}${esc(x.name)}</b><span>${esc(x.desc)}</span></div>`).join('')}</div></section>
     <section class="card"><h3>커리어의 순간</h3><ul class="timeline" style="margin-top:6px">${[...s.moments].reverse().slice(0, 40).map(m => `<li><b>${m.year}</b><span>${esc(m.text)}</span></li>`).join('')}</ul></section>`;
 }
 const shortTeam = h => h.stage === 'nfl' ? (TEAM_BY_ID[h.teamId]?.short || h.teamName) : h.teamName;
 
 // ───────── 반응 탭 ─────────
+let socialPane = 'feed';
+export const setSocialPane = v => { socialPane = v; };
 export function socialPage(s) {
-  return `${profileCard(s, true)}<section class="card"><div class="row between"><h3>팔로워</h3><b class="big" style="font-size:26px">${fmtFollowers(s.followers)}</b></div>${sparkline(s.followerHistory)}</section>
-    <section class="card"><h3>언론 · 팬 반응</h3>${s.feed.length ? s.feed.map(f => `<div class="post"><div class="eyebrow">${f.year} 시즌 · ${esc(f.outlet)}</div><div class="headline">${esc(f.headline)}</div>
+  if (socialPane === 'scout') return socialHead(s) + scoutPane(s);
+  if (socialPane === 'talk') return socialHead(s) + talkPane(s);
+  return socialHead(s) + feedPane(s);
+}
+function socialHead(s) {
+  return `${profileCard(s, true)}<section class="card"><div class="row between"><h3>팔로워</h3><b class="big" style="font-size:26px">${fmtFollowers(s.followers)}</b></div>${sparkline(s.followerHistory)}</section><div class="pane-tabs">${[['feed', '기사·반응'], ['scout', '스카우트'], ['talk', '인터뷰']].map(([id, l]) => `<button class="${socialPane === id ? 'on' : ''}" data-action="social-pane" data-v="${id}">${l}</button>`).join('')}</div>`;
+}
+function scoutPane(s) {
+  const p = s.player, keys = attrsOf(p.pos), sorted = [...keys].sort((a, b) => p.attrs[b] - p.attrs[a]);
+  const comp = s.league ? leagueTop(s.league, p.pos, 12).find(x => Math.abs(x.ovr - p.ovr) <= 3) : null;
+  return `<section class="card"><h3>스카우트 리포트</h3><div class="kv"><span>강점</span><b>${sorted.slice(0, 2).map(k => ATTR[k][0]).join(', ')}</b></div><div class="kv"><span>보완점</span><b>${sorted.slice(-2).map(k => ATTR[k][0]).join(', ')}</b></div><div class="kv"><span>등급</span><b>${tierOf(p.ovr)}</b></div>${comp ? `<div class="kv"><span>비슷한 NFL 선수</span><b>${esc(displayName(comp.name))} (${esc(TEAM_BY_ID[comp.team].short)})</b></div>` : ''}<p class="small muted" style="margin-top:8px">"${esc(scoutLine(s))}"</p><p class="tiny faint">익명 스카우트 · 게임 속 평가</p></section>`;
+}
+function scoutLine(s) {
+  const p = s.player, o = p.ovr;
+  if (s.stage === 'hs') return o >= 60 ? '이미 대학 주전감. 파워 4 명문들이 줄을 설 겁니다.' : o >= 52 ? '몸이 더 붙으면 무서워질 유형입니다.' : '아직은 원석. 출전 시간이 답입니다.';
+  if (s.stage === 'college') return o >= 76 ? '1라운드 재능입니다. 컴바인만 무난하면 됩니다.' : o >= 68 ? '데이 2(2~3라운드) 픽으로 봅니다.' : '드래프트 경계선. 시니어 시즌이 중요합니다.';
+  return o >= 88 ? '리그 최고 수준. 상대 코디네이터들이 이 선수부터 지웁니다.' : o >= 78 ? '믿고 쓰는 주전입니다.' : '로스터 경계선. 스페셜팀에서 가치를 보여 줘야 합니다.';
+}
+function talkPane(s) {
+  const list = s.todos.filter(t => t.id === 'interview' && t.answer).concat(s.interviews || []);
+  return `<section class="card"><h3>인터뷰 기록</h3>${(s.interviews || []).length ? [...s.interviews].reverse().map(x => `<div class="post"><div class="eyebrow">${x.year} · ${esc(x.tone)}</div><div class="small muted">${esc(x.q)}</div><div class="headline">${esc(x.line)}</div></div>`).join('') : '<p class="muted small">시즌을 마치면 기자들이 찾아와요.</p>'}</section>`;
+  void list;
+}
+function feedPane(s) {
+  return `<section class="card"><h3>언론 · 팬 반응</h3>${s.feed.length ? s.feed.map(f => `<div class="post"><div class="eyebrow">${f.year} 시즌 · ${esc(f.outlet)}</div><div class="headline">${esc(f.headline)}</div>
       ${f.comments.map(c => `<div class="comment"><span class="face">${esc(c.who[0].toUpperCase())}</span><div><div class="meta">${esc(c.who)} · <span class="pill">${esc(c.tag)}</span></div><div>${esc(c.text)}</div><div class="meta">${esc(c.where)} · ${esc(c.ago)}</div></div><span class="likes">♥ ${c.likes.toLocaleString('ko-KR')}</span></div>`).join('')}
       <p class="tiny ${f.delta >= 0 ? 'accent' : 'down'}">팔로워 ${f.delta >= 0 ? '▲' : '▼'}${Math.abs(f.delta).toLocaleString('ko-KR')}</p></div>`).join('') : '<p class="muted small">시즌을 마치면 기사와 팬 반응이 올라와요.</p>'}
       <p class="tiny faint" style="margin-top:8px">매체·커뮤니티·닉네임은 모두 게임 속 가상의 반응이에요.</p></section>`;
@@ -402,7 +475,9 @@ export function shopSheet(s) {
   return sheet(`<p class="eyebrow">훈련장 · 상점</p><h2>이번 시즌 입고</h2><p class="lead">보유 자금 <b>${usd(s.money)}</b> <span class="tiny">(${krw(s.money)})</span></p>
     ${stock.map(it => `<button class="option" data-action="buy" data-v="${it.id}" ${canBuy(s, it) ? '' : 'disabled'} style="${canBuy(s, it) ? '' : 'opacity:.55'}"><div class="row between"><strong>${esc(it.name)}</strong><b>${usd(it.price)}</b></div><div class="sub">${esc(it.note)} · ${it.attr ? `${it.attr === 'main' ? '집중 육성 능력치' : ATTR[it.attr]?.[0] || '능력치'} +${it.up}` : ''}${it.body ? ` 누적 피로 −${it.body}` : ''}</div></button>`).join('')}
     <p class="tiny muted" style="margin-top:8px">${bought ? '이번 시즌에는 이미 하나를 샀어요. 다음 시즌에 새 상품 3개가 들어와요.' : '한 시즌에 하나만 살 수 있고, 다음 시즌에 새 상품 3개가 들어와요.'}</p>
-    <h3 style="margin-top:18px">스태프 (시즌마다 비용)</h3>${STAFF.map(st => { const on = !!s.shop.staff[st.id]; return `<button class="option ${on ? 'sel' : ''}" data-action="staff" data-v="${st.id}"><div class="row between"><strong>${esc(st.name)}</strong><span class="pill ${on ? 'green' : ''}">${on ? '계약 중 · 해지' : st.fee ? `${usd(st.fee)}/시즌` : '수수료 3%'}</span></div><div class="sub">${esc(st.desc)}</div></button>`; }).join('')}
+    <h3 style="margin-top:18px">훈련 카드 뽑기</h3><p class="tiny muted">전설 ${Math.round(RATES.legend * 100)}% · 영웅 ${Math.round(RATES.epic * 100)}% · 희귀 ${Math.round(RATES.rare * 100)}% · 일반 ${Math.round(RATES.common * 100)}% · ${PITY.rare}회 안에 희귀 이상, ${PITY.legend}회 안에 전설 보장 (전설까지 ${PITY.legend - (s.shop.pity?.legend || 0)}회) · 같은 해에 뽑을수록 1.5배씩 비싸져요</p>
+    <div class="row" style="margin-top:8px"><button class="secondary grow" data-action="pull" data-v="1" ${s.money >= pullPrice(s) ? '' : 'disabled'}>1회 · ${usd(pullPrice(s))}</button><button class="primary grow" data-action="pull" data-v="5" ${s.money >= pullPriceN(s, 5) ? '' : 'disabled'}>5회 · ${usd(pullPriceN(s, 5))}</button></div>
+    <h3 style="margin-top:18px">스태프 (시즌마다 비용)</h3>${STAFF.map(st => { const on = !!s.shop.staff[st.id]; return `<button class="option ${on ? 'sel' : ''}" data-action="staff" data-v="${st.id}"><div class="row between"><strong>${esc(st.name)}</strong><span class="pill ${on ? 'green' : ''}">${on ? (s.shop.staff[st.id].free ? `무료 계약 ~${s.shop.staff[st.id].until}` : '계약 중 · 해지') : st.fee ? `${usd(st.fee)}/시즌` : '수수료 3%'}</span></div><div class="sub">${esc(st.desc)}</div></button>`; }).join('')}
     <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} Lv.${lvl}</strong><b>${max ? '최고 단계' : usd(f.prices[lvl])}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
 }
 const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요. 휴대폰·PC 어디서 열어도 이어집니다.', connecting: '계정 저장소에 연결하는 중이에요.', offline: '계정 저장소에 잠시 닿지 않아요. 이 브라우저에는 저장되고 있어요.', quota: '계정 저장 공간이 가득 찼어요. 저장 데이터를 내보내 두세요.', local: '이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 내보내 두세요.' };
@@ -422,6 +497,24 @@ export function archiveSheet(list) {
   return sheet(`<h2>내 은퇴 기록</h2><p class="lead">MVP → 슈퍼볼 우승 → 최고 OVR → 수상 수 → 커리어 점수 순으로 비교해요.</p>
     ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span></td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
     <h3 style="margin-top:16px">나의 베스트 라인업</h3>${Object.entries(best).map(([g, e]) => `<div class="kv"><span>${g}</span><b>${nameTag(e.name)} · OVR ${e.peak}</b></div>`).join('')}` : '<p class="muted" style="margin-top:12px">아직 은퇴한 선수가 없어요.</p>'}`);
+}
+export function interviewSheet(s, year) {
+  const t = s.todos.find(x => x.id === 'interview' && x.year === year);
+  if (!t) return sheet('<h2>인터뷰가 없어요</h2>');
+  if (t.answer) return sheet(`${sceneImg(s, 'press', 'stand', { alt: '기자회견' })}<p class="eyebrow" style="margin-top:12px">${year} 시즌 인터뷰 · ${esc(t.answer.tone)}</p><h2>${esc(t.answer.line)}</h2><div class="lines" style="margin-top:10px">${t.answer.lines.map(l => `<span class="pill">${esc(l)}</span>`).join('')}</div><button class="primary" data-action="close-sheet" style="margin-top:16px">확인</button>`);
+  return sheet(`${sceneImg(s, 'press', 'stand', { alt: '기자회견' })}<p class="eyebrow" style="margin-top:12px">${year} 시즌 · 기자회견</p><h2>${esc(t.q)}</h2><p class="lead">어떤 말투로 답할까요? 대답에 따라 팬·언론과 라커룸 분위기가 달라져요.</p>
+    ${INTERVIEW_TONES.map(x => `<button class="choice" data-action="interview" data-v="${x.id}"><strong>${esc(x.label)}</strong><div class="hint">${esc(x.line[t.kind])}</div></button>`).join('')}`);
+}
+export function olympicsSheet(s, year) {
+  const o = s.olympics?.[year];
+  if (!o) return sheet('<h2>대표팀 소식이 없어요</h2>');
+  return sheet(`${sceneImg(s, 'stadium', o.medal ? 'cheer' : 'stand', { board: `${o.year} OLYMPICS`, confetti: !!o.medal, alt: '올림픽' })}<p class="eyebrow" style="margin-top:12px">${o.year} ${esc(o.city)} 올림픽 · 플래그 풋볼${o.real ? '' : ' (게임 속 가정)'}</p>
+    <h2>${o.medal ? esc(o.name) : `${esc(o.country)} 대표로 뛰었어요`}</h2><p class="lead">${o.medal ? `${esc(o.country)} 국가대표로 시상대에 올랐습니다.` : '메달에는 닿지 못했지만 국가대표 경험이 남았습니다.'}</p>
+    ${o.exemption ? '<div class="result-box" style="margin-top:12px"><b>병역 특례 대상!</b><div class="small">올림픽 3위 이상 입상으로 예술·체육요원 편입 대상이 됐습니다. 이제 병역 걱정 없이 NFL에서 뛸 수 있어요.</div></div>' : ''}
+    <button class="primary" data-action="close-sheet" style="margin-top:16px">확인</button>`);
+}
+export function patchSheet() {
+  return sheet(`<p class="eyebrow">업데이트 소식</p><h2>${esc(PATCH.title)}</h2>${PATCH.items.map(([a, b]) => `<div class="kv" style="display:block"><b>${esc(a)}</b><div class="small muted">${esc(b)}</div></div>`).join('')}<button class="primary" data-action="close-sheet" style="margin-top:16px">계속하기</button>`);
 }
 export function imageSheet(url) {
   return sheet(`<h2>커리어 카드</h2><p class="lead">이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.</p><img src="${url}" alt="커리어 카드" style="width:100%;border-radius:16px;margin-top:12px"><button class="primary" data-action="close-sheet" style="margin-top:14px">닫기</button>`);
