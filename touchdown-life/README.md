@@ -85,7 +85,8 @@ touchdown-life/
 ├─ js/main.js            앱 상태·렌더링·이벤트·커리어 카드
 ├─ js/storage.js         자동 저장, 은퇴 기록, 저장 파일 내보내기/가져오기
 ├─ js/ui/views.js        화면·시트 템플릿
-├─ js/ui/art.js          SVG 아바타·필드 배너·아이콘·그래프
+├─ js/ui/pixel.js        픽셀 아트: 2등신 선수 스프라이트(9가지 동작), 얼굴 초상, 경기장·연습장·라커룸 등 배경 11종, 트로피 아이콘
+├─ js/ui/art.js          선 아이콘·팔로워 그래프
 ├─ js/engine/core.js     시드 난수, 포지션·능력치·OVR, 포맷
 ├─ js/engine/league.js   NFL 리그 풀과 해마다의 변화, 팀 전력
 ├─ js/engine/sim.js      시즌·경기 시뮬레이션, 역할, 포스트시즌, 결승 중계
@@ -96,5 +97,6 @@ touchdown-life/
 ├─ js/engine/shop.js     훈련장(상품·스태프·시설)
 ├─ js/data/              teams, rosters(자동 생성), stars, colleges, schools
 ├─ tools/simulate.mjs    밸런스 시뮬레이션
+├─ tools/pixel-preview.html  픽셀 아트 미리보기 (서버로 열기)
 └─ docs/ANALYSIS.md      레퍼런스 게임 분석
 ```

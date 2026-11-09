@@ -49,7 +49,8 @@ h1, h2, h3, h4, p { margin: 0; }
 .shell { max-width: 520px; margin: 0 auto; min-height: 100vh; padding-block: 0 calc(96px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .appbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; gap: 10px; padding: 14px 0 10px; background: linear-gradient(var(--bg) 75%, transparent); }
 .appbar h1 { font-size: 19px; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
-.appbar h1 .logo { width: 28px; height: 28px; border-radius: 9px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+.appbar h1 .logo { width: 30px; height: 30px; border-radius: 9px; background: var(--accent-soft); display: grid; place-items: center; }
+.appbar h1 .logo .px { width: 24px; height: 24px; }
 .appbar .spacer { flex: 1; }
 .icon-btn { width: 38px; height: 38px; border-radius: 12px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
 .icon-btn:hover { background: var(--surface); color: var(--ink); }
@@ -222,6 +223,20 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accen
 .ovr b, .scoreboard b, .growth-grid .g b { font-weight: 800; letter-spacing: 0; }
 .stat b { font-size: 22px; font-weight: 700; letter-spacing: 0; }
 table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
+
+/* 픽셀 아트 */
+.px { image-rendering: pixelated; display: block; max-width: 100%; }
+.px.scene { width: 100%; height: auto; aspect-ratio: 160 / 84; border-radius: 14px; background: var(--surface-2); }
+.px.portrait { border-radius: 16px; background: var(--accent-soft); flex: none; }
+.px.icon { width: 30px; height: 30px; margin: 0 auto; }
+.trophy .px.icon { width: 34px; height: 34px; }
+.avatar-stage { display: flex; justify-content: center; align-items: flex-end; gap: 18px; }
+.avatar-stage .sprite { flex: none; }
+.hero-scene { padding: 10px; }
+.px-anim { position: relative; }
+.px-anim .f2 { position: absolute; inset: 0; animation: frame2 .9s steps(1) infinite; }
+@keyframes frame2 { 0% { opacity: 0; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .px-anim .f2 { display: none; } }
 
 </style>
   <script>try{var t=localStorage.getItem('tdlife.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
@@ -2634,58 +2649,11 @@ async function importFile(file) { return importText(await file.text()); }
 return { inViewer, loadCareer, saveCareer, listArchive, archiveCareer, deleteArchive, getTheme, setTheme, storageStatus, connectCloud, cloudLoad, mergeArchive, flush, offerFile, exportData, importText, importFile };
 });
 __def("js/ui/art.js", function () {
-// 게임 그래픽 (모두 인라인 SVG): 선수 아바타, 필드 배너, 아이콘, 팔로워 그래프.
-const SKIN = ['#F6D3B3', '#E8B48C', '#C98B5E', '#8D5A3B', '#5E3A26'];
-const HAIR = ['#1E1A17', '#4A3020', '#8B5A2B', '#D8B35A', '#A33A1E', '#BFBFBF'];
-const AVATAR_OPTIONS = { skin: SKIN.length, hair: HAIR.length, style: 6, visor: 3 };
+// UI 아이콘(선 아이콘)과 팔로워 그래프. 선수·장면 그림은 pixel.js가 그립니다.
+const AVATAR_OPTIONS = { skin: 5, hair: 6, style: 6, visor: 3 };
 const STYLE_NAMES = ['짧은 머리', '버즈컷', '드레드', '곱슬', '긴 머리', '삭발'];
 const VISOR_NAMES = ['바이저 없음', '스모크 바이저', '골드 바이저'];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
-
-// 헬멧을 벗은 모습(얼굴)과 유니폼. size: px.
-function avatarSvg(av = {}, colors = ['#1E5B3A', '#F2F2F2'], number = 0, size = 64, helmet = false) {
-  const skin = SKIN[av.skin ?? 1], hair = HAIR[av.hair ?? 0], st = av.style ?? 0, [c1, c2] = colors;
-  const hairPath = [
-    '<path d="M18 26c0-10 6-15 14-15s14 5 14 15c-3-4-7-6-14-6s-11 2-14 6z"/>',
-    '<path d="M19 24c1-8 6-12 13-12s12 4 13 12c-3-2-7-3-13-3s-10 1-13 3z" opacity=".8"/>',
-    '<g><path d="M17 27c0-11 7-16 15-16s15 5 15 16"/><rect x="16" y="24" width="4" height="14" rx="2"/><rect x="44" y="24" width="4" height="14" rx="2"/><rect x="21" y="25" width="3" height="10" rx="1.5"/><rect x="40" y="25" width="3" height="10" rx="1.5"/></g>',
-    '<g><circle cx="22" cy="19" r="5"/><circle cx="29" cy="15" r="5.5"/><circle cx="36" cy="15" r="5.5"/><circle cx="42" cy="19" r="5"/><circle cx="19" cy="25" r="3.5"/><circle cx="45" cy="25" r="3.5"/></g>',
-    '<g><path d="M17 28c0-11 7-17 15-17s15 6 15 17"/><path d="M17 26c-1 8 0 14 2 18l4-2c-2-5-3-10-2-14z"/><path d="M47 26c1 8 0 14-2 18l-4-2c2-5 3-10 2-14z"/></g>',
-    '',
-  ][st];
-  const face = `<ellipse cx="32" cy="31" rx="13" ry="15" fill="${skin}"/><circle cx="27" cy="31" r="1.6" fill="#1b1b1b"/><circle cx="37" cy="31" r="1.6" fill="#1b1b1b"/><path d="M28 38q4 3 8 0" stroke="#7a3d2a" stroke-width="1.6" fill="none" stroke-linecap="round"/><ellipse cx="19" cy="32" rx="2" ry="3" fill="${skin}"/><ellipse cx="45" cy="32" rx="2" ry="3" fill="${skin}"/>`;
-  const helm = helmet ? `<path d="M15 30c0-12 8-20 18-20s17 7 17 18v6H15z" fill="${c1}"/><path d="M31 11c4 0 8 1 10 3" stroke="${c2}" stroke-width="2.4" fill="none"/><rect x="15" y="28" width="35" height="5" rx="2.5" fill="${c1}"/>
-    ${av.visor ? `<rect x="22" y="28" width="22" height="7" rx="3" fill="${av.visor === 2 ? '#d9a531' : '#2b2f33'}" opacity=".85"/>` : ''}
-    <path d="M22 36h22M24 40h18M33 33v12" stroke="#cfd4d8" stroke-width="2" stroke-linecap="round"/>` : '';
-  return `<svg class="avatar" width="${size}" height="${size}" viewBox="0 0 64 64" role="img" aria-label="선수 아바타">
-    <rect x="0" y="0" width="64" height="64" rx="18" fill="${c1}" opacity=".12"/>
-    <path d="M8 64c2-12 11-17 24-17s22 5 24 17z" fill="${c1}"/>
-    <path d="M24 48l8 5 8-5" stroke="${c2}" stroke-width="2.4" fill="none"/>
-    <text x="32" y="62" text-anchor="middle" font-size="9" font-weight="800" fill="${c2}" font-family="system-ui">${esc(number)}</text>
-    <rect x="27" y="42" width="10" height="7" fill="${skin}"/>
-    ${helmet ? '' : face}${helmet ? `<ellipse cx="32" cy="34" rx="12" ry="13" fill="${skin}"/>` + helm : `<g fill="${hair}">${hairPath}</g>`}
-  </svg>`;
-}
-// 선택 카드 위 필드 일러스트: 엔드존 색은 소속 팀 색.
-function fieldBanner(colors = ['#1E5B3A', '#FFFFFF'], label = '', kind = 'ball') {
-  const [c1, c2] = colors;
-  const lines = Array.from({ length: 9 }, (_, i) => `<line x1="${60 + i * 35}" y1="10" x2="${60 + i * 35}" y2="150" stroke="#ffffff" stroke-opacity=".55" stroke-width="${i === 4 ? 3 : 1.5}"/>`).join('');
-  const hash = Array.from({ length: 36 }, (_, i) => `<line x1="${62 + i * 8.75}" y1="55" x2="${62 + i * 8.75}" y2="60" stroke="#fff" stroke-opacity=".4"/><line x1="${62 + i * 8.75}" y1="100" x2="${62 + i * 8.75}" y2="105" stroke="#fff" stroke-opacity=".4"/>`).join('');
-  const icon = kind === 'trophy'
-    ? '<g transform="translate(200 80)"><path d="M-14-26h28v10c0 12-6 20-14 20s-14-8-14-20z" fill="#E5B53C"/><path d="M-14-20h-8c0 10 5 14 9 14M14-20h8c0 10-5 14-9 14" stroke="#E5B53C" stroke-width="4" fill="none"/><rect x="-4" y="4" width="8" height="10" fill="#C99328"/><rect x="-12" y="14" width="24" height="6" rx="2" fill="#8C6A23"/></g>'
-    : kind === 'helmet'
-      ? `<g transform="translate(176 52) scale(1.6)"><path d="M2 22C2 10 10 2 21 2s18 7 18 18v6H2z" fill="${c1}" stroke="#fff" stroke-width="1.5"/><path d="M14 22h26M16 27h22M27 20v12" stroke="#ddd" stroke-width="2.4" stroke-linecap="round"/></g>`
-      : '<g transform="translate(200 80) rotate(-28)"><ellipse rx="30" ry="17" fill="#8A4B22" stroke="#5a2e12" stroke-width="2"/><path d="M-14 0h28" stroke="#fff" stroke-width="2.2"/><path d="M-8-4v8M-3-4v8M2-4v8M7-4v8" stroke="#fff" stroke-width="1.8"/><path d="M-27-3q27-9 54 0M-27 3q27 9 54 0" stroke="#fff" stroke-opacity=".35" fill="none" stroke-width="1.4"/></g>';
-  return `<svg class="field" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${esc(label)}">
-    <defs><linearGradient id="turf" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2E8B4F"/><stop offset="1" stop-color="#1F6B3B"/></linearGradient></defs>
-    <rect width="400" height="160" fill="url(#turf)"/>
-    ${Array.from({ length: 8 }, (_, i) => `<rect x="${60 + i * 35}" y="0" width="17.5" height="160" fill="#000" opacity=".05"/>`).join('')}
-    <rect x="0" y="0" width="60" height="160" fill="${c1}"/><rect x="340" y="0" width="60" height="160" fill="${c1}"/>
-    <text x="30" y="80" fill="${c2}" font-size="15" font-weight="900" text-anchor="middle" transform="rotate(-90 30 80)" font-family="system-ui" letter-spacing="3">ENDZONE</text>
-    <text x="370" y="80" fill="${c2}" font-size="15" font-weight="900" text-anchor="middle" transform="rotate(90 370 80)" font-family="system-ui" letter-spacing="3">ENDZONE</text>
-    ${lines}${hash}${icon}
-  </svg>`;
-}
 const P = {
   home: 'M3 10.5 12 4l9 6.5V20h-6v-6H9v6H3z', season: 'M4 5h16v15H4zM4 9h16M9 3v4m6-4v4', player: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21a8 8 0 0 1 16 0',
   records: 'M7 4h10v4a5 5 0 0 1-10 0zM5 5H3v2a4 4 0 0 0 4 4m12-6h2v2a4 4 0 0 1-4 4M10 14h4v3h-4zM8 20h8', social: 'M4 5h16v10H9l-5 4z', shop: 'M4 8h16l-1.5 12h-13zM9 8V6a3 3 0 0 1 6 0v2',
@@ -2705,7 +2673,364 @@ function sparkline(points, w = 320, h = 90) {
 }
 
 
-return { AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES, avatarSvg, fieldBanner, icon, sparkline, esc };
+return { AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES, icon, sparkline, esc };
+});
+__def("js/ui/pixel.js", function () {
+// 픽셀 아트: 문자열 격자로 그린 스프라이트와 절차적으로 그린 배경을 캔버스에 찍어 data URL로 돌려줍니다.
+// 모두 이 게임을 위해 새로 그린 그림입니다. 결과는 키별로 캐시합니다.
+const cache = new Map();
+const has = () => typeof document !== 'undefined';
+
+// ───────── 색 ─────────
+const hex = c => { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const toHex = ([r, g, b]) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const shade = (c, k) => toHex(hex(c).map(v => k < 0 ? v * (1 + k) : v + (255 - v) * k));
+const lum = c => { const [r, g, b] = hex(c); return (r * .299 + g * .587 + b * .114) / 255; };
+// 너무 어두운 팀 색은 헬멧이 검은 덩어리로 보이지 않게 살짝 밝힙니다.
+const vivid = c => lum(c) < .12 ? shade(c, .18) : c;
+const SKIN = ['#F6D3B3', '#E8B48C', '#C98B5E', '#8D5A3B', '#5E3A26'];
+const HAIR = ['#2A211C', '#5A3824', '#8B5A2B', '#D8B35A', '#A33A1E', '#BFBFBF'];
+const OUT = '#1B1A22';
+
+// ───────── 3x5 글꼴 ─────────
+const FONT = {
+  0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111',
+  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100', G: '011100101101011', H: '101101111101101', I: '111010010010111', K: '101101110101101', L: '100100100100111',
+  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', R: '110101110101101', S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', Y: '101101010010010', X: '101101010101101', '!': '010010010000010', J: '001001001101010', Q: '010101101110011', Z: '111001010100111', '.': '000000000000010', ' ': '000000000000000', '-': '000000111000000', ':': '000010000010000',
+};
+function text(ctx, str, x, y, color) {
+  ctx.fillStyle = color;
+  let cx = x;
+  for (const ch of String(str).toUpperCase()) {
+    const g = FONT[ch] || FONT[' '];
+    for (let i = 0; i < 15; i++) if (g[i] === '1') ctx.fillRect(cx + i % 3, y + Math.floor(i / 3), 1, 1);
+    cx += 4;
+  }
+  return cx - x - 1;
+}
+const textWidth = str => String(str).length * 4 - 1;
+
+// ───────── 선수 스프라이트 (16×24, 정면 2등신) ─────────
+// K 외곽선 · H 헬멧 · h 헬멧 하이라이트 · S 헬멧 줄무늬 · M 페이스마스크 · F 피부 · E 눈 · J 유니폼 · j 유니폼 그늘 · W 바지 · w 바지 그늘 · B 신발 · L 공 · l 공 끈 · V 바이저
+const HELMET = [
+  '.....KKKKKK.....',
+  '...KKhhHSHHKK...',
+  '..KhhHHHSHHHHK..',
+  '.KhHHHHHSHHHHHK.',
+  '.KHHHHHHSHHHHHK.',
+  'KHHHHHHHSHHHHHHK',
+  'KHHKKKKKKKKKKHHK',
+  'KHKFFFFFFFFFFKHK',
+  'KHKFEEFFFFEEFKHK',
+  'KHKMMMMMMMMMMKHK',
+  'KHKFFFMFFMFFFKHK',
+  '.KKKMMMMMMMMKKK.',
+];
+const HELMET_SAD = HELMET.map((r, i) => i === 8 ? 'KHKFFFFFFFFFFKHK' : i === 7 ? 'KHKFKKFFFFKKFKHK' : r);
+const HELMET_HAPPY = HELMET.map((r, i) => i === 8 ? 'KHKFEFEFFEFEFKHK' : i === 7 ? 'KHKFFEFFFFEFFKHK' : r);
+const TORSO = [
+  'KJJJJKKKKKKJJJJK',
+  'KJJJJJJJJJJJJJJK',
+  'KjJJJJJJJJJJJJjK',
+  '.KjJJJJJJJJJJjK.',
+  '.KjJJJJJJJJJJjK.',
+  '.KjJJJJJJJJJJjK.',
+  '..KKKKKKKKKKKK..',
+];
+const LEGS = {
+  stand: ['..KWWWWWWWWWWK..', '..KWWWwKKwWWWK..', '..KWWWK..KWWWK..', '..KwWWK..KWWwK..', '..KBBBK..KBBBK..'],
+  run1: ['..KWWWWWWWWWWK..', '.KWWWwK..KwWWK..', 'KWWWK......KWWK.', 'KBBBK......KWWK.', '...........KBBK.'],
+  run2: ['..KWWWWWWWWWWK..', '..KWWwK..KwWWWK.', '.KWWK......KWWWK', '.KWWK......KBBBK', '.KBBK...........'],
+  crouch: ['.KWWWWWWWWWWWWK.', 'KWWWwKKKKKKwWWWK', 'KBBBK......KBBBK', '................', '................'],
+  kick: ['..KWWWWWWWWWWK..', '..KWWWwKKwWWWWKK', '..KWWWK..KWWWWBB', '..KwWWK...KKKKK.', '..KBBBK.........'],
+};
+const BALL = ['.KKK.', 'KLlLK', 'KLLLK', '.KKK.'];
+// al/ar: 왼팔·오른팔 모양 (down 아래 · up 위로 · out 옆으로 · ground 땅 짚기) · ball: 공 위치 (hold 옆구리 · high 머리 위)
+const POSES = {
+  stand: { legs: 'stand', al: 'down', ar: 'down', ball: 'hold' },
+  idle: { legs: 'stand', al: 'down', ar: 'down' },
+  cheer: { legs: 'stand', al: 'up', ar: 'up', ball: 'high', face: 'happy' },
+  throw: { legs: 'stand', al: 'out', ar: 'up', ball: 'high' },
+  run: { legs: 'run1', al: 'out', ar: 'down', ball: 'hold' },
+  run2: { legs: 'run2', al: 'down', ar: 'down', ball: 'hold' },
+  stance: { legs: 'crouch', al: 'ground', ar: 'down', drop: 2 },
+  kick: { legs: 'kick', al: 'out', ar: 'out' },
+  sad: { legs: 'stand', al: 'down', ar: 'down', face: 'sad', drop: 1 },
+};
+const SPRITE_W = 22, SPRITE_H = 28;
+function playerGrid(pose = 'stand', hairStyle = 0) {
+  const P = POSES[pose] || POSES.stand, W = SPRITE_W, H = SPRITE_H;
+  const g = Array.from({ length: H }, () => Array(W).fill('.'));
+  const put = (rows, y0, x0) => rows.forEach((r, i) => r.split('').forEach((v, j) => { if (v !== '.' && g[y0 + i] && x0 + j >= 0 && x0 + j < W) g[y0 + i][x0 + j] = v; }));
+  const fill = (x, y, w, h, v) => { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (g[yy] && xx >= 0 && xx < W) g[yy][xx] = v; };
+  const head = P.face === 'sad' ? HELMET_SAD : P.face === 'happy' ? HELMET_HAPPY : HELMET;
+  const hy = 1 + (P.drop || 0), ty = hy + 12, ly = ty + 7;
+  put(head, hy, 3); put(TORSO, ty, 3); put(LEGS[P.legs], ly, 3);
+  const arm = (left, kind) => {
+    const x = left ? 1 : 19;
+    if (kind === 'down') { fill(x, ty, 2, 2, 'J'); fill(x, ty + 2, 2, 3, 'F'); }
+    if (kind === 'up') { fill(x, ty - 3, 2, 3, 'J'); fill(x, ty - 6, 2, 3, 'F'); fill(left ? 2 : 19, ty, 2, 1, 'J'); }
+    if (kind === 'out') { fill(left ? 0 : 19, ty, 3, 2, 'J'); fill(left ? 0 : 20, ty + 2, 2, 2, 'F'); }
+    if (kind === 'ground') { fill(x, ty, 2, 2, 'J'); fill(left ? 2 : 18, ty + 2, 2, 7, 'F'); }
+  };
+  arm(true, P.al); arm(false, P.ar);
+  if (hairStyle === 2 || hairStyle === 4) for (const r of [9, 10, 11]) { g[hy + r][3] = 'R'; g[hy + r][18] = 'R'; }
+  if (P.ball === 'hold') put(BALL, ty + 2, 17);
+  if (P.ball === 'high') put(BALL, ty - 9, 17);
+  // 외곽선: 색이 칠해진 칸 옆의 빈칸을 K로.
+  const filled = (y, x) => g[y]?.[x] && g[y][x] !== '.' && g[y][x] !== 'K';
+  const edge = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === '.' && (filled(y - 1, x) || filled(y + 1, x) || filled(y, x - 1) || filled(y, x + 1))) edge.push([y, x]);
+  for (const [y, x] of edge) g[y][x] = 'K';
+  return { grid: g, numberAt: [ty + 1, 7] };
+}
+function palette({ colors = ['#1F6B3B', '#FFFFFF'], skin = 1, hair = 0, visor = 0, pants }) {
+  const c1 = vivid(colors[0]), c2 = colors[1] && colors[1] !== colors[0] ? colors[1] : '#FFFFFF', pw = pants || '#ECEEF1';
+  return { K: OUT, H: c1, h: shade(c1, .35), S: c2, M: '#C9CED6', F: SKIN[skin] || SKIN[1], E: visor ? (visor === 2 ? '#D9A531' : '#2B2F33') : OUT, J: c1, j: shade(c1, -.28),
+    W: pw, w: shade(pw, -.18), B: '#26262E', L: '#8A4B22', l: '#FFFFFF', R: HAIR[hair] || HAIR[0], N: lum(c1) > .6 ? OUT : (lum(c2) > .4 ? c2 : '#FFFFFF') };
+}
+function drawGrid(ctx, grid, pal, x0, y0, flip = false) {
+  const w = grid[0].length;
+  grid.forEach((row, y) => row.forEach((v, x) => { if (v === '.' || !pal[v]) return; ctx.fillStyle = pal[v]; ctx.fillRect(x0 + (flip ? w - 1 - x : x), y0 + y, 1, 1); }));
+}
+function drawNumber(ctx, n, x, y, color) {
+  const s = String(n ?? 0).slice(-2);
+  const w = s.length === 1 ? 3 : 7, sx = x + Math.floor((7 - w) / 2);
+  text(ctx, s.length === 1 ? s : `${s[0]}${s[1]}`, sx, y, color);
+}
+function drawPlayer(ctx, x, y, o = {}) {
+  const { grid, numberAt } = playerGrid(o.pose, o.avatar?.style ?? 0);
+  const pal = palette({ colors: o.colors, skin: o.avatar?.skin, hair: o.avatar?.hair, visor: o.avatar?.visor, pants: o.pants });
+  drawGrid(ctx, grid, pal, x, y, o.flip);
+  if (o.number !== undefined && o.number !== null && !o.noNumber) {
+    const [ny, nx] = numberAt;
+    // 숫자는 좌우 반전하지 않습니다.
+    const w = grid[0].length, fx = o.flip ? w - nx - 7 : nx;
+    drawNumber(ctx, o.number, x + fx, y + ny, pal.N);
+  }
+}
+
+// ───────── 얼굴 초상 (20×20, 헬멧을 벗은 모습) ─────────
+const FACE = [
+  '....................',
+  '....................',
+  '......KKKKKKKK......',
+  '.....KFFFFFFFFK.....',
+  '....KFFFFFFFFFFK....',
+  '....KFFFFFFFFFFK....',
+  '...KFFFFFFFFFFFFK...',
+  '...KFFEEFFFFEEFFK...',
+  '...KFFEEFFFFEEFFK...',
+  '..KfFFFFFFFFFFFFfK..',
+  '...KFFFFFKKFFFFFK...',
+  '...KFFFFFFFFFFFFK...',
+  '....KFFFKKKKFFFK....',
+  '.....KFFFFFFFFK.....',
+  '......KKFFFFKK......',
+  '....KKKKFFFFKKKK....',
+  '..KJJJJJKKKKJJJJJK..',
+  '.KJJJJJJJJJJJJJJJJK.',
+  'KJJJJJJJJJJJJJJJJJJK',
+  'KJJJJJJJJJJJJJJJJJJK',
+];
+const HAIRS = [
+  // 짧은 머리
+  ['......RRRRRRRR......', '.....RRRRRRRRRR.....', '....RRRRRRRRRRRR....', '....RRRFFFFFFRRR....', '...RRFFFFFFFFFFRR...'],
+  // 버즈컷
+  ['......KKKKKKKK......', '.....KRRRRRRRRK.....', '....KRRRRRRRRRRK....', '....KFFFFFFFFFFK....', '...KFFFFFFFFFFFFK...'],
+  // 드레드
+  ['....R.RRRRRRRR.R....', '...RRRRRRRRRRRRRR...', '..RRRRRRRRRRRRRRRR..', '..RRRRFFFFFFFFRRRR..', '..RRKFFFFFFFFFFKRR..', '..R.............R...', '..R.............R...', '..R..............R..', '..R..............R..'],
+  // 곱슬(아프로)
+  ['....RRRRRRRRRRRR....', '...RRRRRRRRRRRRRR...', '..RRRRRRRRRRRRRRRR..', '..RRRRRRRRRRRRRRRR..', '..RRRFFFFFFFFFFRRR..', '...RRFFFFFFFFFFRR...'],
+  // 긴 머리
+  ['......RRRRRRRR......', '.....RRRRRRRRRR.....', '....RRRRRRRRRRRR....', '...RRRRFFFFFFRRRR...', '...RRFFFFFFFFFFRR...', '...R............R...', '...R............R...', '..RR............RR..', '..RR............RR..', '..RR............RR..', '..R..............R..'],
+  // 삭발
+  [],
+];
+function portraitGrid(style) {
+  const g = FACE.map(r => r.split(''));
+  const hair = HAIRS[style] || [];
+  hair.forEach((row, i) => row.split('').forEach((v, x) => { if (v === '.') return; const y = i + 2; if (v === 'R' && g[y][x] !== 'K' || v === 'K' || v === 'F' && g[y][x] === '.') g[y][x] = v; else if (v === 'R') g[y][x] = 'R'; }));
+  return g;
+}
+
+// ───────── 배경 ─────────
+function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 10000) / 10000; }; }
+function field(ctx, W, H, top, colors, opp, { night = false, snow = false } = {}) {
+  const g1 = night ? '#2F7D45' : '#3E9A52', g2 = night ? '#2A7040' : '#368A49';
+  for (let x = 0; x < W; x++) { ctx.fillStyle = Math.floor(x / 10) % 2 ? g1 : g2; ctx.fillRect(x, top, 1, H - top); }
+  // 엔드존
+  ctx.fillStyle = vivid(colors[0]); ctx.fillRect(0, top, 14, H - top);
+  ctx.fillStyle = vivid((opp || colors)[0]); ctx.fillRect(W - 14, top, 14, H - top);
+  ctx.fillStyle = '#FFFFFF';
+  for (let x = 14; x <= W - 14; x += 12) ctx.fillRect(x, top, 1, H - top);
+  for (let x = 14; x < W - 14; x += 3) { ctx.fillRect(x, top + Math.round((H - top) * .3), 1, 1); ctx.fillRect(x, top + Math.round((H - top) * .7), 1, 1); }
+  ctx.fillStyle = '#FFFFFF'; ctx.globalAlpha = .9;
+  if (H - top > 24) { text(ctx, '50', Math.round(W / 2) - 3, top + Math.round((H - top) * .5) - 2, '#FFFFFF'); }
+  ctx.globalAlpha = 1;
+  if (snow) { const r = rng(7); ctx.fillStyle = '#F4F8FF'; for (let i = 0; i < 90; i++) ctx.fillRect(Math.floor(r() * W), top + Math.floor(r() * (H - top)), 2, 1); }
+}
+function goalpost(ctx, x, top) {
+  ctx.fillStyle = '#F2C230';
+  ctx.fillRect(x, top - 12, 1, 12); ctx.fillRect(x - 5, top - 12, 11, 1); ctx.fillRect(x - 5, top - 26, 1, 14); ctx.fillRect(x + 5, top - 26, 1, 14);
+}
+function stands(ctx, W, top, bottom, colors, r, dense = true) {
+  ctx.fillStyle = '#2B3346'; ctx.fillRect(0, top, W, bottom - top);
+  const pal = [vivid(colors[0]), colors[1] || '#FFFFFF', '#E8E2D0', '#C94A3A', '#3A6FC9', '#F0C24A', '#FFFFFF'];
+  for (let y = top + 1; y < bottom - 1; y += 2) for (let x = (y % 4 ? 0 : 1); x < W; x += 2) if (r() < (dense ? .78 : .45)) { ctx.fillStyle = pal[Math.floor(r() * (r() < .5 ? 2 : pal.length))]; ctx.fillRect(x, y, 1, 1); }
+  ctx.fillStyle = '#1B2130'; ctx.fillRect(0, bottom - 2, W, 2);
+}
+function lights(ctx, x, y) { ctx.fillStyle = '#4B5366'; ctx.fillRect(x + 3, y + 5, 1, 14); ctx.fillStyle = '#FFF6C8'; ctx.fillRect(x, y, 7, 4); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + 1, y + 1, 5, 2); }
+const SCENES = {
+  stadium(ctx, W, H, o) {
+    const r = rng(o.seed || 3);
+    ctx.fillStyle = '#141B33'; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 18; i++) { ctx.fillStyle = '#C8D2FF'; ctx.fillRect(Math.floor(r() * W), Math.floor(r() * 10), 1, 1); }
+    lights(ctx, 6, 2); lights(ctx, W - 13, 2);
+    stands(ctx, W, 12, 38, o.colors, r);
+    // 전광판
+    ctx.fillStyle = '#0B0F18'; ctx.fillRect(W / 2 - 22, 3, 44, 9); ctx.fillStyle = '#F2C230';
+    text(ctx, o.board || 'TOUCHDOWN', W / 2 - Math.floor(textWidth(o.board || 'TOUCHDOWN') / 2), 5, '#F2C230');
+    field(ctx, W, H, 38, o.colors, o.opp, { night: true, snow: o.snow });
+    goalpost(ctx, 7, 38); goalpost(ctx, W - 8, 38);
+  },
+  snow(ctx, W, H, o) { SCENES.stadium(ctx, W, H, { ...o, snow: true, board: 'COLD GAME' }); const r = rng(11); ctx.fillStyle = '#FFFFFF'; for (let i = 0; i < 60; i++) ctx.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1, 1); },
+  hs(ctx, W, H, o) {
+    const r = rng(o.seed || 5);
+    ctx.fillStyle = '#21304F'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#E57B3A'; ctx.fillRect(0, 22, W, 4); ctx.fillStyle = '#F2A65A'; ctx.fillRect(0, 26, W, 3);
+    lights(ctx, 10, 4); lights(ctx, W - 17, 4);
+    ctx.fillStyle = '#9AA3B2'; for (let y = 29; y < 40; y += 3) ctx.fillRect(20, y, W - 40, 1);
+    for (let y = 30; y < 40; y += 3) for (let x = 22; x < W - 22; x += 3) if (r() < .5) { ctx.fillStyle = r() < .5 ? vivid(o.colors[0]) : '#F2E8D0'; ctx.fillRect(x, y - 1, 1, 1); }
+    field(ctx, W, H, 40, o.colors, o.opp, { night: true });
+    goalpost(ctx, 7, 40);
+  },
+  practice(ctx, W, H, o) {
+    ctx.fillStyle = '#9ED3F2'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#FFFFFF'; for (const [x, y] of [[20, 6], [90, 4], [130, 9]]) { ctx.fillRect(x, y, 14, 3); ctx.fillRect(x + 3, y - 2, 8, 2); }
+    ctx.fillStyle = '#3F7D4A'; for (let x = 0; x < W; x += 6) ctx.fillRect(x, 22 - (x % 12 ? 2 : 4), 6, 12);
+    ctx.fillStyle = '#7A848F'; ctx.fillRect(0, 30, W, 1); for (let x = 0; x < W; x += 8) ctx.fillRect(x, 26, 1, 6);
+    ctx.fillStyle = '#3E9A52'; ctx.fillRect(0, 32, W, H - 32);
+    ctx.fillStyle = '#4BA85E'; for (let x = 0; x < W; x += 20) ctx.fillRect(x, 32, 10, H - 32);
+    ctx.fillStyle = '#FFFFFF'; for (let x = 8; x < W; x += 24) ctx.fillRect(x, 32, 1, H - 32);
+    // 태클 더미 · 콘
+    for (const [x, c] of [[W - 34, '#C83A3A'], [W - 22, '#2F5FC8']]) { ctx.fillStyle = OUT; ctx.fillRect(x - 1, 33, 8, 20); ctx.fillStyle = c; ctx.fillRect(x, 34, 6, 18); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, 40, 6, 2); }
+    for (const x of [18, 34, 50]) { ctx.fillStyle = '#F08A24'; ctx.fillRect(x, H - 12, 3, 1); ctx.fillRect(x - 1, H - 11, 5, 2); }
+  },
+  locker(ctx, W, H, o) {
+    ctx.fillStyle = '#2E3440'; ctx.fillRect(0, 0, W, H);
+    for (let x = 4; x < W - 4; x += 16) {
+      ctx.fillStyle = '#5B6475'; ctx.fillRect(x, 6, 14, 42); ctx.fillStyle = '#4A5262'; ctx.fillRect(x + 1, 7, 12, 40);
+      ctx.fillStyle = vivid(o.colors[0]); ctx.fillRect(x + 3, 18, 8, 10); ctx.fillStyle = shade(vivid(o.colors[0]), -.3); ctx.fillRect(x + 3, 26, 8, 2);
+      ctx.fillStyle = '#3A4150'; for (let v = 9; v < 15; v += 2) ctx.fillRect(x + 3, v, 8, 1);
+    }
+    ctx.fillStyle = '#7A5A3A'; ctx.fillRect(0, H - 20, W, 3); ctx.fillStyle = '#5A412A'; ctx.fillRect(6, H - 17, 2, 6); ctx.fillRect(W - 8, H - 17, 2, 6);
+    ctx.fillStyle = '#3A3F4A'; ctx.fillRect(0, H - 11, W, 11);
+    ctx.fillStyle = vivid(o.colors[0]); ctx.fillRect(W - 30, H - 26, 9, 6); ctx.fillStyle = '#C9CED6'; ctx.fillRect(W - 22, H - 23, 2, 2);
+  },
+  press(ctx, W, H, o) {
+    ctx.fillStyle = '#E9ECF2'; ctx.fillRect(0, 0, W, H);
+    for (let y = 2; y < H - 22; y += 10) for (let x = (y / 10 % 2) * 10 + 2; x < W; x += 20) { ctx.fillStyle = vivid(o.colors[0]); ctx.fillRect(x, y, 7, 4); ctx.fillStyle = '#8A4B22'; ctx.fillRect(x + 2, y + 1, 3, 2); }
+    ctx.fillStyle = '#2B3346'; ctx.fillRect(0, H - 22, W, 22);
+    ctx.fillStyle = '#1B2130'; ctx.fillRect(0, H - 22, W, 2);
+    for (const x of [W / 2 - 14, W / 2 - 4, W / 2 + 8]) { ctx.fillStyle = '#1B1A22'; ctx.fillRect(x, H - 34, 1, 12); ctx.fillStyle = ['#C83A3A', '#2F5FC8', '#F0C24A'][Math.round(x) % 3]; ctx.fillRect(x - 1, H - 36, 3, 3); }
+  },
+  film(ctx, W, H, o) {
+    ctx.fillStyle = '#151A24'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#E8EEF6'; ctx.fillRect(18, 5, W - 36, 40); ctx.fillStyle = '#2C6E44'; ctx.fillRect(20, 7, W - 40, 36);
+    ctx.fillStyle = '#FFFFFF';
+    const os = [[40, 25], [52, 25], [64, 25], [76, 25], [88, 25], [64, 31]], xs = [[44, 16], [60, 14], [80, 16], [96, 18], [70, 20]];
+    for (const [x, y] of os) { ctx.fillRect(x, y, 3, 1); ctx.fillRect(x, y + 2, 3, 1); ctx.fillRect(x, y + 1, 1, 1); ctx.fillRect(x + 2, y + 1, 1, 1); }
+    ctx.fillStyle = '#F2C230'; for (const [x, y] of xs) { ctx.fillRect(x, y, 1, 1); ctx.fillRect(x + 2, y, 1, 1); ctx.fillRect(x + 1, y + 1, 1, 1); ctx.fillRect(x, y + 2, 1, 1); ctx.fillRect(x + 2, y + 2, 1, 1); }
+    ctx.fillStyle = '#FFFFFF'; for (let i = 0; i < 14; i++) ctx.fillRect(66 + i, 24 - Math.floor(i / 2), 1, 1);
+    ctx.fillStyle = '#0D1018'; for (let x = 4; x < W; x += 14) ctx.fillRect(x, H - 12, 10, 12);
+  },
+  medical(ctx, W, H, o) {
+    ctx.fillStyle = '#EEF3F6'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#D5DEE5'; ctx.fillRect(0, H - 18, W, 18);
+    ctx.fillStyle = '#2FA36B'; ctx.fillRect(18, 8, 4, 12); ctx.fillRect(14, 12, 12, 4);
+    ctx.fillStyle = '#9AA6B2'; ctx.fillRect(W - 50, H - 30, 40, 4); ctx.fillRect(W - 48, H - 26, 2, 10); ctx.fillRect(W - 14, H - 26, 2, 10);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(W - 50, H - 32, 40, 2);
+    ctx.fillStyle = '#7FC4E8'; ctx.fillRect(W - 70, H - 24, 8, 5);
+  },
+  school(ctx, W, H, o) {
+    ctx.fillStyle = '#E8DCC4'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#7A5A3A'; ctx.fillRect(14, 5, W - 28, 32); ctx.fillStyle = '#2F5544'; ctx.fillRect(16, 7, W - 32, 28);
+    text(ctx, 'GPA 2.0', 24, 12, '#F4F4F4'); text(ctx, 'MATH', 24, 21, '#F4F4F4');
+    ctx.fillStyle = '#F4F4F4'; ctx.fillRect(W - 48, 26, 20, 1);
+    ctx.fillStyle = '#A07A50'; for (let x = 6; x < W; x += 30) ctx.fillRect(x, H - 16, 20, 3);
+    ctx.fillStyle = '#7A5A3A'; for (let x = 8; x < W; x += 30) { ctx.fillRect(x, H - 13, 2, 8); ctx.fillRect(x + 16, H - 13, 2, 8); }
+  },
+  draft(ctx, W, H, o) {
+    ctx.fillStyle = '#0E1530'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#1B2A5C'; for (let x = 0; x < W; x += 12) ctx.fillRect(x, 0, 6, H - 24);
+    ctx.fillStyle = '#05070F'; ctx.fillRect(W / 2 - 34, 4, 68, 22); ctx.fillStyle = vivid(o.colors[0]); ctx.fillRect(W / 2 - 32, 6, 64, 18);
+    text(ctx, o.board || 'DRAFT', W / 2 - Math.floor(textWidth(o.board || 'DRAFT') / 2), 9, o.colors[1] && lum(o.colors[1]) > .3 ? o.colors[1] : '#FFFFFF');
+    text(ctx, 'THE PICK IS IN', W / 2 - Math.floor(textWidth('THE PICK IS IN') / 2), 16, '#FFFFFF');
+    ctx.fillStyle = '#FFF6C8'; ctx.globalAlpha = .18; ctx.beginPath(); ctx.moveTo(W / 2 - 6, 0); ctx.lineTo(W / 2 + 6, 0); ctx.lineTo(W / 2 + 26, H); ctx.lineTo(W / 2 - 26, H); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#2B3346'; ctx.fillRect(0, H - 24, W, 24); ctx.fillStyle = '#3A4560'; ctx.fillRect(0, H - 24, W, 2);
+    ctx.fillStyle = '#5A412A'; ctx.fillRect(18, H - 38, 14, 16); ctx.fillStyle = '#7A5A3A'; ctx.fillRect(17, H - 39, 16, 3);
+  },
+  trophy(ctx, W, H, o) {
+    ctx.fillStyle = '#2A2320'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#3A302B'; for (let x = 0; x < W; x += 8) ctx.fillRect(x, 0, 4, H);
+    for (const y of [20, 42]) { ctx.fillStyle = '#8A6A44'; ctx.fillRect(6, y, W - 12, 3); ctx.fillStyle = '#5A412A'; ctx.fillRect(6, y + 3, W - 12, 1); }
+    const n = Math.min(o.count ?? 0, 14);
+    for (let i = 0; i < n; i++) { const row = i < 7 ? 0 : 1, x = 12 + (i % 7) * 20, y = row ? 30 : 8; drawIcon(ctx, i % 3 === 2 ? 'ring' : 'trophy', x, y); }
+  },
+};
+// 작은 아이콘 (12×12)
+const ICONS = {
+  trophy: ['..KKKKKKKK..', '.KGGGgGGGGK.', 'KKGGGgGGGGKK', 'KGKGGgGGGKGK', 'KGKGGgGGGKGK', '.KKGGgGGGKK.', '...KGGGGK...', '....KGGK....', '....KGGK....', '...KGGGGK...', '..KBBBBBBK..', '..KKKKKKKK..'],
+  ring: ['....KKKK....', '...KDDDDK...', '..KDdDDdDK..', '...KDDDDK...', '..KGGGGGGK..', '.KGK....KGK.', 'KGK......KGK', 'KGK......KGK', 'KGK......KGK', '.KGK....KGK.', '..KGGGGGGK..', '...KKKKKK...'],
+  star: ['.....KK.....', '....KGGK....', '....KGGK....', 'KKKKGGGGKKKK', 'KGGGGGGGGGGK', '.KGGGGGGGGK.', '..KGGGGGGK..', '..KGGKKGGK..', '.KGGK..KGGK.', '.KGK....KGK.', 'KKK......KKK', '............'],
+  ball: ['............', '....KKKK....', '..KKLLLLKK..', '.KLLLLLLLLK.', 'KLLlLlLlLLLK', 'KLLlllllLLLK', 'KLLlLlLlLLLK', '.KLLLLLLLLK.', '..KKLLLLKK..', '....KKKK....', '............', '............'],
+};
+const ICON_PAL = { K: OUT, G: '#E5B53C', g: '#FFF0B0', B: '#7A5A3A', D: '#9FD9FF', d: '#FFFFFF', L: '#8A4B22', l: '#FFFFFF' };
+function drawIcon(ctx, name, x, y) { drawGrid(ctx, ICONS[name].map(r => r.split('')), ICON_PAL, x, y); }
+
+// ───────── 공개 API ─────────
+function render(key, w, h, draw, scale = 1) {
+  if (!has()) return '';
+  if (cache.has(key)) return cache.get(key);
+  const c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale;
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  if (scale !== 1) ctx.scale(scale, scale);
+  draw(ctx);
+  const url = c.toDataURL('image/png');
+  cache.set(key, url);
+  if (cache.size > 300) cache.delete(cache.keys().next().value);
+  return url;
+}
+const SCENE_W = 160, SCENE_H = 84;
+// 배경 + 선수들. players: [{pose, colors, avatar, number, flip, x}]
+function sceneUrl(o) {
+  const key = 'scene:' + JSON.stringify(o);
+  return render(key, SCENE_W, SCENE_H, ctx => {
+    (SCENES[o.scene] || SCENES.stadium)(ctx, SCENE_W, SCENE_H, o);
+    for (const p of o.players || []) {
+      const x = p.x ?? (SCENE_W / 2 - SPRITE_W / 2), y = SCENE_H - SPRITE_H - (p.y ?? 3);
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 4, y + SPRITE_H - 2, 14, 2);
+      drawPlayer(ctx, x, y, p);
+    }
+    if (o.confetti) { const r = rng(9); for (let i = 0; i < 70; i++) { ctx.fillStyle = ['#F2C230', '#FFFFFF', vivid(o.colors[0]), '#E85A5A'][i % 4]; ctx.fillRect(Math.floor(r() * SCENE_W), Math.floor(r() * (SCENE_H - 10)), 1, 2); } }
+  });
+}
+function spriteUrl(o, scale = 1) {
+  return render('sprite:' + scale + JSON.stringify(o), SPRITE_W, SPRITE_H, ctx => drawPlayer(ctx, 0, 0, o), scale);
+}
+function portraitUrl(avatar = {}, colors = ['#1F6B3B', '#FFFFFF'], number = 0) {
+  return render('portrait:' + JSON.stringify([avatar, colors, number]), 20, 20, ctx => {
+    const pal = palette({ colors, skin: avatar.skin, hair: avatar.hair });
+    pal.f = shade(pal.F, -.12);
+    drawGrid(ctx, portraitGrid(avatar.style ?? 0), pal, 0, 0);
+    drawNumber(ctx, number, 6, 15, pal.N);
+  });
+}
+function iconUrl(name) { return render('icon:' + name, 12, 12, ctx => drawIcon(ctx, name, 0, 0)); }
+const PIXEL_READY = has;
+
+return { SPRITE_W, SCENE_W, sceneUrl, spriteUrl, portraitUrl, iconUrl, PIXEL_READY };
 });
 __def("js/ui/views.js", function () {
 // 화면 템플릿. 상태를 받아 HTML 문자열을 돌려줍니다 (이벤트는 main.js가 data-action으로 처리).
@@ -2721,10 +3046,37 @@ const { careerScore, countAwards, totals, isPro, hallOfFame, honorsLine } = __re
 const { talentLabel, marketValue, canRedshirt, seasonLabel, makeCandidates, draftProjection, checkRetirementNudge } = __req("js/engine/career.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
-const { avatarSvg, fieldBanner, icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
+const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
+const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
+const { COLLEGES } = __req("js/data/colleges.js");
 
 const TABS = [['home', '홈', 'home'], ['season', '시즌', 'season'], ['player', '선수', 'player'], ['records', '기록', 'records'], ['social', '반응', 'social']];
 const nameTag = n => `<span translate="no">${esc(n)}</span>`;
+// ───────── 픽셀 그림 ─────────
+const px = (url, alt, cls = '', style = '') => url ? `<img class="px ${cls}" src="${url}" alt="${esc(alt)}"${style ? ` style="${style}"` : ''}>` : '';
+const portrait = (s, size = 64) => px(portraitUrl(s.player.avatar, teamColors(s), s.player.number), `${s.player.name} 얼굴`, 'portrait', `width:${size}px;height:${size}px`);
+const look = s => ({ colors: teamColors(s), avatar: s.player.avatar, number: s.player.number });
+const sceneName = (s, name) => name === 'stadium' && s.stage === 'hs' ? 'hs' : name;
+function sceneImg(s, name, pose, extra = {}) {
+  return px(sceneUrl({ scene: sceneName(s, name), colors: teamColors(s), opp: extra.opp, board: extra.board, count: extra.count, confetti: extra.confetti, players: extra.players || [{ pose, ...look(s) }] }), extra.alt || '장면', 'scene');
+}
+// 두 장면을 번갈아 보여 주는 2프레임 애니메이션.
+function animScene(s, name, a, b, extra = {}) {
+  return `<div class="px-anim">${sceneImg(s, name, a, extra)}${sceneImg(s, name, b, extra).replace('class="px scene"', 'class="px scene f2"')}</div>`;
+}
+const colorsByName = name => TEAMS.find(t => t.ko === name)?.colors || COLLEGES.find(c => c.ko === name)?.colors || ['#5A6372', '#FFFFFF'];
+// 카드별 장면과 동작.
+const CARD_ART = {
+  'hs-oklahoma': ['practice', 'stance'], 'hs-korean': ['locker', 'idle'], 'hs-film': ['film', 'idle'], 'hs-7on7': ['practice', 'throw'], 'hs-camp': ['practice', 'run'],
+  'hs-audible': ['stadium', 'throw'], 'hs-rival': ['press', 'stand'], 'hs-grades': ['school', 'idle'], 'hs-ankle': ['medical', 'idle'], 'hs-transfer': ['school', 'stand'],
+  'twoway-ask': ['practice', 'stance'], 'hs-slump': ['locker', 'sad'], 'col-redshirt': ['practice', 'idle'], 'col-nil': ['press', 'cheer'], 'col-collective': ['locker', 'idle'],
+  'col-rivalry': ['locker', 'cheer'], 'col-heisman': ['press', 'cheer'], 'col-concussion': ['medical', 'sad'], 'col-advisory': ['film', 'idle'], 'col-coach-leave': ['locker', 'idle'],
+  'nfl-camp': ['practice', 'stance'], 'nfl-qb-hurt': ['stadium', 'throw'], 'nfl-mentor': ['practice', 'idle'], 'nfl-media': ['press', 'stand'], 'nfl-extend': ['press', 'stand'],
+  'nfl-deadline': ['locker', 'idle'], 'nfl-primetime': ['stadium', 'run'], 'nfl-fine': ['locker', 'sad'], 'nfl-charity': ['medical', 'cheer'], 'nfl-cold': ['snow', 'run'],
+  'nfl-teammate-holdout': ['locker', 'idle'], 'nfl-aging': ['medical', 'idle'], 'nfl-rookie-rival': ['practice', 'stance'], 'nfl-sns': ['locker', 'idle'], 'nfl-weekly': ['press', 'cheer'],
+  'kr-broadcast': ['press', 'cheer'], 'kr-military': ['school', 'idle'], 'any-family': ['stadium', 'cheer'], 'any-diet': ['locker', 'idle'],
+};
+const kickerPose = (s, pose) => ['K', 'P'].includes(s.player.pos) && ['run', 'throw', 'stance'].includes(pose) ? 'kick' : s.player.pos === 'QB' && pose === 'run' ? 'throw' : pose;
 const teamColors = s => s.team?.kind === 'nfl' ? TEAM_BY_ID[s.team.id].colors : s.team?.kind === 'college' ? COLLEGE_BY_ID[s.team.id].colors : ['#157347', '#FFFFFF'];
 const num = n => (Math.round(n * 10) / 10).toLocaleString('ko-KR');
 // 숫자 뒤 조사: 0(십)·3(삼)·6(육)은 받침, 1·7·8은 ㄹ받침(로).
@@ -2763,7 +3115,7 @@ function stageText(s) {
 }
 function profileCard(s, compact = false) {
   const p = s.player, last = s.history.at(-1), delta = last ? last.ovrAfter - last.ovrBefore : 0;
-  return `<section class="card"><div class="hero">${avatarSvg(p.avatar, teamColors(s), p.number, 64)}
+  return `<section class="card"><div class="hero">${portrait(s, 64)}
     <div class="grow"><div class="name">${nameTag(p.name)} <span class="muted small">#${p.number}</span></div>
     <div class="small muted">${esc(s.team?.name || '')} · ${POSITIONS[p.pos].ko}${p.twoWay ? `·${POSITIONS[p.twoWay.pos].ko}` : ''} · ${p.age}세</div>
     <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'}</div></div>
@@ -2773,12 +3125,12 @@ function profileCard(s, compact = false) {
 // ───────── 생성 화면 ─────────
 function setupPage(st) {
   const steps = `<div class="steps">${[0, 1, 2, 3].map(i => `<i class="${i <= st.step ? 'on' : ''}"></i>`).join('')}</div>`;
-  const head = `<header class="appbar"><h1><span class="logo">${icon('ball')}</span>터치다운 인생</h1><div class="spacer"></div><button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="archive" aria-label="은퇴 기록">${icon('records')}</button></header>`;
+  const head = `<header class="appbar"><h1><span class="logo">${px(iconUrl('ball'), '', 'icon')}</span>터치다운 인생</h1><div class="spacer"></div><button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="archive" aria-label="은퇴 기록">${icon('records')}</button></header>`;
   let body = '';
   if (st.step === 0) {
     const opts = (key, n, labels) => `<div class="seg">${Array.from({ length: n }, (_, i) => `<button data-action="setup-av" data-k="${key}" data-v="${i}" class="${st.avatar[key] === i ? 'on' : ''}">${labels ? labels[i] : `${i + 1}`}</button>`).join('')}</div>`;
     body = `<p class="eyebrow">10학년, 15세. 풋볼부 라커룸에서 시작해요</p><h2>내 선수의 모습을<br>골라 주세요</h2>
-      <div class="card flat" style="display:grid;place-items:center">${avatarSvg(st.avatar, ['#157347', '#FFFFFF'], st.number || 0, 132)}</div>
+      <div class="card flat avatar-stage">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number || 0), '선수 얼굴', 'portrait', 'width:120px;height:120px')}${px(spriteUrl({ pose: 'cheer', colors: ['#157347', '#FFFFFF'], avatar: st.avatar, number: st.number || 0 }), '유니폼을 입은 모습', 'sprite', 'width:94px;height:120px')}</div>
       <div class="field-row"><label>피부 톤</label>${opts('skin', AVATAR_OPTIONS.skin)}</div>
       <div class="field-row"><label>머리 모양</label>${opts('style', AVATAR_OPTIONS.style, STYLE_NAMES)}</div>
       <div class="field-row"><label>머리 색</label>${opts('hair', AVATAR_OPTIONS.hair)}</div>
@@ -2809,7 +3161,7 @@ function setupPage(st) {
     body = `<p class="eyebrow">${esc(c.label)} · OVR ${c.ovr}</p><h2>집중해서 키울 능력치를<br>골라 주세요</h2>
       <p class="muted small" style="margin-top:6px">최대 2개. 고른 능력치가 훨씬 빨리 자라고, 커리어 중 전환점에서 바꿀 수 있어요.</p>
       <div class="card flat">${attrsOf(st.pos).map(k => `<button class="option ${st.focus.includes(k) ? 'sel' : ''}" data-action="setup-focus" data-v="${k}" style="margin-top:8px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${c.attrs[k]}</b></div><div class="sub">${ATTR[k][1]} · OVR 비중 ${Math.round(POSITIONS[st.pos].w[k] * 100)}%</div></button>`).join('')}</div>
-      <div class="card"><div class="hero">${avatarSvg(st.avatar, ['#157347', '#FFFFFF'], st.number, 56)}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
+      <div class="card"><div class="hero">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number), '선수 얼굴', 'portrait', 'width:56px;height:56px')}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
       <div class="dock"><button class="primary" data-action="setup-create" ${st.focus.length ? '' : 'disabled'}>10학년 시즌 시작 ${icon('arrow')}</button><button class="ghost" data-action="setup-back">이전 단계</button></div>`;
   }
   return `<div class="shell setup">${head}${steps}${body}<p class="footer">가입 없이 플레이 · 이 브라우저에 자동 저장<br>실제 구단·선수 이름은 위키백과 로스터(2026-11) 기준, 능력치와 결과는 게임 속 가상의 값입니다.</p></div>`;
@@ -2817,7 +3169,7 @@ function setupPage(st) {
 
 // ───────── 홈 ─────────
 function appBar(s) {
-  return `<header class="appbar"><h1><span class="logo">${icon('ball')}</span>터치다운 인생</h1><div class="spacer"></div>
+  return `<header class="appbar"><h1><span class="logo">${px(iconUrl('ball'), '', 'icon')}</span>터치다운 인생</h1><div class="spacer"></div>
     ${s.phase !== 'retired' ? `<button class="money-chip" data-action="open-shop" aria-label="훈련장">${icon('shop')}${usd(s.money)}</button>` : ''}
     <button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="settings" aria-label="설정">${icon('settings')}</button></header>`;
 }
@@ -2844,7 +3196,8 @@ function progress(s) {
 }
 function cardView(s) {
   const c = s.card, def = CARD_INDEX[c.id];
-  return `<section class="card">${fieldBanner(teamColors(s), def.title, s.stage === 'nfl' ? 'helmet' : 'ball')}
+  const [scn, pose] = CARD_ART[c.id] || ['stadium', 'stand'];
+  return `<section class="card">${sceneImg(s, scn, kickerPose(s, pose), { alt: def.title })}
     <p class="eyebrow" style="margin-top:12px">${esc(c.label)} · ${esc(def.eyebrow)}</p><h2 style="margin-top:2px">${esc(def.title)}</h2>
     <p class="muted" style="margin-top:6px">${esc(def.body)}</p>
     ${c.choices.map(x => `<button class="choice" data-action="choose-card" data-v="${x.i}"><strong>${esc(x.label)}</strong>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}<div class="chance">성공 확률 ${x.chance}%</div></button>`).join('')}
@@ -2854,7 +3207,8 @@ let CARD_INDEX = {};
 const setCardIndex = idx => { CARD_INDEX = idx; };
 function cardResultView(s) {
   const r = s.cardResult;
-  return `<section class="card"><p class="eyebrow">선택 결과 · ${esc(r.title)}</p>
+  const [scn] = CARD_ART[r.id] || ['stadium'];
+  return `<section class="card">${sceneImg(s, scn, r.ok ? 'cheer' : 'sad', { alt: r.ok ? '성공' : '실패' })}<p class="eyebrow" style="margin-top:12px">선택 결과 · ${esc(r.title)}</p>
     <div class="roll" aria-hidden="true"><span style="width:${r.chance}%"></span><i style="left:${Math.min(99, r.roll)}%"></i></div>
     <div class="tiny faint">성공 ${r.chance}% · 주사위 ${r.roll}</div>
     <div class="result-box ${r.ok ? '' : 'fail'}" style="margin-top:10px"><div class="verdict ${r.ok ? 'accent' : 'up'}">${r.ok ? '성공' : '실패'}</div><div class="small" style="margin-top:2px">"${esc(r.choice)}"</div><p style="margin-top:6px">${esc(r.text)}</p>
@@ -2895,12 +3249,15 @@ function homePage(s) {
   if (s.phase === 'retired') return retiredPage(s);
   const career = s.history.some(isPro) ? [['NFL 경기', T.g], ['NFL TD', T.ptd + T.rtd + T.rectd + T.dtd], ['NFL 수상', s.history.filter(isPro).reduce((n, h) => n + h.awards.length, 0)]] : [['통산 경기', A.g], ['총 TD', A.ptd + A.rtd + A.rectd + A.dtd], ['수상', s.history.reduce((n, h) => n + h.awards.length, 0)]];
   let main = '', dock = '';
+  const hero = s.phase === 'ready' ? animScene(s, s.stage === 'military' ? 'school' : 'practice', kickerPose(s, 'stance'), 'idle', { alt: '연습장' })
+    : s.phase === 'season' ? animScene(s, 'stadium', kickerPose(s, 'run'), s.player.pos === 'QB' ? 'stand' : 'run2', { alt: '경기장' })
+    : s.phase === 'offseason' ? animScene(s, 'locker', 'stand', 'idle', { alt: '라커룸' }) : '';
   if (s.phase === 'ready') { main = prepView(s); dock = `<button class="primary" data-action="start-season">${s.year} ${s.stage === 'military' ? '복무 시즌 보내기' : `${seasonLabel(s)} 시즌 시작`} ${icon('arrow')}</button>`; }
   else if (s.phase === 'season') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 진행 중</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${s.cardResult ? cardResultView(s) : ''}${soFar(s)}`; dock = `<button class="primary" data-action="advance">${s.season.seg >= s.season.segments.length ? '포스트시즌으로' : '계속하기'} ${icon('arrow')}</button>`; }
   else if (s.phase === 'card') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 · 선택의 순간</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${cardView(s)}${soFar(s)}`; }
   else if (s.phase === 'offseason') { main = todoList(s); dock = s.path ? `<button class="primary" data-action="open-path">다음 진로 정하기 ${icon('arrow')}</button>` : ''; }
   const nudge = s.phase === 'offseason' && checkRetirementNudge(s) ? `<p class="small muted" style="text-align:center;margin-top:6px">구단이 조심스럽게 은퇴 이야기를 꺼냈어요.</p>` : '';
-  return `${profileCard(s)}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
+  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
     ${dock ? `<div class="dock">${dock}</div>` : ''}${nudge}
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
@@ -2963,7 +3320,8 @@ function playerPage(s) {
 const KIND_LABEL = [['mvp', 'MVP'], ['sbChamp', '슈퍼볼 우승'], ['sbMVP', '슈퍼볼 MVP'], ['opoy', '올해의 공격'], ['dpoy', '올해의 수비'], ['allPro1', '올프로 1팀'], ['allPro2', '올프로 2팀'], ['proBowl', '프로볼'], ['oroy', '공격 신인왕'], ['droy', '수비 신인왕'], ['title', '개인 타이틀'], ['comeback', '재기상'], ['wpmoy', '월터 페이턴'], ['heisman', '하이즈먼'], ['nationalChamp', '전국 우승'], ['positionAward', '포지션상'], ['consensusAA', '컨센서스 AA'], ['allAmerican', '올아메리칸'], ['confPOY', '컨퍼런스 POY'], ['allConf', '올 컨퍼런스'], ['stateChamp', '주 우승'], ['statePOY', '주 올해의 선수'], ['hsAA', '고교 AA'], ['allState', '올스테이트'], ['greyCup', '그레이컵'], ['cflMOP', 'CFL MOP']];
 function trophyShelf(s) {
   const items = KIND_LABEL.map(([k, l]) => [l, countAwards(s, k)]).filter(x => x[1]);
-  return items.length ? `<div class="shelf">${items.map(([l, n]) => `<div class="trophy">${icon('trophy')}<b>${n}</b><span>${l}</span></div>`).join('')}</div>` : '<p class="muted small">아직 트로피가 없어요. 첫 트로피를 향해!</p>';
+  const ic = l => /슈퍼볼 우승|그레이컵|전국 우승|주 우승/.test(l) ? 'ring' : /프로볼|올프로|올아메리칸|올 컨퍼런스|올스테이트|AA/.test(l) ? 'star' : 'trophy';
+  return items.length ? `<div class="shelf">${items.map(([l, n]) => `<div class="trophy">${px(iconUrl(ic(l)), l, 'icon')}<b>${n}</b><span>${l}</span></div>`).join('')}</div>` : '<p class="muted small">아직 트로피가 없어요. 첫 트로피를 향해!</p>';
 }
 function totalsTable(s) {
   const groups = [['NFL', h => h.stage === 'nfl'], ['대학', h => h.stage === 'college'], ['고교', h => h.stage === 'hs'], ['CFL', h => h.stage === 'cfl']].filter(([, f]) => s.history.some(f));
@@ -2995,7 +3353,8 @@ function retiredPage(s) {
   const cmp = Object.entries(ALL_TIME).filter(([k]) => ({ passYds: 'pyds', passTD: 'ptd', rushYds: 'ryds', rushTD: 'rtd', rec: 'rec', recYds: 'recyds', recTD: 'rectd', sacks: 'sack', int: 'dint', points: null })[k] !== undefined)
     .map(([k, v]) => { const key = { passYds: 'pyds', passTD: 'ptd', rushYds: 'ryds', rushTD: 'rtd', rec: 'rec', recYds: 'recyds', recTD: 'rectd', sacks: 'sack', int: 'dint', points: 'pts' }[k]; const mine = key === 'pts' ? (T.fgm * 3 + T.xpm + (T.ptd ? 0 : 0) + (T.rtd + T.rectd + T.dtd) * 6) : T[key] || 0; return [v, mine]; })
     .filter(([, mine]) => mine > 0).sort((a, b) => b[1] / b[0].value - a[1] / a[0].value).slice(0, 4);
-  return `<section class="card" style="text-align:center">${avatarSvg(p.avatar, teamColors(s), p.number, 96, true)}
+  const tcount = s.history.reduce((n, h) => n + (h.awards?.length || 0), 0);
+  return `<section class="card" style="text-align:center">${sceneImg(s, 'trophy', 'cheer', { count: tcount, alt: '트로피 룸' })}<div style="display:flex;justify-content:center;margin-top:-34px">${portrait(s, 72)}</div>
     <p class="eyebrow" style="margin-top:10px">${s.startYear}–${s.retiredYear} · ${POSITIONS[p.pos].ko}</p><h2 style="font-size:24px">${nameTag(p.name)}의 풋볼 인생</h2>
     <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span></div>
     <p class="small" style="margin-top:10px">${esc(honorsLine(s) || '수상 기록 없음')}</p></section>
@@ -3012,7 +3371,8 @@ function reportSheet(s, year) {
   const h = s.history.find(x => x.year === year) || s.history.at(-1), p = s.player;
   if (h.stage === 'military') return sheet(`<p class="eyebrow">${h.year} · 군 복무</p><h2>복무 시즌을 보냈어요</h2><p class="lead">개인 정비 시간에 틈틈이 몸을 만들었습니다. OVR ${h.ovrAfter}.</p><button class="primary" data-action="close-sheet" style="margin-top:16px">확인</button>`);
   const d = h.ovrAfter - h.ovrBefore, keys = Object.keys(h.changes || {});
-  return sheet(`<p class="eyebrow">${h.year} · ${esc(h.teamName)} · ${esc(h.label || '')}</p><h2>${esc(h.label || '')} 시즌이 끝났어요<br>종합 능력치가 <span class="accent">${h.ovrAfter}</span>${d ? `${numRo(h.ovrAfter)} ${d > 0 ? '올랐어요' : '내려갔어요'}` : `${numBatchim(h.ovrAfter) ? '을' : '를'} 유지했어요`}</h2>
+  const great = h.champion || h.awards.some(a => a.pts >= 6), bad = h.injuries?.some(i => i.major) || (h.stats.g >= 3 && h.score < 60);
+  return sheet(`${sceneImg(s, 'stadium', great ? 'cheer' : bad ? 'sad' : 'stand', { confetti: h.champion, board: h.champion ? 'CHAMPIONS' : `${h.team.w}-${h.team.l}`, alt: '시즌 결과' })}<p class="eyebrow" style="margin-top:12px">${h.year} · ${esc(h.teamName)} · ${esc(h.label || '')}</p><h2>${esc(h.label || '')} 시즌이 끝났어요<br>종합 능력치가 <span class="accent">${h.ovrAfter}</span>${d ? `${numRo(h.ovrAfter)} ${d > 0 ? '올랐어요' : '내려갔어요'}` : `${numBatchim(h.ovrAfter) ? '을' : '를'} 유지했어요`}</h2>
     <div class="growth-grid">${keys.map(k => `<div class="g ${p.focus.includes(k) ? 'focus' : ''} pop"><small class="muted">${ATTR[k]?.[0]}</small><b>${h.attrsAfter[k]}</b><small class="${h.changes[k] > 0 ? 'up' : h.changes[k] < 0 ? 'down' : 'faint'}">${h.changes[k] > 0 ? `▲${h.changes[k]}` : h.changes[k] < 0 ? `▼${-h.changes[k]}` : '유지'}</small></div>`).join('')}</div>
     ${h.breakout ? `<p class="small" style="margin-top:8px"><span class="pill red">급성장</span> ${ATTR[h.breakout][0]}, 한 단계 올라섰어요.</p>` : ''}
     ${(h.crossed || []).map(t => `<p class="small" style="margin-top:6px"><span class="pill green">${esc(t)} 진입</span></p>`).join('')}
@@ -3043,7 +3403,8 @@ function turningSheet(s, focusDraft = []) {
   const t = s.todos.find(x => x.id === 'turning' && !x.done);
   if (!t) return sheet('<h2>지나간 전환점</h2>');
   const focus = t.kind === 'focus';
-  return sheet(`${fieldBanner(teamColors(s), t.title, 'helmet')}<p class="eyebrow" style="margin-top:12px">${nameTag(s.player.name)} · 전환점</p><h2>${esc(t.title)}</h2><p class="lead">${esc(t.body)}</p>
+  const players = t.kind === 'twoWay' ? [{ pose: 'run', ...look(s), x: 40 }, { pose: 'stance', ...look(s), x: 98, flip: true }] : null;
+  return sheet(`${sceneImg(s, t.kind === 'focus' ? 'film' : 'practice', t.kind === 'position' ? 'stance' : 'stand', { players, alt: t.title })}<p class="eyebrow" style="margin-top:12px">${nameTag(s.player.name)} · 전환점</p><h2>${esc(t.title)}</h2><p class="lead">${esc(t.body)}</p>
     ${focus ? `<div style="margin-top:10px">${attrsOf(s.player.pos).map(k => `<button class="option ${focusDraft.includes(k) ? 'sel' : ''}" data-action="focus-pick" data-v="${k}" style="margin-top:6px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${s.player.attrs[k]}</b></div></button>`).join('')}</div>` : ''}
     ${t.options.map(o => `<button class="choice" data-action="turning" data-v="${o.id}"><strong>${esc(o.label)}</strong><div class="hint">${esc(o.desc)}</div></button>`).join('')}
     <p class="tiny faint" style="margin-top:10px">다음 시즌을 시작하면 이번 전환점은 지나가요.</p><button class="ghost" data-action="close-sheet">나중에 생각하기</button>`);
@@ -3051,7 +3412,8 @@ function turningSheet(s, focusDraft = []) {
 function draftSheet(s) {
   const d = s.draft; if (!d) return sheet('<h2>드래프트 정보가 없어요</h2>');
   const c = d.combine, t = d.drafted ? TEAM_BY_ID[d.team] : null;
-  return sheet(`${fieldBanner(t ? t.colors : ['#2b2f33', '#fff'], 'NFL 드래프트', t ? 'helmet' : 'ball')}<p class="eyebrow" style="margin-top:12px">${d.year} NFL 드래프트 · 사전 예상 ${esc(d.proj.label)}</p>
+  const art = px(sceneUrl({ scene: 'draft', colors: t ? t.colors : ['#3A4560', '#FFFFFF'], board: t ? t.id : 'DRAFT', players: [{ pose: d.drafted ? 'cheer' : 'sad', colors: t ? t.colors : ['#5A6372', '#FFFFFF'], avatar: s.player.avatar, number: s.player.number }] }), 'NFL 드래프트', 'scene');
+  return sheet(`${art}<p class="eyebrow" style="margin-top:12px">${d.year} NFL 드래프트 · 사전 예상 ${esc(d.proj.label)}</p>
     <h2>${d.drafted ? `${d.round}라운드 ${d.inRound}순위<br><span class="accent">${esc(t.ko)}</span>` : '이름이 불리지 않았어요'}</h2>
     <p class="lead">${d.drafted ? `전체 ${d.pick}순위. 커미셔너가 연단에서 내 이름을 불렀습니다. 감독 ${esc(t.coach)}가 전화를 걸어 왔어요.` : '사흘 동안 휴대폰만 바라봤습니다. 이제 언드래프티 FA로 기회를 찾아야 해요.'}</p>
     <h3 style="margin-top:16px">NFL 컴바인</h3>${tiles([['40야드', `${c.forty}초`], ['벤치프레스', `${c.bench}회`], ['버티컬', `${c.vertical}인치`], ['브로드 점프', `${c.broad}인치`], ['3콘', `${c.cone}초`], ['드래프트 평가', d.proj.value]])}
@@ -3062,7 +3424,10 @@ function broadcastSheet(s, year, shown) {
   const h = s.history.find(x => x.year === year), b = h?.broadcast;
   if (!b) return sheet('<h2>중계가 없어요</h2>');
   const plays = b.plays.slice(0, shown), cur = plays.at(-1) || { a: 0, b: 0, q: 1 }, done = shown >= b.plays.length;
-  return sheet(`<p class="eyebrow">${icon('tv')} 생중계 · ${esc(b.title)}</p>
+  const oc = colorsByName(b.them), mine = teamColors(s);
+  const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: done ? (b.win ? 'CHAMPIONS' : 'FINAL') : 'BIG GAME', confetti: done && b.win,
+    players: [{ pose: done ? (b.win ? 'cheer' : 'sad') : kickerPose(s, 'run'), ...look(s), x: 46 }, { pose: done ? (b.win ? 'sad' : 'cheer') : 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '결승전', 'scene');
+  return sheet(`${art}<p class="eyebrow" style="margin-top:12px">${icon('tv')} 생중계 · ${esc(b.title)}</p>
     <div class="scoreboard" style="margin-top:10px"><div><small>${esc(b.me)}</small><b>${cur.a}</b></div><div><span class="q">${done ? 'FINAL' : `${cur.q}Q`}</span></div><div><small>${esc(b.them)}</small><b>${cur.b}</b></div></div>
     <ul class="pbp" id="pbp">${plays.map(x => `<li class="${x.score ? 'score' : ''} ${x.mine ? 'mine' : ''}"><time>${x.q}Q ${esc(x.t)}</time><span>${esc(x.text)}</span></li>`).join('')}</ul>
     ${done ? `<div class="result-box ${b.win ? '' : 'fail'}" style="margin-top:12px"><b>${b.win ? '우승!' : '준우승'}</b> · 내 평점 ${b.grade ?? '-'}<div class="small">${esc(lineText(s.player.pos, b.line))}</div></div><button class="primary" data-action="close-sheet" style="margin-top:12px">확인</button>` : `<button class="secondary" data-action="bc-skip" style="margin-top:12px">건너뛰기</button>`}`);
@@ -3104,7 +3469,7 @@ function confirmSheet(title, body, action, label = '확인') {
 }
 
 
-return { TABS, teamColors, passerRating, keyStats, profileCard, setupPage, appBar, tabBar, setCardIndex, homePage, seasonPage, playerPage, trophyShelf, recordsPage, socialPage, retiredPage, sheet, reportSheet, pathSheet, turningSheet, draftSheet, broadcastSheet, shopSheet, settingsSheet, archiveSheet, imageSheet, textSheet, confirmSheet, TEAMS, LEVEL_AVG, superBowlName, TIER_LABEL };
+return { TABS, portrait, sceneImg, teamColors, passerRating, keyStats, profileCard, setupPage, appBar, tabBar, setCardIndex, homePage, seasonPage, playerPage, trophyShelf, recordsPage, socialPage, retiredPage, sheet, reportSheet, pathSheet, turningSheet, draftSheet, broadcastSheet, shopSheet, settingsSheet, archiveSheet, imageSheet, textSheet, confirmSheet, TEAMS, LEVEL_AVG, superBowlName, TIER_LABEL };
 });
 __def("js/main.js", function () {
 // 앱 진입점: 상태 보관, 렌더링, 이벤트 위임, 저장.
@@ -3115,7 +3480,7 @@ const { careerScore, countAwards, honorsLine, totals, isPro } = __req("js/engine
 const { POSITIONS, usd } = __req("js/engine/core.js");
 const { loadCareer, saveCareer, listArchive, archiveCareer, exportData, offerFile, importFile, importText, getTheme, setTheme, connectCloud, cloudLoad, mergeArchive, storageStatus, flush } = __req("js/storage.js");
 const V = __req("js/ui/views.js");
-const { avatarSvg } = __req("js/ui/art.js");
+const { spriteUrl, portraitUrl } = __req("js/ui/pixel.js");
 
 const $ = sel => document.querySelector(sel);
 let state = loadCareer();
@@ -3182,9 +3547,11 @@ function shareCard() {
   g.fillStyle = '#E5B53C'; g.font = '800 38px system-ui, sans-serif'; g.fillText(honorsLine(s) || '수상 기록 없음', 120, 1240, 840);
   g.fillStyle = '#6E8577'; g.font = '700 30px system-ui, sans-serif'; g.fillText('터치다운 인생', 120, 1300);
   const img = new Image();
-  img.onload = () => { g.drawImage(img, 340, 60, 400, 400); download(); };
+  g.imageSmoothingEnabled = false;
+  img.onload = () => { g.drawImage(img, 386, 40, 308, 392); download(); };
   img.onerror = download;
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(avatarSvg(p.avatar, colors, p.number, 400, true).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+  img.src = spriteUrl({ pose: 'cheer', colors, avatar: p.avatar, number: p.number });
+  void portraitUrl;
   function download() {
     c.toBlob(async b => {
       const res = await offerFile(`touchdown-life-${p.name}.png`, b);

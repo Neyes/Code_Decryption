@@ -11,10 +11,37 @@ import { careerScore, countAwards, totals, isPro, hallOfFame, honorsLine } from 
 import { talentLabel, marketValue, canRedshirt, seasonLabel, makeCandidates, draftProjection, checkRetirementNudge } from '../engine/career.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
-import { avatarSvg, fieldBanner, icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
+import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
+import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
+import { COLLEGES } from '../data/colleges.js';
 
 export const TABS = [['home', '홈', 'home'], ['season', '시즌', 'season'], ['player', '선수', 'player'], ['records', '기록', 'records'], ['social', '반응', 'social']];
 const nameTag = n => `<span translate="no">${esc(n)}</span>`;
+// ───────── 픽셀 그림 ─────────
+const px = (url, alt, cls = '', style = '') => url ? `<img class="px ${cls}" src="${url}" alt="${esc(alt)}"${style ? ` style="${style}"` : ''}>` : '';
+export const portrait = (s, size = 64) => px(portraitUrl(s.player.avatar, teamColors(s), s.player.number), `${s.player.name} 얼굴`, 'portrait', `width:${size}px;height:${size}px`);
+const look = s => ({ colors: teamColors(s), avatar: s.player.avatar, number: s.player.number });
+const sceneName = (s, name) => name === 'stadium' && s.stage === 'hs' ? 'hs' : name;
+export function sceneImg(s, name, pose, extra = {}) {
+  return px(sceneUrl({ scene: sceneName(s, name), colors: teamColors(s), opp: extra.opp, board: extra.board, count: extra.count, confetti: extra.confetti, players: extra.players || [{ pose, ...look(s) }] }), extra.alt || '장면', 'scene');
+}
+// 두 장면을 번갈아 보여 주는 2프레임 애니메이션.
+function animScene(s, name, a, b, extra = {}) {
+  return `<div class="px-anim">${sceneImg(s, name, a, extra)}${sceneImg(s, name, b, extra).replace('class="px scene"', 'class="px scene f2"')}</div>`;
+}
+const colorsByName = name => TEAMS.find(t => t.ko === name)?.colors || COLLEGES.find(c => c.ko === name)?.colors || ['#5A6372', '#FFFFFF'];
+// 카드별 장면과 동작.
+const CARD_ART = {
+  'hs-oklahoma': ['practice', 'stance'], 'hs-korean': ['locker', 'idle'], 'hs-film': ['film', 'idle'], 'hs-7on7': ['practice', 'throw'], 'hs-camp': ['practice', 'run'],
+  'hs-audible': ['stadium', 'throw'], 'hs-rival': ['press', 'stand'], 'hs-grades': ['school', 'idle'], 'hs-ankle': ['medical', 'idle'], 'hs-transfer': ['school', 'stand'],
+  'twoway-ask': ['practice', 'stance'], 'hs-slump': ['locker', 'sad'], 'col-redshirt': ['practice', 'idle'], 'col-nil': ['press', 'cheer'], 'col-collective': ['locker', 'idle'],
+  'col-rivalry': ['locker', 'cheer'], 'col-heisman': ['press', 'cheer'], 'col-concussion': ['medical', 'sad'], 'col-advisory': ['film', 'idle'], 'col-coach-leave': ['locker', 'idle'],
+  'nfl-camp': ['practice', 'stance'], 'nfl-qb-hurt': ['stadium', 'throw'], 'nfl-mentor': ['practice', 'idle'], 'nfl-media': ['press', 'stand'], 'nfl-extend': ['press', 'stand'],
+  'nfl-deadline': ['locker', 'idle'], 'nfl-primetime': ['stadium', 'run'], 'nfl-fine': ['locker', 'sad'], 'nfl-charity': ['medical', 'cheer'], 'nfl-cold': ['snow', 'run'],
+  'nfl-teammate-holdout': ['locker', 'idle'], 'nfl-aging': ['medical', 'idle'], 'nfl-rookie-rival': ['practice', 'stance'], 'nfl-sns': ['locker', 'idle'], 'nfl-weekly': ['press', 'cheer'],
+  'kr-broadcast': ['press', 'cheer'], 'kr-military': ['school', 'idle'], 'any-family': ['stadium', 'cheer'], 'any-diet': ['locker', 'idle'],
+};
+const kickerPose = (s, pose) => ['K', 'P'].includes(s.player.pos) && ['run', 'throw', 'stance'].includes(pose) ? 'kick' : s.player.pos === 'QB' && pose === 'run' ? 'throw' : pose;
 export const teamColors = s => s.team?.kind === 'nfl' ? TEAM_BY_ID[s.team.id].colors : s.team?.kind === 'college' ? COLLEGE_BY_ID[s.team.id].colors : ['#157347', '#FFFFFF'];
 const num = n => (Math.round(n * 10) / 10).toLocaleString('ko-KR');
 // 숫자 뒤 조사: 0(십)·3(삼)·6(육)은 받침, 1·7·8은 ㄹ받침(로).
@@ -53,7 +80,7 @@ function stageText(s) {
 }
 export function profileCard(s, compact = false) {
   const p = s.player, last = s.history.at(-1), delta = last ? last.ovrAfter - last.ovrBefore : 0;
-  return `<section class="card"><div class="hero">${avatarSvg(p.avatar, teamColors(s), p.number, 64)}
+  return `<section class="card"><div class="hero">${portrait(s, 64)}
     <div class="grow"><div class="name">${nameTag(p.name)} <span class="muted small">#${p.number}</span></div>
     <div class="small muted">${esc(s.team?.name || '')} · ${POSITIONS[p.pos].ko}${p.twoWay ? `·${POSITIONS[p.twoWay.pos].ko}` : ''} · ${p.age}세</div>
     <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'}</div></div>
@@ -63,12 +90,12 @@ export function profileCard(s, compact = false) {
 // ───────── 생성 화면 ─────────
 export function setupPage(st) {
   const steps = `<div class="steps">${[0, 1, 2, 3].map(i => `<i class="${i <= st.step ? 'on' : ''}"></i>`).join('')}</div>`;
-  const head = `<header class="appbar"><h1><span class="logo">${icon('ball')}</span>터치다운 인생</h1><div class="spacer"></div><button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="archive" aria-label="은퇴 기록">${icon('records')}</button></header>`;
+  const head = `<header class="appbar"><h1><span class="logo">${px(iconUrl('ball'), '', 'icon')}</span>터치다운 인생</h1><div class="spacer"></div><button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="archive" aria-label="은퇴 기록">${icon('records')}</button></header>`;
   let body = '';
   if (st.step === 0) {
     const opts = (key, n, labels) => `<div class="seg">${Array.from({ length: n }, (_, i) => `<button data-action="setup-av" data-k="${key}" data-v="${i}" class="${st.avatar[key] === i ? 'on' : ''}">${labels ? labels[i] : `${i + 1}`}</button>`).join('')}</div>`;
     body = `<p class="eyebrow">10학년, 15세. 풋볼부 라커룸에서 시작해요</p><h2>내 선수의 모습을<br>골라 주세요</h2>
-      <div class="card flat" style="display:grid;place-items:center">${avatarSvg(st.avatar, ['#157347', '#FFFFFF'], st.number || 0, 132)}</div>
+      <div class="card flat avatar-stage">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number || 0), '선수 얼굴', 'portrait', 'width:120px;height:120px')}${px(spriteUrl({ pose: 'cheer', colors: ['#157347', '#FFFFFF'], avatar: st.avatar, number: st.number || 0 }), '유니폼을 입은 모습', 'sprite', 'width:94px;height:120px')}</div>
       <div class="field-row"><label>피부 톤</label>${opts('skin', AVATAR_OPTIONS.skin)}</div>
       <div class="field-row"><label>머리 모양</label>${opts('style', AVATAR_OPTIONS.style, STYLE_NAMES)}</div>
       <div class="field-row"><label>머리 색</label>${opts('hair', AVATAR_OPTIONS.hair)}</div>
@@ -99,7 +126,7 @@ export function setupPage(st) {
     body = `<p class="eyebrow">${esc(c.label)} · OVR ${c.ovr}</p><h2>집중해서 키울 능력치를<br>골라 주세요</h2>
       <p class="muted small" style="margin-top:6px">최대 2개. 고른 능력치가 훨씬 빨리 자라고, 커리어 중 전환점에서 바꿀 수 있어요.</p>
       <div class="card flat">${attrsOf(st.pos).map(k => `<button class="option ${st.focus.includes(k) ? 'sel' : ''}" data-action="setup-focus" data-v="${k}" style="margin-top:8px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${c.attrs[k]}</b></div><div class="sub">${ATTR[k][1]} · OVR 비중 ${Math.round(POSITIONS[st.pos].w[k] * 100)}%</div></button>`).join('')}</div>
-      <div class="card"><div class="hero">${avatarSvg(st.avatar, ['#157347', '#FFFFFF'], st.number, 56)}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
+      <div class="card"><div class="hero">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number), '선수 얼굴', 'portrait', 'width:56px;height:56px')}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
       <div class="dock"><button class="primary" data-action="setup-create" ${st.focus.length ? '' : 'disabled'}>10학년 시즌 시작 ${icon('arrow')}</button><button class="ghost" data-action="setup-back">이전 단계</button></div>`;
   }
   return `<div class="shell setup">${head}${steps}${body}<p class="footer">가입 없이 플레이 · 이 브라우저에 자동 저장<br>실제 구단·선수 이름은 위키백과 로스터(2026-11) 기준, 능력치와 결과는 게임 속 가상의 값입니다.</p></div>`;
@@ -107,7 +134,7 @@ export function setupPage(st) {
 
 // ───────── 홈 ─────────
 export function appBar(s) {
-  return `<header class="appbar"><h1><span class="logo">${icon('ball')}</span>터치다운 인생</h1><div class="spacer"></div>
+  return `<header class="appbar"><h1><span class="logo">${px(iconUrl('ball'), '', 'icon')}</span>터치다운 인생</h1><div class="spacer"></div>
     ${s.phase !== 'retired' ? `<button class="money-chip" data-action="open-shop" aria-label="훈련장">${icon('shop')}${usd(s.money)}</button>` : ''}
     <button class="icon-btn" data-action="theme" aria-label="다크 모드">${icon('moon')}</button><button class="icon-btn" data-action="settings" aria-label="설정">${icon('settings')}</button></header>`;
 }
@@ -134,7 +161,8 @@ function progress(s) {
 }
 function cardView(s) {
   const c = s.card, def = CARD_INDEX[c.id];
-  return `<section class="card">${fieldBanner(teamColors(s), def.title, s.stage === 'nfl' ? 'helmet' : 'ball')}
+  const [scn, pose] = CARD_ART[c.id] || ['stadium', 'stand'];
+  return `<section class="card">${sceneImg(s, scn, kickerPose(s, pose), { alt: def.title })}
     <p class="eyebrow" style="margin-top:12px">${esc(c.label)} · ${esc(def.eyebrow)}</p><h2 style="margin-top:2px">${esc(def.title)}</h2>
     <p class="muted" style="margin-top:6px">${esc(def.body)}</p>
     ${c.choices.map(x => `<button class="choice" data-action="choose-card" data-v="${x.i}"><strong>${esc(x.label)}</strong>${x.hint ? `<div class="hint">${esc(x.hint)}</div>` : ''}<div class="chance">성공 확률 ${x.chance}%</div></button>`).join('')}
@@ -144,7 +172,8 @@ let CARD_INDEX = {};
 export const setCardIndex = idx => { CARD_INDEX = idx; };
 function cardResultView(s) {
   const r = s.cardResult;
-  return `<section class="card"><p class="eyebrow">선택 결과 · ${esc(r.title)}</p>
+  const [scn] = CARD_ART[r.id] || ['stadium'];
+  return `<section class="card">${sceneImg(s, scn, r.ok ? 'cheer' : 'sad', { alt: r.ok ? '성공' : '실패' })}<p class="eyebrow" style="margin-top:12px">선택 결과 · ${esc(r.title)}</p>
     <div class="roll" aria-hidden="true"><span style="width:${r.chance}%"></span><i style="left:${Math.min(99, r.roll)}%"></i></div>
     <div class="tiny faint">성공 ${r.chance}% · 주사위 ${r.roll}</div>
     <div class="result-box ${r.ok ? '' : 'fail'}" style="margin-top:10px"><div class="verdict ${r.ok ? 'accent' : 'up'}">${r.ok ? '성공' : '실패'}</div><div class="small" style="margin-top:2px">"${esc(r.choice)}"</div><p style="margin-top:6px">${esc(r.text)}</p>
@@ -185,12 +214,15 @@ export function homePage(s) {
   if (s.phase === 'retired') return retiredPage(s);
   const career = s.history.some(isPro) ? [['NFL 경기', T.g], ['NFL TD', T.ptd + T.rtd + T.rectd + T.dtd], ['NFL 수상', s.history.filter(isPro).reduce((n, h) => n + h.awards.length, 0)]] : [['통산 경기', A.g], ['총 TD', A.ptd + A.rtd + A.rectd + A.dtd], ['수상', s.history.reduce((n, h) => n + h.awards.length, 0)]];
   let main = '', dock = '';
+  const hero = s.phase === 'ready' ? animScene(s, s.stage === 'military' ? 'school' : 'practice', kickerPose(s, 'stance'), 'idle', { alt: '연습장' })
+    : s.phase === 'season' ? animScene(s, 'stadium', kickerPose(s, 'run'), s.player.pos === 'QB' ? 'stand' : 'run2', { alt: '경기장' })
+    : s.phase === 'offseason' ? animScene(s, 'locker', 'stand', 'idle', { alt: '라커룸' }) : '';
   if (s.phase === 'ready') { main = prepView(s); dock = `<button class="primary" data-action="start-season">${s.year} ${s.stage === 'military' ? '복무 시즌 보내기' : `${seasonLabel(s)} 시즌 시작`} ${icon('arrow')}</button>`; }
   else if (s.phase === 'season') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 진행 중</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${s.cardResult ? cardResultView(s) : ''}${soFar(s)}`; dock = `<button class="primary" data-action="advance">${s.season.seg >= s.season.segments.length ? '포스트시즌으로' : '계속하기'} ${icon('arrow')}</button>`; }
   else if (s.phase === 'card') { main = `<section class="card"><div class="row between"><h3>${s.year} 시즌 · 선택의 순간</h3><span class="tiny muted">${esc(s.team.name)}</span></div>${progress(s)}</section>${cardView(s)}${soFar(s)}`; }
   else if (s.phase === 'offseason') { main = todoList(s); dock = s.path ? `<button class="primary" data-action="open-path">다음 진로 정하기 ${icon('arrow')}</button>` : ''; }
   const nudge = s.phase === 'offseason' && checkRetirementNudge(s) ? `<p class="small muted" style="text-align:center;margin-top:6px">구단이 조심스럽게 은퇴 이야기를 꺼냈어요.</p>` : '';
-  return `${profileCard(s)}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
+  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
     ${dock ? `<div class="dock">${dock}</div>` : ''}${nudge}
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
@@ -253,7 +285,8 @@ export function playerPage(s) {
 const KIND_LABEL = [['mvp', 'MVP'], ['sbChamp', '슈퍼볼 우승'], ['sbMVP', '슈퍼볼 MVP'], ['opoy', '올해의 공격'], ['dpoy', '올해의 수비'], ['allPro1', '올프로 1팀'], ['allPro2', '올프로 2팀'], ['proBowl', '프로볼'], ['oroy', '공격 신인왕'], ['droy', '수비 신인왕'], ['title', '개인 타이틀'], ['comeback', '재기상'], ['wpmoy', '월터 페이턴'], ['heisman', '하이즈먼'], ['nationalChamp', '전국 우승'], ['positionAward', '포지션상'], ['consensusAA', '컨센서스 AA'], ['allAmerican', '올아메리칸'], ['confPOY', '컨퍼런스 POY'], ['allConf', '올 컨퍼런스'], ['stateChamp', '주 우승'], ['statePOY', '주 올해의 선수'], ['hsAA', '고교 AA'], ['allState', '올스테이트'], ['greyCup', '그레이컵'], ['cflMOP', 'CFL MOP']];
 export function trophyShelf(s) {
   const items = KIND_LABEL.map(([k, l]) => [l, countAwards(s, k)]).filter(x => x[1]);
-  return items.length ? `<div class="shelf">${items.map(([l, n]) => `<div class="trophy">${icon('trophy')}<b>${n}</b><span>${l}</span></div>`).join('')}</div>` : '<p class="muted small">아직 트로피가 없어요. 첫 트로피를 향해!</p>';
+  const ic = l => /슈퍼볼 우승|그레이컵|전국 우승|주 우승/.test(l) ? 'ring' : /프로볼|올프로|올아메리칸|올 컨퍼런스|올스테이트|AA/.test(l) ? 'star' : 'trophy';
+  return items.length ? `<div class="shelf">${items.map(([l, n]) => `<div class="trophy">${px(iconUrl(ic(l)), l, 'icon')}<b>${n}</b><span>${l}</span></div>`).join('')}</div>` : '<p class="muted small">아직 트로피가 없어요. 첫 트로피를 향해!</p>';
 }
 function totalsTable(s) {
   const groups = [['NFL', h => h.stage === 'nfl'], ['대학', h => h.stage === 'college'], ['고교', h => h.stage === 'hs'], ['CFL', h => h.stage === 'cfl']].filter(([, f]) => s.history.some(f));
@@ -285,7 +318,8 @@ export function retiredPage(s) {
   const cmp = Object.entries(ALL_TIME).filter(([k]) => ({ passYds: 'pyds', passTD: 'ptd', rushYds: 'ryds', rushTD: 'rtd', rec: 'rec', recYds: 'recyds', recTD: 'rectd', sacks: 'sack', int: 'dint', points: null })[k] !== undefined)
     .map(([k, v]) => { const key = { passYds: 'pyds', passTD: 'ptd', rushYds: 'ryds', rushTD: 'rtd', rec: 'rec', recYds: 'recyds', recTD: 'rectd', sacks: 'sack', int: 'dint', points: 'pts' }[k]; const mine = key === 'pts' ? (T.fgm * 3 + T.xpm + (T.ptd ? 0 : 0) + (T.rtd + T.rectd + T.dtd) * 6) : T[key] || 0; return [v, mine]; })
     .filter(([, mine]) => mine > 0).sort((a, b) => b[1] / b[0].value - a[1] / a[0].value).slice(0, 4);
-  return `<section class="card" style="text-align:center">${avatarSvg(p.avatar, teamColors(s), p.number, 96, true)}
+  const tcount = s.history.reduce((n, h) => n + (h.awards?.length || 0), 0);
+  return `<section class="card" style="text-align:center">${sceneImg(s, 'trophy', 'cheer', { count: tcount, alt: '트로피 룸' })}<div style="display:flex;justify-content:center;margin-top:-34px">${portrait(s, 72)}</div>
     <p class="eyebrow" style="margin-top:10px">${s.startYear}–${s.retiredYear} · ${POSITIONS[p.pos].ko}</p><h2 style="font-size:24px">${nameTag(p.name)}의 풋볼 인생</h2>
     <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span></div>
     <p class="small" style="margin-top:10px">${esc(honorsLine(s) || '수상 기록 없음')}</p></section>
@@ -302,7 +336,8 @@ export function reportSheet(s, year) {
   const h = s.history.find(x => x.year === year) || s.history.at(-1), p = s.player;
   if (h.stage === 'military') return sheet(`<p class="eyebrow">${h.year} · 군 복무</p><h2>복무 시즌을 보냈어요</h2><p class="lead">개인 정비 시간에 틈틈이 몸을 만들었습니다. OVR ${h.ovrAfter}.</p><button class="primary" data-action="close-sheet" style="margin-top:16px">확인</button>`);
   const d = h.ovrAfter - h.ovrBefore, keys = Object.keys(h.changes || {});
-  return sheet(`<p class="eyebrow">${h.year} · ${esc(h.teamName)} · ${esc(h.label || '')}</p><h2>${esc(h.label || '')} 시즌이 끝났어요<br>종합 능력치가 <span class="accent">${h.ovrAfter}</span>${d ? `${numRo(h.ovrAfter)} ${d > 0 ? '올랐어요' : '내려갔어요'}` : `${numBatchim(h.ovrAfter) ? '을' : '를'} 유지했어요`}</h2>
+  const great = h.champion || h.awards.some(a => a.pts >= 6), bad = h.injuries?.some(i => i.major) || (h.stats.g >= 3 && h.score < 60);
+  return sheet(`${sceneImg(s, 'stadium', great ? 'cheer' : bad ? 'sad' : 'stand', { confetti: h.champion, board: h.champion ? 'CHAMPIONS' : `${h.team.w}-${h.team.l}`, alt: '시즌 결과' })}<p class="eyebrow" style="margin-top:12px">${h.year} · ${esc(h.teamName)} · ${esc(h.label || '')}</p><h2>${esc(h.label || '')} 시즌이 끝났어요<br>종합 능력치가 <span class="accent">${h.ovrAfter}</span>${d ? `${numRo(h.ovrAfter)} ${d > 0 ? '올랐어요' : '내려갔어요'}` : `${numBatchim(h.ovrAfter) ? '을' : '를'} 유지했어요`}</h2>
     <div class="growth-grid">${keys.map(k => `<div class="g ${p.focus.includes(k) ? 'focus' : ''} pop"><small class="muted">${ATTR[k]?.[0]}</small><b>${h.attrsAfter[k]}</b><small class="${h.changes[k] > 0 ? 'up' : h.changes[k] < 0 ? 'down' : 'faint'}">${h.changes[k] > 0 ? `▲${h.changes[k]}` : h.changes[k] < 0 ? `▼${-h.changes[k]}` : '유지'}</small></div>`).join('')}</div>
     ${h.breakout ? `<p class="small" style="margin-top:8px"><span class="pill red">급성장</span> ${ATTR[h.breakout][0]}, 한 단계 올라섰어요.</p>` : ''}
     ${(h.crossed || []).map(t => `<p class="small" style="margin-top:6px"><span class="pill green">${esc(t)} 진입</span></p>`).join('')}
@@ -333,7 +368,8 @@ export function turningSheet(s, focusDraft = []) {
   const t = s.todos.find(x => x.id === 'turning' && !x.done);
   if (!t) return sheet('<h2>지나간 전환점</h2>');
   const focus = t.kind === 'focus';
-  return sheet(`${fieldBanner(teamColors(s), t.title, 'helmet')}<p class="eyebrow" style="margin-top:12px">${nameTag(s.player.name)} · 전환점</p><h2>${esc(t.title)}</h2><p class="lead">${esc(t.body)}</p>
+  const players = t.kind === 'twoWay' ? [{ pose: 'run', ...look(s), x: 40 }, { pose: 'stance', ...look(s), x: 98, flip: true }] : null;
+  return sheet(`${sceneImg(s, t.kind === 'focus' ? 'film' : 'practice', t.kind === 'position' ? 'stance' : 'stand', { players, alt: t.title })}<p class="eyebrow" style="margin-top:12px">${nameTag(s.player.name)} · 전환점</p><h2>${esc(t.title)}</h2><p class="lead">${esc(t.body)}</p>
     ${focus ? `<div style="margin-top:10px">${attrsOf(s.player.pos).map(k => `<button class="option ${focusDraft.includes(k) ? 'sel' : ''}" data-action="focus-pick" data-v="${k}" style="margin-top:6px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${s.player.attrs[k]}</b></div></button>`).join('')}</div>` : ''}
     ${t.options.map(o => `<button class="choice" data-action="turning" data-v="${o.id}"><strong>${esc(o.label)}</strong><div class="hint">${esc(o.desc)}</div></button>`).join('')}
     <p class="tiny faint" style="margin-top:10px">다음 시즌을 시작하면 이번 전환점은 지나가요.</p><button class="ghost" data-action="close-sheet">나중에 생각하기</button>`);
@@ -341,7 +377,8 @@ export function turningSheet(s, focusDraft = []) {
 export function draftSheet(s) {
   const d = s.draft; if (!d) return sheet('<h2>드래프트 정보가 없어요</h2>');
   const c = d.combine, t = d.drafted ? TEAM_BY_ID[d.team] : null;
-  return sheet(`${fieldBanner(t ? t.colors : ['#2b2f33', '#fff'], 'NFL 드래프트', t ? 'helmet' : 'ball')}<p class="eyebrow" style="margin-top:12px">${d.year} NFL 드래프트 · 사전 예상 ${esc(d.proj.label)}</p>
+  const art = px(sceneUrl({ scene: 'draft', colors: t ? t.colors : ['#3A4560', '#FFFFFF'], board: t ? t.id : 'DRAFT', players: [{ pose: d.drafted ? 'cheer' : 'sad', colors: t ? t.colors : ['#5A6372', '#FFFFFF'], avatar: s.player.avatar, number: s.player.number }] }), 'NFL 드래프트', 'scene');
+  return sheet(`${art}<p class="eyebrow" style="margin-top:12px">${d.year} NFL 드래프트 · 사전 예상 ${esc(d.proj.label)}</p>
     <h2>${d.drafted ? `${d.round}라운드 ${d.inRound}순위<br><span class="accent">${esc(t.ko)}</span>` : '이름이 불리지 않았어요'}</h2>
     <p class="lead">${d.drafted ? `전체 ${d.pick}순위. 커미셔너가 연단에서 내 이름을 불렀습니다. 감독 ${esc(t.coach)}가 전화를 걸어 왔어요.` : '사흘 동안 휴대폰만 바라봤습니다. 이제 언드래프티 FA로 기회를 찾아야 해요.'}</p>
     <h3 style="margin-top:16px">NFL 컴바인</h3>${tiles([['40야드', `${c.forty}초`], ['벤치프레스', `${c.bench}회`], ['버티컬', `${c.vertical}인치`], ['브로드 점프', `${c.broad}인치`], ['3콘', `${c.cone}초`], ['드래프트 평가', d.proj.value]])}
@@ -352,7 +389,10 @@ export function broadcastSheet(s, year, shown) {
   const h = s.history.find(x => x.year === year), b = h?.broadcast;
   if (!b) return sheet('<h2>중계가 없어요</h2>');
   const plays = b.plays.slice(0, shown), cur = plays.at(-1) || { a: 0, b: 0, q: 1 }, done = shown >= b.plays.length;
-  return sheet(`<p class="eyebrow">${icon('tv')} 생중계 · ${esc(b.title)}</p>
+  const oc = colorsByName(b.them), mine = teamColors(s);
+  const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: done ? (b.win ? 'CHAMPIONS' : 'FINAL') : 'BIG GAME', confetti: done && b.win,
+    players: [{ pose: done ? (b.win ? 'cheer' : 'sad') : kickerPose(s, 'run'), ...look(s), x: 46 }, { pose: done ? (b.win ? 'sad' : 'cheer') : 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '결승전', 'scene');
+  return sheet(`${art}<p class="eyebrow" style="margin-top:12px">${icon('tv')} 생중계 · ${esc(b.title)}</p>
     <div class="scoreboard" style="margin-top:10px"><div><small>${esc(b.me)}</small><b>${cur.a}</b></div><div><span class="q">${done ? 'FINAL' : `${cur.q}Q`}</span></div><div><small>${esc(b.them)}</small><b>${cur.b}</b></div></div>
     <ul class="pbp" id="pbp">${plays.map(x => `<li class="${x.score ? 'score' : ''} ${x.mine ? 'mine' : ''}"><time>${x.q}Q ${esc(x.t)}</time><span>${esc(x.text)}</span></li>`).join('')}</ul>
     ${done ? `<div class="result-box ${b.win ? '' : 'fail'}" style="margin-top:12px"><b>${b.win ? '우승!' : '준우승'}</b> · 내 평점 ${b.grade ?? '-'}<div class="small">${esc(lineText(s.player.pos, b.line))}</div></div><button class="primary" data-action="close-sheet" style="margin-top:12px">확인</button>` : `<button class="secondary" data-action="bc-skip" style="margin-top:12px">건너뛰기</button>`}`);

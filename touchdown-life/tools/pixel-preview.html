@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><body style="background:#ddd;font:12px system-ui;margin:10px">
+<div id="out"></div>
+<script type="module">
+import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from '../js/ui/pixel.js';
+const out = document.getElementById('out');
+const add = (url, w, label) => { const d = document.createElement('div'); d.style.cssText='display:inline-block;margin:4px;text-align:center;vertical-align:top'; d.innerHTML = `<img src="${url}" style="width:${w}px;image-rendering:pixelated;display:block;background:#fff"><span>${label}</span>`; out.appendChild(d); };
+const teams = [['#E31837','#FFB81C'],['#002244','#69BE28'],['#101820','#FFB612'],['#004C54','#A5ACAF']];
+for (const pose of ['stand','idle','cheer','throw','run','run2','stance','kick','sad']) add(spriteUrl({pose, colors: teams[0], avatar:{skin:1,hair:0,style:0,visor:0}, number: 15}), 108, pose);
+out.appendChild(document.createElement('br'));
+teams.forEach((c,i)=>add(spriteUrl({pose:'stand', colors:c, avatar:{skin:i,hair:i,style:[2,4,0,1][i],visor:i%3}, number:[7,88,1,23][i]}),108,'team'+i));
+out.appendChild(document.createElement('br'));
+for (let st=0; st<6; st++) add(portraitUrl({skin: st%5, hair: st, style: st}, teams[st%4], [11,7,99,4,56,0][st]), 100, 'hair'+st);
+for (const ic of ['trophy','ring','star','ball']) add(iconUrl(ic), 48, ic);
+out.appendChild(document.createElement('br'));
+const pl = [{pose:'run', colors: teams[0], avatar:{skin:2,style:2}, number: 15}];
+for (const sc of ['stadium','hs','practice','locker','press','film','medical','school','draft','trophy','snow']) add(sceneUrl({scene: sc, colors: teams[0], opp: teams[1], players: sc==='stadium' ? [...pl, {pose:'stance', colors: teams[1], flip:true, x: 110, number: 54}] : pl, count: 9, board: sc==='draft' ? 'KC' : undefined}), 400, sc);
+</script>

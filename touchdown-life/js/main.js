@@ -6,7 +6,7 @@ import { careerScore, countAwards, honorsLine, totals, isPro } from './engine/aw
 import { POSITIONS, usd } from './engine/core.js';
 import { loadCareer, saveCareer, listArchive, archiveCareer, exportData, offerFile, importFile, importText, getTheme, setTheme, connectCloud, cloudLoad, mergeArchive, storageStatus, flush } from './storage.js';
 import * as V from './ui/views.js';
-import { avatarSvg } from './ui/art.js';
+import { spriteUrl, portraitUrl } from './ui/pixel.js';
 
 const $ = sel => document.querySelector(sel);
 let state = loadCareer();
@@ -73,9 +73,11 @@ function shareCard() {
   g.fillStyle = '#E5B53C'; g.font = '800 38px system-ui, sans-serif'; g.fillText(honorsLine(s) || '수상 기록 없음', 120, 1240, 840);
   g.fillStyle = '#6E8577'; g.font = '700 30px system-ui, sans-serif'; g.fillText('터치다운 인생', 120, 1300);
   const img = new Image();
-  img.onload = () => { g.drawImage(img, 340, 60, 400, 400); download(); };
+  g.imageSmoothingEnabled = false;
+  img.onload = () => { g.drawImage(img, 386, 40, 308, 392); download(); };
   img.onerror = download;
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(avatarSvg(p.avatar, colors, p.number, 400, true).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+  img.src = spriteUrl({ pose: 'cheer', colors, avatar: p.avatar, number: p.number });
+  void portraitUrl;
   function download() {
     c.toBlob(async b => {
       const res = await offerFile(`touchdown-life-${p.name}.png`, b);
