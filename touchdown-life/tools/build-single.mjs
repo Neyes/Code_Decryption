@@ -45,11 +45,33 @@ ${order.map(transform).join('\n')}
 __req('js/main.js');
 })();`;
 
-let html = readFileSync(join(root, 'index.html'), 'utf8');
+const index = readFileSync(join(root, 'index.html'), 'utf8');
 const css = readFileSync(join(root, 'css/app.css'), 'utf8');
+const script = `<script>\n${bundle.replace(/<\/script/gi, '<\\/script')}\n</script>`;
+// --artifact <경로>: Claude 아티팩트용. 문서 뼈대(doctype·html·head·body)는 게시할 때 붙으므로 내용만 씁니다.
+const artIdx = process.argv.indexOf('--artifact');
+if (artIdx > 0) {
+  const out = process.argv[artIdx + 1];
+  const pick = re => (index.match(re) || [''])[0];
+  const body = index.slice(index.indexOf('<body>') + 6, index.indexOf('</body>')).replace(/<noscript>[\s\S]*?<\/noscript>/, '').trim();
+  const page = [
+    '<title>터치다운 인생</title>',
+    '<meta name="claude:viewport-fit-sides" content="cover">',
+    pick(/<meta name="description"[^>]*>/),
+    ...index.match(/<link rel="(preconnect|stylesheet)" href="https:[^>]*>/g),
+    `<style>\n${css}\n</style>`,
+    pick(/<script>try\{var t=localStorage[\s\S]*?<\/script>/),
+    body,
+    script,
+  ].join('\n');
+  writeFileSync(out, page);
+  console.log(`artifact → ${out} · ${(page.length / 1024).toFixed(0)}KB`);
+  process.exit(0);
+}
+let html = index;
 html = html.replace(/<link rel="stylesheet" href="css\/app.css">/, () => `<style>\n${css}\n</style>`);
 html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, '');
-html = html.replace('</body>', () => `<script>\n${bundle.replace(/<\/script/gi, '<\\/script')}\n</script>\n</body>`);
+html = html.replace('</body>', () => `${script}\n</body>`);
 html = html.replace('<!doctype html>', '<!doctype html>\n<!-- 자동 생성 파일: node tools/build-single.mjs (원본은 js/, css/) -->');
 writeFileSync(join(root, 'touchdown-life.html'), html);
 console.log(`touchdown-life.html · 모듈 ${order.length}개 · ${(html.length / 1024).toFixed(0)}KB`);

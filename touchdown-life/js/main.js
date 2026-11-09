@@ -4,7 +4,7 @@ import { CARD_BY_ID } from './engine/events.js';
 import { buyItem, hireStaff, buyFacility, STAFF } from './engine/shop.js';
 import { careerScore, countAwards, honorsLine, totals, isPro } from './engine/awards.js';
 import { POSITIONS, usd } from './engine/core.js';
-import { loadCareer, saveCareer, listArchive, archiveCareer, exportFile, importFile, getTheme, setTheme } from './storage.js';
+import { loadCareer, saveCareer, listArchive, archiveCareer, exportData, offerFile, importFile, importText, getTheme, setTheme, connectCloud, cloudLoad, mergeArchive, storageStatus, flush } from './storage.js';
 import * as V from './ui/views.js';
 import { avatarSvg } from './ui/art.js';
 
@@ -16,7 +16,7 @@ V.setCardIndex(CARD_BY_ID);
 if (state && !state.player) state = null;
 
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); }
-function persist() { if (state && !saveCareer(state)) toast('저장 공간이 부족해 저장하지 못했어요.'); }
+function persist() { if (!state) return; state.savedAt = Date.now(); if (!saveCareer(state)) toast('이 브라우저에 저장하지 못했어요. 설정에서 저장 데이터를 내보내 두세요.'); }
 function render() {
   const app = $('#app');
   if (!state) { app.innerHTML = V.setupPage(setup); renderSheet(); return; }
@@ -32,7 +32,7 @@ function renderSheet() {
   if ((v.kind === 'path' && !s?.path) || (v.kind === 'turning' && !s?.todos.some(t => t.id === 'turning' && !t.done))) { sheetView = null; root.innerHTML = ''; document.body.style.overflow = ''; return; }
   root.innerHTML = v.kind === 'report' ? V.reportSheet(s, v.year) : v.kind === 'path' ? V.pathSheet(s, pathSel) : v.kind === 'turning' ? V.turningSheet(s, focusDraft)
     : v.kind === 'draft' ? V.draftSheet(s) : v.kind === 'broadcast' ? V.broadcastSheet(s, v.year, v.shown) : v.kind === 'shop' ? V.shopSheet(s)
-    : v.kind === 'settings' ? V.settingsSheet(s) : v.kind === 'archive' ? V.archiveSheet(listArchive()) : v.kind === 'confirm' ? V.confirmSheet(v.title, v.body, v.action, v.label) : '';
+    : v.kind === 'settings' ? V.settingsSheet(s, storageStatus()) : v.kind === 'image' ? V.imageSheet(v.url) : v.kind === 'text' ? V.textSheet(v.text) : v.kind === 'archive' ? V.archiveSheet(listArchive()) : v.kind === 'confirm' ? V.confirmSheet(v.title, v.body, v.action, v.label) : '';
   const pbp = $('#pbp'); if (pbp) pbp.scrollTop = pbp.scrollHeight;
 }
 function openSheet(v) { sheetView = v; if (v.kind !== 'path') pathSel = null; renderSheet(); }
@@ -76,7 +76,13 @@ function shareCard() {
   img.onload = () => { g.drawImage(img, 340, 60, 400, 400); download(); };
   img.onerror = download;
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(avatarSvg(p.avatar, colors, p.number, 400, true).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
-  function download() { c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `touchdown-life-${p.name}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }); }
+  function download() {
+    c.toBlob(async b => {
+      const res = await offerFile(`touchdown-life-${p.name}.png`, b);
+      if (res === 'saved') toast('커리어 카드를 저장했어요.');
+      else if (res === 'fallback') openSheet({ kind: 'image', url: c.toDataURL('image/png') });
+    });
+  }
 }
 function cycleTheme() {
   const now = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -158,7 +164,9 @@ document.addEventListener('click', e => {
     case 'share-card': shareCard(); break;
     case 'new-career-ask': openSheet({ kind: 'confirm', title: '새 커리어를 시작할까요?', body: '지금 진행 중인 커리어는 지워져요. 필요하면 먼저 저장 파일을 내보내세요.', action: 'new-career', label: '새로 시작' }); break;
     case 'new-career': state = null; saveCareer(null); Object.assign(setup, { step: 0, cand: null, focus: [], seedN: setup.seedN + 1, name: '' }); closeSheet(); window.scrollTo(0, 0); break;
-    case 'export': exportFile(state); toast('저장 파일을 내보냈어요.'); break;
+    case 'export': { const json = exportData(state); offerFile(`touchdown-life-${(state?.player?.name || 'save').replace(/\s+/g, '')}.json`, json).then(r => { if (r === 'saved') toast('저장 파일을 내보냈어요.'); else if (r === 'fallback') openSheet({ kind: 'text', text: json }); }); break; }
+    case 'copy-text': { const ta = document.getElementById('export-text'); navigator.clipboard?.writeText(ta.value).then(() => toast('복사했어요. 다른 기기의 설정에서 붙여 넣으세요.'), () => { ta.focus(); ta.select(); toast('글자를 길게 눌러 복사하세요.'); }) ?? (ta.select(), toast('글자를 길게 눌러 복사하세요.')); break; }
+    case 'import-text': { const ta = document.getElementById('import-text'); try { state = importText(ta.value.trim()); persist(); tab = 'home'; closeSheet(); toast('저장 데이터를 불러왔어요.'); } catch (err) { toast(err.message || '저장 데이터를 읽지 못했어요.'); } break; }
     case 'tab': tab = v; render(); break;
   }
 });
@@ -179,4 +187,25 @@ document.addEventListener('change', async e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetView) closeSheet(); });
 void getTheme; void usd;
-render();
+// 업데이트가 배포돼도 진행 중인 화면을 잃지 않도록(아티팩트 뷰어의 핫 리로드 훅).
+const hot = typeof window !== 'undefined' ? window.claude?.hot : null;
+hot?.snapshot?.(() => ({ tab, setup: { ...setup }, state }));
+function start(data = {}) {
+  if (data.state?.player) state = data.state;
+  if (data.tab) tab = data.tab;
+  if (data.setup) Object.assign(setup, data.setup);
+  render();
+}
+hot?.ready ? hot.ready(start) : start(hot?.data ?? {});
+// 내 Claude 계정 저장소: 더 최근 저장이 있으면 그걸로 이어 갑니다.
+connectCloud().then(async c => {
+  if (!c) return;
+  const data = await cloudLoad();
+  if (!data) return;
+  mergeArchive(data.archive);
+  const localAt = state?.savedAt || 0;
+  if (data.career && (!state || data.savedAt > localAt)) { state = data.career; saveCareer(state); tab = 'home'; render(); toast('계정에 저장된 커리어를 불러왔어요.'); }
+  else if (state && data.savedAt < localAt) saveCareer(state);
+  else if (!state && data.empty) render();
+});
+window.addEventListener('pagehide', () => flush());

@@ -18,7 +18,10 @@ python3 -m http.server 8000
 
 ```bash
 node tools/build-single.mjs   # touchdown-life.html 재생성
+node tools/build-single.mjs --artifact out.html   # Claude 아티팩트용(문서 뼈대 없이 내용만)
 ```
+
+Claude 아티팩트로 열면 진행 내용이 내 Claude 계정의 비공개 저장소(`data/users/<내 id>/`)에도 저장돼서 휴대폰과 PC에서 이어서 할 수 있습니다. 커리어 카드·저장 파일은 다운로드 확인 창을 거쳐 저장됩니다.
 
 밸런스 점검(자동 플레이어로 커리어 N개를 끝까지 돌림):
 

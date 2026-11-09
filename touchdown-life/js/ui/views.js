@@ -365,10 +365,12 @@ export function shopSheet(s) {
     <h3 style="margin-top:18px">스태프 (시즌마다 비용)</h3>${STAFF.map(st => { const on = !!s.shop.staff[st.id]; return `<button class="option ${on ? 'sel' : ''}" data-action="staff" data-v="${st.id}"><div class="row between"><strong>${esc(st.name)}</strong><span class="pill ${on ? 'green' : ''}">${on ? '계약 중 · 해지' : st.fee ? `${usd(st.fee)}/시즌` : '수수료 3%'}</span></div><div class="sub">${esc(st.desc)}</div></button>`; }).join('')}
     <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} Lv.${lvl}</strong><b>${max ? '최고 단계' : usd(f.prices[lvl])}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
 }
-export function settingsSheet(s) {
-  return sheet(`<h2>설정</h2><p class="lead">진행 내용은 이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 파일로 보관하세요.</p>
+const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요. 휴대폰·PC 어디서 열어도 이어집니다.', connecting: '계정 저장소에 연결하는 중이에요.', offline: '계정 저장소에 잠시 닿지 않아요. 이 브라우저에는 저장되고 있어요.', quota: '계정 저장 공간이 가득 찼어요. 저장 데이터를 내보내 두세요.', local: '이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 내보내 두세요.' };
+export function settingsSheet(s, status = 'local') {
+  return sheet(`<h2>설정</h2><p class="lead">${STORAGE_TEXT[status] || STORAGE_TEXT.local}</p>
     <button class="option" data-action="export"><strong>${icon('download')} 저장 파일 내보내기</strong><div class="sub">커리어와 은퇴 기록을 JSON 파일로 받아요.</div></button>
     <label class="option" style="cursor:pointer"><strong>${icon('upload')} 저장 파일 가져오기</strong><div class="sub">내보낸 파일로 커리어를 이어 가요.</div><input type="file" accept="application/json,.json" data-input="import" hidden></label>
+    <div class="option"><strong>${icon('upload')} 저장 데이터 붙여넣기</strong><div class="sub">내보낸 글자를 붙여 넣어 불러와요.</div><textarea id="import-text" rows="3" placeholder='{"app":"touchdown-life",...}' style="width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);color:var(--ink);font-size:12px"></textarea><button class="secondary" data-action="import-text" style="margin-top:8px;padding:10px">불러오기</button></div>
     <button class="option" data-action="archive"><strong>${icon('records')} 내 은퇴 기록</strong><div class="sub">은퇴한 선수들의 순위와 베스트 라인업</div></button>
     ${s ? `<button class="option" data-action="new-career-ask"><strong>${icon('plus')} 새 커리어 시작</strong><div class="sub">지금 커리어는 사라져요 (은퇴하면 기록이 남아요).</div></button>` : ''}
     <p class="tiny faint" style="margin-top:14px">로스터: ${esc(ROSTER_SOURCE)}. 2026 시즌 감독은 위키백과 'List of current NFL head coaches' 기준입니다. 구단·대회 명칭의 권리는 각 권리자에게 있으며, 이 게임은 NFL·NCAA와 관계가 없습니다. 선수 능력치와 결과는 실제 평가나 예측이 아닙니다.</p>`);
@@ -380,6 +382,12 @@ export function archiveSheet(list) {
   return sheet(`<h2>내 은퇴 기록</h2><p class="lead">MVP → 슈퍼볼 우승 → 최고 OVR → 수상 수 → 커리어 점수 순으로 비교해요.</p>
     ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span></td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
     <h3 style="margin-top:16px">나의 베스트 라인업</h3>${Object.entries(best).map(([g, e]) => `<div class="kv"><span>${g}</span><b>${nameTag(e.name)} · OVR ${e.peak}</b></div>`).join('')}` : '<p class="muted" style="margin-top:12px">아직 은퇴한 선수가 없어요.</p>'}`);
+}
+export function imageSheet(url) {
+  return sheet(`<h2>커리어 카드</h2><p class="lead">이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.</p><img src="${url}" alt="커리어 카드" style="width:100%;border-radius:16px;margin-top:12px"><button class="primary" data-action="close-sheet" style="margin-top:14px">닫기</button>`);
+}
+export function textSheet(text) {
+  return sheet(`<h2>저장 데이터</h2><p class="lead">이 글자를 복사해 두었다가 설정의 '저장 데이터 붙여넣기'로 불러올 수 있어요.</p><textarea id="export-text" rows="8" readonly style="width:100%;margin-top:12px;border:1.5px solid var(--line);border-radius:12px;padding:10px;background:var(--surface-2);color:var(--ink);font-size:11px">${esc(text)}</textarea><button class="primary" data-action="copy-text" style="margin-top:12px">복사하기</button>`);
 }
 export function confirmSheet(title, body, action, label = '확인') {
   return sheet(`<h2>${esc(title)}</h2><p class="lead">${esc(body)}</p><button class="primary" data-action="${action}" style="margin-top:16px">${esc(label)}</button><button class="ghost" data-action="close-sheet">취소</button>`);
