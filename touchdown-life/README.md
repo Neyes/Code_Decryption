@@ -13,7 +13,12 @@ python3 -m http.server 8000
 # 브라우저에서 http://localhost:8000
 ```
 
-`file://`로 직접 열면 브라우저가 ES 모듈을 막으니 서버로 열어 주세요. GitHub Pages에 올려도 그대로 동작합니다.
+**바로 열기:** [`touchdown-life.html`](touchdown-life.html)은 모든 JS·CSS를 한 파일에 담은 빌드라서 서버 없이 더블클릭(`file://`)으로도 열립니다.
+개발용 `index.html`은 ES 모듈을 쓰므로 서버로 열어야 합니다. 소스를 고친 뒤에는 단일 파일을 다시 만드세요.
+
+```bash
+node tools/build-single.mjs   # touchdown-life.html 재생성
+```
 
 밸런스 점검(자동 플레이어로 커리어 N개를 끝까지 돌림):
 
