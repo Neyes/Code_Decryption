@@ -5,6 +5,7 @@
 import { POSITIONS, LEVEL_AVG, clamp } from '../engine/core.js';
 import { LivePlay } from './liveplay.js';
 import { KickPlay } from './kickplay.js';
+import { isKeyMode, onInputMode, keyName, typing } from './input.js';
 import { CX, OFF_CATS, DEF_CATS, FORMATIONS, DEF_FORMS, playsFor, defPlaysFor, suggestOff, suggestDef, offAdvice, defAdvice, whyOff, whyDef, aiOffPlay, aiDefPlay, playArt, defArt, CATCH_KIND_KO, CATCH_TYPE_KO, PASS_TYPE_KO } from './playbook.js';
 
 // 내 포지션 → 필드에서 조작할 선수
@@ -25,6 +26,19 @@ const HINT = {
   CB: '스틱: 내 배정(노란 표시)대로 · 잼으로 출발 방해 · 공이 오면 가로채기·쳐내기',
   S: '스틱: 깊은 곳 지키기 · 공이 오면 가로채기·쳐내기 · 다이브 태클',
 };
+// 컴퓨터(키보드)로 할 때의 안내: 같은 기능을 키로 (버튼 1~4 = Space·J·K·L, 버튼 위에 키가 적혀 있어요)
+const HINT_KEY = {
+  QB: 'WASD 이동 · 숫자 키 1~5: 그 번호 리시버에게 패스 · Space 자동 패스 · J 펌프 페이크 · L 패스 종류',
+  RB: 'WASD 달리기 · Space·J·K·L 스핀·페이크·스티프 암 · Shift 터보 · 루트를 뛸 땐 Space 패스 콜',
+  WR: 'WASD 루트 · Space 패스 콜 · J 페이크 · Shift 터보 · 공이 오면 Space·J·K 하이포인트·안전·RAC 캐치',
+  TE: 'WASD 루트 · Space 패스 콜 · J 페이크 · Shift 터보 · 공이 오면 Space·J·K 하이포인트·안전·RAC 캐치',
+  OL: 'WASD: 빨간 화살표 러셔 앞을 막기 · Space 펀치 · J 버티기',
+  DL: 'WASD: 쿼터백에게 · 블로커에 걸리면 Space 스핀 무브 · J 스윔 · Shift 터보',
+  LB: 'WASD: 내 배정(노란 표시)대로 · Space 잼 · J 다이브 태클 · 공이 오면 Space 가로채기 · J 쳐내기',
+  CB: 'WASD: 내 배정(노란 표시)대로 · Space 잼 · J 다이브 · 공이 오면 Space 가로채기 · J 쳐내기',
+  S: 'WASD: 깊은 곳 지키기 · J 다이브 태클 · 공이 오면 Space 가로채기 · J 쳐내기 · Shift 터보',
+};
+const SNAP_MSG_KEY = { QB: '스냅! 열린 리시버의 번호 키(1~5)를 누르세요.', WR: '스냅! 떨어졌다 싶으면 Space 패스 콜!', TE: '스냅! 떨어졌다 싶으면 Space 패스 콜!' };
 const SNAP_MSG = {
   QB: '스냅! 열린 리시버를 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 떨어졌다 싶으면 패스 콜!', TE: '스냅! 떨어졌다 싶으면 패스 콜!',
   OL: '스냅! 빨간 표시 러셔를 막으세요.', DL: '스냅! 쿼터백을 향해!', LB: '상대가 스냅한다!', CB: '상대가 스냅한다!', S: '상대가 스냅한다!',
@@ -58,7 +72,30 @@ class Clutch {
     this.pf = 0; this.pa = 0;
     this.line = {}; this.snaps = []; this.log = [];
     this.build();
+    // 키보드: 숫자 키로 작전 카드·선택지, Q·E로 플레이북 분류, Enter·Space로 스냅·다음 (화면에 키 표시)
+    this.onKey = e => this.key(e); window.addEventListener('keydown', this.onKey);
+    this.offMode = onInputMode(() => this.decorate());
     this.startDrive();
+  }
+  keyItems() { return [...this.$('cl-actions').querySelectorAll('.pb-card, .choice')].slice(0, 9); }
+  key(e) {
+    if (this.closed || typing(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    const panel = this.$('cl-panel'); if (!panel || panel.hidden) return;
+    const k = keyName(e), box = this.$('cl-actions'), tabs = [...box.querySelectorAll('[data-tab]')];
+    if (tabs.length && (k === 'q' || k === 'e')) { e.preventDefault(); const i = tabs.findIndex(b => b.classList.contains('on')); tabs[(i + (k === 'e' ? 1 : -1) + tabs.length) % tabs.length].click(); return; }
+    if (/^[1-9]$/.test(k)) { const b = this.keyItems()[+k - 1]; if (b) { e.preventDefault(); b.click(); } return; }
+    if (k === 'enter' || k === 'space') { const items = this.keyItems(), b = box.querySelector('button.primary') || (items.length === 1 ? items[0] : null); if (b) { e.preventDefault(); b.click(); } }
+  }
+  // 키보드면 고를 수 있는 것마다 키를 붙입니다
+  decorate() {
+    const box = this.$('cl-actions'); if (!box) return;
+    const kbd = isKeyMode();
+    this.root.querySelector('.clutch')?.classList.toggle('kbd', kbd);
+    box.querySelectorAll('.cl-key, .cl-key-hint').forEach(x => x.remove());
+    if (!kbd) return;
+    this.keyItems().forEach((b, i) => b.insertAdjacentHTML('afterbegin', `<kbd class="cl-key">${i + 1}</kbd>`));
+    box.querySelector('button.primary')?.insertAdjacentHTML('beforeend', ' <kbd class="cl-key">Enter</kbd>');
+    box.querySelector('.pb-tabs')?.insertAdjacentHTML('afterbegin', '<span class="cl-key-hint" title="분류 바꾸기"><kbd class="cl-key">Q</kbd><kbd class="cl-key">E</kbd></span>');
   }
   // ───────── 화면 ─────────
   build() {
@@ -84,6 +121,7 @@ class Clutch {
   // 아래 패널(메시지·버튼)은 고를 것이 있을 때만 필드 위에 뜹니다. 플레이 중에는 숨기고 필드를 통째로 씁니다.
   actions(html) {
     this.$('cl-actions').innerHTML = html;
+    this.decorate();
     const panel = this.$('cl-panel'); panel.hidden = !html;
     this.view?.setInset(html ? panel.offsetHeight : 0);
   }
@@ -112,7 +150,8 @@ class Clutch {
   snapLive(opts) {
     this.actions('');
     this.snapCount = (this.snapCount || 0) + 1;
-    this.view.tip(this.snapCount <= 3 ? HINT[this.control] : SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4 : 2);
+    const kbd = isKeyMode();
+    this.view.tip(this.snapCount <= 3 ? (kbd ? HINT_KEY : HINT)[this.control] : (kbd && SNAP_MSG_KEY[this.control]) || SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4.5 : 2);
     return this.view.snap(opts);
   }
   boxCount() { const d = this.d; return this.view.P.filter(p => p.team === 'D' && Math.abs(p.home.x - CX) < 6.5 && p.home.y < d.ball + 7).length; }
@@ -133,6 +172,7 @@ class Clutch {
       this.root.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
       this.$('pb-advice').hidden = tab !== 'rec';
       this.root.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => onPick(list.find(p => p.id === b.dataset.pid)));
+      this.decorate();
     };
     this.actions(`<div class="pb"><div class="pb-tabs">${tabs.map(([k, n]) => `<button data-tab="${k}">${esc(n)}${k === 'rec' ? '' : ` <i>${list.filter(p => p.cat === k).length}</i>`}</button>`).join('')}</div>
       <p class="pb-advice" id="pb-advice">코치: ${esc(advice)}</p><div class="pb-cards" id="pb-cards"></div></div>`);
@@ -287,7 +327,7 @@ class Clutch {
     this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.view.tip('공 근처에서 위로 쓸어 올리세요! 오른쪽 막대 초록에서 놓기', 3);
+      this.actions(''); this.view.tip(isKeyMode() ? 'A·D로 방향 · Space를 꾹 눌러 힘을 모았다가 초록에서 떼기' : '공 근처에서 위로 쓸어 올리세요! 오른쪽 막대 초록에서 놓기', 3.5);
       this.view.snap().then(r => {
         const L = this.line, ok = !!r.good;
         inc(L, 'fga'); if (ok) { inc(L, 'fgm'); L.fglong = Math.max(L.fglong || 0, dist); this.pf += 3; }
@@ -307,7 +347,7 @@ class Clutch {
     this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.view.tip('위로 쓸어 올려 펀트! 비스듬히 차면 사이드라인 쪽으로', 3);
+      this.actions(''); this.view.tip(isKeyMode() ? 'A·D로 방향 · Space 꾹 → 초록에서 떼면 펀트! 비스듬히 차면 사이드라인 쪽으로' : '위로 쓸어 올려 펀트! 비스듬히 차면 사이드라인 쪽으로', 3.5);
       this.view.snap().then(r => {
         const L = this.line;
         let land, text;
@@ -334,6 +374,7 @@ class Clutch {
   finish(auto) {
     if (this.closed) return;
     this.closed = true;
+    window.removeEventListener('keydown', this.onKey); this.offMode?.();
     this.clearView();
     if (auto && this.drive === 0 && !this.snaps.length) { this.root.innerHTML = ''; return this.done(null); }
     // 아직 남은 장면은 자동으로: 공격·수비 각각 평범한 결과로 채웁니다.

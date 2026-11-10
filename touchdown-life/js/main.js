@@ -6,6 +6,7 @@ import { ATTR, attrsOf } from './engine/core.js';
 import * as FX from './ui/fx.js';
 import { openClutch, clutchLevelAvg } from './ui/clutch.js';
 import { openGym } from './ui/gym.js';
+import { setInputPref, inputMode } from './ui/input.js';
 import { sceneUrl, iconUrl } from './ui/pixel.js';
 import { TEAM_BY_ID } from './data/teams.js';
 import { CARD_BY_ID } from './engine/events.js';
@@ -192,6 +193,7 @@ document.addEventListener('click', e => {
     case 'close-sheet': closeSheet(); break;
     case 'theme': cycleTheme(); break;
     case 'settings': openSheet({ kind: 'settings' }); break;
+    case 'input-pref': setInputPref(v); openSheet({ kind: 'settings' }); toast(inputMode() === 'key' ? '키보드로 조작해요 (WASD·Space·J·K·L·숫자 키)' : '터치로 조작해요 (스틱·버튼·탭)'); break;
     case 'archive': openSheet({ kind: 'archive' }); break;
     // 생성
     case 'setup-av': setup.avatar[el.dataset.k] = +v; render(); break;

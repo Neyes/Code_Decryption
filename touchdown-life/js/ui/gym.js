@@ -1,8 +1,11 @@
 // 헬스장 화면: 도트 체육관 장면 + 운동 목록 + 운동별 미니게임(연타·타이밍·좌우 연타·방향 QTE·모았다 떼기·표적 탭).
 // 결과 점수(0~1.25)를 engine/gym.js의 finishExercise에 넘겨 능력치 진행도를 올립니다.
+// 조작: 모바일은 화면 버튼 터치, 컴퓨터는 같은 버튼을 키로(버튼마다 키 표시). Space 연타·탭·꾹, F·J(A·D) 좌우 발,
+// WASD(방향키) 콘, Q·W·E / A·S·D / Z·X·C 표적 9칸. 목록에서 숫자 키로 운동 고르기, Enter 다른 운동, Esc 나가기.
 import { bigText, pixelText, vivid, shade, lum, OUT } from './pixel.js';
 import { playerSprite, SKINS } from './sprites.js';
 import { ATTR } from '../engine/core.js';
+import { isKeyMode, onInputMode, keyName, typing } from './input.js';
 import { EXERCISES, GYM_TIERS, MAX_SETS, gymTier, gymState, gymDayLabel, exerciseAttr, exerciseName, canExercise, finishExercise, gradeOf } from '../engine/gym.js';
 
 const W = 240, H = 124, R = Math.random, clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -10,6 +13,19 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': 
 const KIND_KO = { mash: '연타', timing: '타이밍', alt: '좌우 연타', arrows: '방향 QTE', charge: '모았다 떼기', targets: '표적 탭' };
 const TIER_SIGN = ['', 'TOWN GYM', 'PERFORMANCE', 'ELITE LAB'];
 const DIRS = { up: '↑', left: '←', right: '→', down: '↓' };
+// 키보드: 운동 종류별 키 → 버튼, 버튼에 적을 키
+const PAD_KEYS = {
+  mash: { space: 'push' }, timing: { space: 'tap' }, charge: { space: 'hold' },
+  alt: { f: 'L', a: 'L', left: 'L', j: 'R', d: 'R', right: 'R' },
+  arrows: { w: 'up', up: 'up', a: 'left', left: 'left', s: 'down', down: 'down', d: 'right', right: 'right' },
+  targets: Object.fromEntries([...'qweasdzxc'].map((k, i) => [k, 'c' + i])),
+};
+const KEY_HOW = {
+  bench: 'Space 연타! 바를 끝까지 밀어 올리면 1회', squat: '바늘이 초록(깊이)에 왔을 때 Space · 금색이면 완벽', sprint: 'F·J(또는 A·D)를 번갈아 연타 (같은 발 두 번은 손해)',
+  cone: '화살표가 가리키는 쪽 키(W·A·S·D)를 빨리', box: 'Space를 꾹 눌러 힘을 모았다가 초록에서 떼기 · 넘치면 실패', drill: '불이 들어온 칸의 키(Q·W·E / A·S·D / Z·X·C)를 사라지기 전에',
+};
+const howOf = ex => (isKeyMode() && KEY_HOW[ex.id]) || ex.how;
+const PAD_LABEL = { push: 'Space', tap: 'Space', hold: 'Space', L: 'F', R: 'J', up: 'W', left: 'A', down: 'S', right: 'D', ...Object.fromEntries([...'QWEASDZXC'].map((k, i) => ['c' + i, k])) };
 
 export function openGym(root, s, hooks) { return new Promise(res => new Gym(root, s, hooks, res)); }
 
@@ -27,6 +43,7 @@ class Gym {
     this.cv = root.querySelector('#gy-cv'); this.ctx = this.cv.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     root.querySelector('[data-gy="close"]').onclick = () => this.close();
     this.onKey = e => this.key(e); window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
+    this.offMode = onInputMode(() => this.decorate());
     this.last = performance.now(); this.loopFn = this.loop.bind(this); this.raf = requestAnimationFrame(this.loopFn);
     this.list();
   }
@@ -47,10 +64,24 @@ class Gym {
       return `<button class="gym-ex" data-ex="${ex.id}" ${can.ok ? '' : 'disabled'}>
         <div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill ${can.ok ? 'green' : ''}">${can.ok ? `체력 ${ex.cost} · ${sets}/${MAX_SETS}세트` : esc(can.why)}</span></div>
         ${k ? `<div class="gym-prog"><span>${esc(ATTR[k][0])} <b>${p.attrs[k]}</b></span><i><b style="width:${Math.round(prog * 100)}%"></b></i><small>${prog.toFixed(2)}</small></div>` : ''}
-        <small class="gym-how">${KIND_KO[ex.kind]} · ${esc(ex.how)}</small></button>`;
+        <small class="gym-how" data-how="${ex.id}" data-pre="${KIND_KO[ex.kind]} · ">${KIND_KO[ex.kind]} · ${esc(howOf(ex))}</small></button>`;
     }).join('');
     this.$('gy-body').innerHTML = `<p class="gym-note">운동 결과만큼 능력치 진행도가 차고, 1이 되면 능력치가 1 올라요. 게임 속 하루(시즌 진행 한 단계)마다 체력이 다시 차고, 운동 하나는 하루 ${MAX_SETS}세트까지예요. 무리하면 누적 피로가 조금씩 쌓여요.</p><div class="gym-list">${rows}</div>`;
     this.root.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => this.start(b.dataset.ex));
+    this.decorate();
+  }
+  // 키보드면 버튼마다 누를 키를 붙입니다
+  decorate() {
+    const kbd = isKeyMode();
+    this.root.querySelectorAll('kbd.gk').forEach(x => x.remove());
+    this.root.querySelectorAll('[data-how]').forEach(el => { el.textContent = el.dataset.pre + howOf(EXERCISES.find(e => e.id === el.dataset.how)); });
+    this.root.querySelector('.clutch')?.classList.toggle('kbd', kbd);
+    if (!kbd) return;
+    const add = (el, t, where = 'beforeend') => el?.insertAdjacentHTML(where, `<kbd class="kc gk">${t}</kbd>`);
+    add(this.root.querySelector('[data-gy="close"]'), 'Esc');
+    this.root.querySelectorAll('.gym-ex').forEach((b, i) => add(b.querySelector('strong'), i + 1, 'afterbegin'));
+    this.root.querySelectorAll('[data-pad]').forEach(b => add(b, PAD_LABEL[b.dataset.pad]));
+    add(this.root.querySelector('[data-gy="back"]'), 'Enter');
   }
   // ───────── 미니게임 ─────────
   start(id) {
@@ -72,19 +103,31 @@ class Gym {
       charge: `<div class="gym-bar"><div class="z green"></div><div class="z gold"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
       targets: `<div class="gym-grid">${Array.from({ length: 9 }, (_, i) => `<button class="gym-cell" data-pad="c${i}"></button>`).join('')}</div>`,
     }[g.kind];
-    this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how">${esc(ex.how)}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
+    this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how" data-how="${ex.id}" data-pre="">${esc(howOf(ex))}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
     this.root.querySelectorAll('[data-pad]').forEach(b => {
       b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); this.press(b.dataset.pad, true); });
       const up = e => { b.classList.remove('press'); this.press(b.dataset.pad, false); };
       b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', e => { if (e.buttons) up(e); });
     });
+    this.decorate();
   }
   key(e) {
-    const g = this.game; if (!g || g.phase === 'end') return;
-    const down = e.type === 'keydown'; if (down && e.repeat) return;
-    const k = e.key, map = { ' ': g.kind === 'mash' ? 'push' : g.kind === 'timing' ? 'tap' : g.kind === 'charge' ? 'hold' : null, f: 'L', j: 'R', ArrowLeft: g.kind === 'alt' ? 'L' : 'left', ArrowRight: g.kind === 'alt' ? 'R' : 'right', ArrowUp: 'up', ArrowDown: 'down' };
-    const pad = map[k.length === 1 ? k.toLowerCase() : k]; if (!pad) return;
-    e.preventDefault(); this.press(pad, down);
+    if (this.closed || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const g = this.game, k = keyName(e), down = e.type === 'keydown';
+    if (down && e.repeat) { if (k === 'space') e.preventDefault(); return; }
+    // 목록·결과 화면: 숫자 키로 운동, Enter·Space 다른 운동, Esc 나가기
+    if (!g || g.phase === 'end') {
+      if (!down) return;
+      if (k === 'esc') { e.preventDefault(); return this.close(); }
+      if (this.result && (k === 'enter' || k === 'space')) { e.preventDefault(); return this.list(); }
+      if (!g && /^[1-9]$/.test(k)) { const b = this.root.querySelectorAll('.gym-ex')[+k - 1]; if (b && !b.disabled) { e.preventDefault(); this.start(b.dataset.ex); } }
+      return;
+    }
+    if (k === 'esc' && down) { e.preventDefault(); return this.list(); }
+    const pad = PAD_KEYS[g.kind]?.[k]; if (!pad) return;
+    e.preventDefault();
+    const el = this.root.querySelector(`[data-pad="${pad}"]`); el?.classList.toggle('press', down);
+    this.press(pad, down);
   }
   press(pad, down) {
     const g = this.game; if (!g || g.phase !== 'play') return;
@@ -175,10 +218,11 @@ class Gym {
       ${res.tired ? '<p class="tiny" style="opacity:.75">땀을 많이 흘렸어요. 누적 피로 +1</p>' : ''}
       <button class="primary" data-gy="back">다른 운동</button></div>`;
     this.root.querySelector('[data-gy="back"]').onclick = () => this.list();
+    this.decorate();
     if (res.ups) this.burst();
   }
   close() {
-    this.closed = true; cancelAnimationFrame(this.raf);
+    this.closed = true; cancelAnimationFrame(this.raf); this.offMode?.();
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
     this.root.innerHTML = ''; this.done();
   }

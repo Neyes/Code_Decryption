@@ -1,10 +1,12 @@
 // 키커·펀터 실시간 킥 (키커 뒤에서 내려다본 시점).
 // new KickPlay(host, cfg)로 골대와 바람을 먼저 보여 주고, snap()으로 스냅 → 손가락으로 위로 쓸어 올려 찹니다.
 // 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
+// 컴퓨터(키보드)에서는 같은 조준선·파워 막대를 키로: A·D(←·→)로 방향, Space를 꾹 눌러 힘을 모았다가 떼면 킥.
 // cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
 //        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
 import { pixelText, bigText, vivid, shade, lum, OUT } from './pixel.js';
 import { playerSprite, SKINS } from './sprites.js';
+import { isKeyMode, onInputMode, keyName, typing } from './input.js';
 const RES = 2; // 캔버스는 화면 논리 크기의 2배 해상도 (선수 도트를 더 촘촘하게)
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
@@ -17,7 +19,7 @@ const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); 
 export class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
-    host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div>`;
+    host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div><div class="kp-keys" hidden><kbd class="kc">A</kbd><kbd class="kc">D</kbd> 방향 · <kbd class="kc">Space</kbd> 꾹 → 떼기</div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
     if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
@@ -29,6 +31,8 @@ export class KickPlay {
     this.phase = 'idle'; this.t = 0; this.msg = ''; this.msgT = 0; this.fx = [];
     this.ball = { x: 0, z: 0, h: this.fg ? .35 : 1, vx: 0, vz: 0, vh: 0 }; this.trail = [];
     this.kickT = -1; this.drag = null;
+    this.kb = { phi: 0, p: 0, hold: false, aim: new Set() }; this.kbd = isKeyMode(); this.keysEl = host.querySelector('.kp-keys');
+    this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.kb.hold = false; });
     // 라인 (우리 7명 + 상대 러셔)
     this.line = [-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].map(x => ({ x, z: this.losZ - .6 }));
     this.rush = [-5, -2.2, 0.6, 3.3, 5.6].map(x => ({ x, z: this.losZ + .9, x0: x }));
@@ -48,7 +52,7 @@ export class KickPlay {
     return new Promise(res => { this.done = res; });
   }
   pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
-  destroy() { this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer); }
+  destroy() { this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer); window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey); this.offMode?.(); }
   // 화면에 꽉 차게: 세로로 긴 화면이면 캔버스를 늘리고 지평선을 내려 앞쪽 잔디를 더 보여 줍니다
   fit() {
     const w = this.host.clientWidth, h = this.host.clientHeight; if (!w || !h) return;
@@ -67,7 +71,18 @@ export class KickPlay {
     cv.addEventListener('pointermove', e => { if (!this.drag) return; const p = this.pt(e); this.drag.x = p.x; this.drag.y = p.y; });
     cv.addEventListener('pointerup', () => { const d = this.drag; this.drag = null; if (!d || this.phase !== 'live') return; const s = this.swipe(d); if (s.up < 12) return; this.kick(s.p, s.phi); });
     cv.addEventListener('pointercancel', () => { this.drag = null; });
+    this.onKey = e => {
+      if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = keyName(e), down = e.type === 'keydown', kb = this.kb, dir = { a: 'L', left: 'L', d: 'R', right: 'R' }[k];
+      if (dir) { e.preventDefault(); down ? kb.aim.add(dir) : kb.aim.delete(dir); return; }
+      if (k !== 'space') return;
+      e.preventDefault();
+      if (down && !e.repeat && this.phase === 'live' && !kb.hold) { kb.hold = true; kb.p = 0; }
+      else if (!down && kb.hold) this.keyKick();
+    };
+    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
   }
+  keyKick() { const kb = this.kb; kb.hold = false; if (this.phase === 'live' && kb.p > .08) this.kick(kb.p, kb.phi); kb.p = 0; }
   swipe(d) {
     const up = d.sy - d.y, dx = d.x - d.sx;
     return { up, p: clamp(up * this.scale / SWIPE_CSS, 0, 1.3), phi: Math.atan2(dx, Math.max(8, up)) * .36 };
@@ -104,7 +119,11 @@ export class KickPlay {
     if (this.phase === 'pre') { if (this.t >= 0) { this.phase = 'live'; this.t = 0; this.pop(this.fg ? 'KICK!' : 'PUNT!', '#FFD84A'); this.msgT = .6; } return; }
     if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     // 러셔가 몰려옵니다 (킥을 하면 그 자리에서 멈춤)
-    if (this.phase === 'live') this.rushK = clamp(this.t / this.rushT, 0, 1);
+    if (this.phase === 'live') {
+      this.rushK = clamp(this.t / this.rushT, 0, 1);
+      const kb = this.kb; kb.phi = clamp(kb.phi + ((kb.aim.has('R') ? 1 : 0) - (kb.aim.has('L') ? 1 : 0)) * .3 * dt, -.3, .3);
+      if (kb.hold) { kb.p += dt / 1.05; if (kb.p >= 1.3) { kb.p = 1.3; this.keyKick(); if (this.phase !== 'live') return; } }
+    }
     const rushK = this.rushK || 0;
     for (const r of this.rush) { r.z = this.losZ + .9 - rushK * (this.losZ - 2.6) * (Math.abs(r.x0) < 3 ? .45 : 1); r.x = r.x0 * (1 - rushK * .45); }
     if (this.phase === 'live') {
@@ -226,7 +245,9 @@ export class KickPlay {
     items.push({ z: b.z, f: () => this.drawBall(ctx, now) });
     items.sort((a, b2) => b2.z - a.z).forEach(i => i.f());
     // 조준선
-    if (this.drag && this.phase === 'live') this.drawAim(ctx);
+    if (this.drag && this.phase === 'live') this.drawAim(ctx, this.swipe(this.drag));
+    else if (this.kbd && this.phase === 'live') this.drawAim(ctx, { p: this.kb.p, phi: this.kb.phi });
+    if (this.keysEl.hidden === (this.kbd && this.phase === 'live')) this.keysEl.hidden = !(this.kbd && this.phase === 'live');
     // 바람
     this.drawWind(ctx);
     // 남은 시간 (러셔)
@@ -269,8 +290,8 @@ export class KickPlay {
     ctx.fillStyle = '#8A4B22'; ctx.fillRect(Math.round(p.x - r), Math.round(p.y - r * .7), r * 2, Math.round(r * 1.4));
     if (r >= 2) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(p.x) - (spin ? 1 : 0), Math.round(p.y) - 1, 1, 2); }
   }
-  drawAim(ctx) {
-    const s = this.swipe(this.drag), p = Math.min(1, s.p), over = s.p > 1;
+  drawAim(ctx, s) {
+    const p = Math.min(1, s.p), over = s.p > 1;
     // 파워 막대 (오른쪽)
     const bx = CW - 10, by = this.hor + 34, bh = 100;
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx - 1, by - 1, 6, bh + 2);

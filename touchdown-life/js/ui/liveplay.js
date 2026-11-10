@@ -4,10 +4,13 @@
 // 수비는 맨·존(딥/훅/컬/플랫)·블리츠·스파이 배정을 그대로 수행합니다.
 // cfg: ball, toGo, control(QB|RB|WR|TE|OL|DL|LB|CB|S), edge, side('O'|'D'), me{attrs, ovr, number}, teamRating, oppRating,
 //      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용)
-// 조작: 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개). 쿼터백은 리시버를 탭하면 패스.
+// 조작은 입력 방식(input.js)에 따라 바뀌고 화면 요소는 같습니다.
+//  · 모바일(터치): 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개), 쿼터백은 리시버나 위쪽 리시버 칩을 탭하면 패스.
+//  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
+//    쿼터백은 숫자 키 1~5로 그 번호의 리시버에게 패스(리시버 머리 위 번호·위쪽 칩). 마우스로 버튼·칩·리시버를 눌러도 됩니다.
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
-// 키보드: 방향키 이동, 스페이스·Z·X·C·V로 버튼 1·1·2·3·4.
 import { bigText, vivid, shade, lum, OUT } from './pixel.js';
+import { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } from './input.js';
 import { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } from './sprites.js';
 import { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } from './playbook.js';
 
@@ -20,6 +23,8 @@ const ROLE_SPD = { OL: .74, DL: .8, QB: .9, LB: .92, TE: .93, FB: .88, RB: 1, WR
 const NUMS = { QB: [[1, 19]], RB: [[20, 39]], FB: [[40, 49]], WR: [[10, 19], [80, 89]], TE: [[80, 89]], OL: [[60, 79]], DL: [[90, 99], [50, 59]], LB: [[40, 59]], CB: [[20, 39]], S: [[20, 49]] };
 const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
+const SLOT_KEYS = ['space', 'j', 'k', 'l'], LEGACY_KEYS = { z: 0, x: 1, c: 2, v: 3 }; // 버튼 1~4 키 (Z·X·C·V는 예전 키)
+const OPEN_COLOR = { open: '#3BB273', mid: '#F2C230', tight: '#E85A5A', pre: '#E9EEF3' };
 const ME_REACH = .25; // 내가 조종하는 리시버의 추가 캐치 범위(야드)
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
@@ -32,9 +37,12 @@ export class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
     host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
-      <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div><div class="lp-btns"></div></div>`;
+      <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
+      <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
+      <div class="lp-targets" hidden aria-label="패스할 리시버"></div><div class="lp-btns"></div></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
-    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip');
+    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets');
+    this.kbd = isKeyMode(); this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.applyMode(); });
     this.H = 360; this.VW = VW_NEAR; this.scale = 2; this.inset = 0; this.camX = 0; this.oy = 0;
     this.stick = { x: 0, y: 0 }; this.sk = { cd: {}, pumps: 0 }; this.floats = []; this.ghosts = [];
     this.los = cfg.ball; this.first = Math.min(100, cfg.ball + cfg.toGo);
@@ -53,7 +61,7 @@ export class LivePlay {
     this.vwF = this.VW = this.vwTarget(); this.fit();
     this.camX = this.camXTarget(); this.eye = this.eyeTarget(); this.camY = this.camYTarget(); this.oy = Math.round((Y_TOP - this.camY) * PPY - this.eye);
     if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
-    this.bindInput();
+    this.bindInput(); this.applyMode();
     if (cfg.banner) { this.pop(cfg.banner, '#FFFFFF'); this.msgT = 1.4; }
     this.last = performance.now();
     this.loopFn = this.loop.bind(this);
@@ -220,6 +228,8 @@ export class LivePlay {
     this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15, 1.9, 4.3);
     this.qbDeadline = 2.5 + R() * 1.4; this.heatRoll = null; this.rushWon = false; // 공을 오래 끄는 날도 있습니다 (색이 나올 수 있게)
     this.qbFrozen = R() < clamp(.16 - (c.teamRating - 60) * .004, .05, .2) ? 1.6 : 0; // 가끔은 아무도 못 보고 공을 오래 끕니다
+    // 쿼터백이 고를 리시버 번호: 루트를 뛰는 선수를 정렬 위치 왼쪽부터 1~5
+    this.tnum = skill.filter(p => p.routeName !== 'block').sort((a, b) => a.home.x - b.home.x).slice(0, 5);
     this.readOrder = (play.read || skill.filter(p => p.routeName !== 'block').sort((a, b) => routeInfo(b.routeName).depth - routeInfo(a.routeName).depth).map(p => p.slot)).map(s => this.slotP(s)).filter(Boolean);
   }
   pick(role) {
@@ -257,13 +267,50 @@ export class LivePlay {
     const end = e => { if (e.pointerId !== this.stickId) return; this.stickId = null; this.stick = { x: 0, y: 0 }; knob.style.transform = ''; Object.assign(base.style, { left: '', top: '', bottom: '' }); base.classList.remove('on'); };
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     this.btns.addEventListener('pointerdown', e => { const b = e.target.closest('[data-sk]'); if (!b) return; e.preventDefault(); b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); this.skill(b.dataset.sk); });
-    const SKEY = { ' ': 0, z: 0, x: 1, c: 2, v: 3 };
+    this.tgEl.addEventListener('pointerdown', e => { const b = e.target.closest('[data-tn]'); if (!b) return; e.preventDefault(); this.throwToNum(+b.dataset.tn); });
+    // 키보드: WASD·방향키 이동, Space·J·K·L = 버튼 1~4, Shift 터보, 숫자 1~5 = 그 리시버에게 패스
     this.onKey = e => {
-      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { e.preventDefault(); e.type === 'keydown' ? this.keys.add(k) : this.keys.delete(k); return; }
-      if (k in SKEY && e.type === 'keydown' && !e.repeat) { e.preventDefault(); const s = this.skills()[SKEY[k]]; if (s) this.skill(s.id); }
+      if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = keyName(e), down = e.type === 'keydown', dir = MOVE_KEYS[k];
+      if (dir) { e.preventDefault(); down ? this.keys.add(dir) : this.keys.delete(dir); this.syncKeys(); return; }
+      if (!down) return;
+      if (k === 'space') e.preventDefault();
+      if (e.repeat) return;
+      if (/^[1-5]$/.test(k)) { if (this.throwToNum(+k)) e.preventDefault(); return; }
+      if (k === 'shift') { if (this.skills().some(x => x.id === 'turbo')) this.skill('turbo', true); return; }
+      const slot = SLOT_KEYS.includes(k) ? SLOT_KEYS.indexOf(k) : LEGACY_KEYS[k] ?? -1;
+      if (slot >= 0) { e.preventDefault(); const x = this.skills()[slot]; if (x) this.skill(x.id, true); }
     };
-    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
+    this.onBlur = () => { this.keys.clear(); this.syncKeys(); };
+    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey); window.addEventListener('blur', this.onBlur);
+  }
+  // 입력 방식이 바뀌면: 스틱 ↔ 키 표시, 버튼·칩 위 키 글자
+  applyMode() {
+    this.ctrl.classList.toggle('kbd', this.kbd); this.host.classList.toggle('lp-kbd', this.kbd);
+    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys();
+    if (!this.ctrl.hidden) this.syncButtons();
+  }
+  syncKeys() { for (const el of this.ctrl.querySelectorAll('.lp-keys kbd')) el.classList.toggle('on', this.keys.has(el.dataset.k)); }
+  // 쿼터백(나)이 지금 던질 수 있나: 공을 들고 스크리미지 라인 뒤에 있을 때
+  qbThrowable() { const m = this.mine; return this.phase === 'live' && !!m && m === this.qb && this.carrier === m && !this.ball && m.y < this.los + .5; }
+  // 리시버 번호(왼쪽부터 1~5)를 보여 줄 때: 패스 작전에서 내가 쿼터백이면 스냅 직전부터 던지기 전까지
+  showTargets() { return !!this.tnum?.length && this.mine === this.qb && (!this.run || !!this.play?.rpo) && (this.phase === 'pre' || this.qbThrowable()); }
+  openLevel(r) { const d = Math.min(99, ...this.P.filter(p => p.team === 'D' && !(p.stun > 0)).map(p => dist(p, r))); return d >= 3 ? 'open' : d >= 1.6 ? 'mid' : 'tight'; }
+  throwToNum(n) {
+    const r = this.tnum?.[n - 1];
+    if (!r || !this.showTargets() || !this.qbThrowable() || !this.eligible().includes(r)) return false;
+    this.throwAt(this.qb, r, this.passType); this.syncButtons(); return true;
+  }
+  syncTargets() {
+    const show = this.showTargets(), el = this.tgEl;
+    if (el.hidden === show) { el.hidden = !show; this.host.classList.toggle('lp-qbt', show); }
+    if (!show) return;
+    const key = this.tnum.map(p => p.slot).join(',') + this.kbd;
+    if (key !== this.tgKey) {
+      this.tgKey = key;
+      el.innerHTML = this.tnum.map((p, i) => `<button class="lp-tg" data-tn="${i + 1}" aria-label="${i + 1}번 ${p.role} ${p.num}에게 패스"><b>${i + 1}</b><span>${p.role} ${p.num}</span></button>`).join('');
+    }
+    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.openLevel(p); if (b.dataset.o !== o) b.dataset.o = o; });
   }
   tap(f) {
     if (this.phase !== 'live') return;
@@ -286,7 +333,7 @@ export class LivePlay {
     const nearBall = b && Math.hypot(m.x - b.x, m.y - b.y) < 7;
     if (m.team === 'O') {
       if (m.role === 'OL') return [S('punch', '펀치', 2.4, !!this.myMan), S('anchor', '버티기', 4)];
-      if (car && m === this.qb && this.inPocket()) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
+      if (m === this.qb && (this.phase === 'pre' || (car && this.inPocket()))) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
       if (car) return [S('spin', '스핀', 2.6), S('juke', '페이크', 2), S('turbo', '터보', 4), S('stiff', '스티프 암', 3)];
       if (nearBall) return [S('c_high', '하이포인트', 9, !sk.catchType), S('c_poss', '안전 캐치', 9, !sk.catchType), S('c_rac', 'RAC 캐치', 9, !sk.catchType), S('turbo', '터보', 4)];
       return [S('call', sk.callT > 0 ? '부르는 중' : '패스 콜', 1.5, this.canCall()), S('fake', '페이크', 3, !!this.nearestD(m, 3.8)), S('turbo', '터보', 4)];
@@ -304,9 +351,10 @@ export class LivePlay {
     const rpoMe = play.rpo === m.slot && !this.handed;
     return (!this.run || this.fleaPhase === 2 || rpoMe) && (!play.flea || this.fleaPhase === 2);
   }
-  skill(id) {
+  skill(id, fromKey = false) {
     const m = this.mine; if (!m) return;
-    const def = this.skills().find(x => x.id === id); if (!def || !def.ready) return;
+    const list = this.skills(), def = list.find(x => x.id === id); if (!def || !def.ready) return;
+    if (fromKey) { const b = this.btns.children[list.indexOf(def)]; if (b) { b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); } }
     const sk = this.sk, a = this.cfg.me.attrs, A = k => a[k] ?? this.cfg.me.ovr;
     sk.cd[id] = def.cd;
     if (id === 'pass') return this.autoThrow();
@@ -363,8 +411,9 @@ export class LivePlay {
     const show = this.phase === 'pre' || this.phase === 'live' || this.phase === 'over';
     if (this.ctrl.hidden === show) this.ctrl.hidden = !show;
     if (!show) return;
-    const list = this.skills(), key = list.map(x => x.id + x.label).join(',');
-    if (key !== this.btnKey) { this.btnKey = key; this.btns.innerHTML = list.map((x, i) => `<button class="lp-btn b${i}" data-sk="${x.id}" aria-label="${x.label}"><span>${x.label}</span></button>`).join(''); }
+    const list = this.skills(), key = list.map(x => x.id + x.label).join(',') + this.kbd;
+    const keyOf = (x, i) => keyLabel(x.id === 'turbo' ? 'shift' : SLOT_KEYS[i]);
+    if (key !== this.btnKey) { this.btnKey = key; this.btns.innerHTML = list.map((x, i) => `<button class="lp-btn b${i}" data-sk="${x.id}" aria-label="${x.label}${this.kbd ? ` (${keyOf(x, i)})` : ''}"><span>${x.label}</span>${this.kbd ? `<kbd>${keyOf(x, i)}</kbd>` : ''}</button>`).join(''); }
     list.forEach((x, i) => {
       const el = this.btns.children[i]; if (!el) return;
       const v = x.left.toFixed(2); if (el.dataset.cd !== v) { el.dataset.cd = v; el.style.setProperty('--cd', v); }
@@ -403,8 +452,9 @@ export class LivePlay {
     if ((r.routeName === 'bubble' || r.routeName.startsWith('screen')) && r.route?.length) { const e = r.route.at(-1); return { x: e.x, y: e.y }; }
     const lead = this.flightTime(qb, r, type); return { x: r.x + r.vx * lead, y: r.y + r.vy * lead };
   }
-  throwAt(qb, r, type) { const a = this.aimPoint(qb, r, type); this.throwTo(a.x, a.y, qb, type); }
-  throwTo(tx, ty, qb, type = 'touch') {
+  // 내가 쿼터백이면 고른 리시버가 공을 받으러 갑니다 (AI 쿼터백은 떨어지는 곳에서 가장 가까운 리시버)
+  throwAt(qb, r, type) { const a = this.aimPoint(qb, r, type); this.throwTo(a.x, a.y, qb, type, qb.me ? r : null); }
+  throwTo(tx, ty, qb, type = 'touch', want = null) {
     const c = this.cfg, acc = qb.me ? (c.me.attrs.acc ?? c.me.ovr) : c.teamRating;
     const d = Math.hypot(tx - qb.x, ty - qb.y), pressure = this.P.some(p => p.team === 'D' && dist(p, qb) < 2.4) ? 1.7 : 1;
     const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
@@ -414,7 +464,7 @@ export class LivePlay {
     this.carrier = null; this.thrown = true; this.passUsed = type; qb.throwT = .3;
     if (qb.me) this.inc('att');
     const el = this.eligible();
-    this.target = el.reduce((b, p) => dist(p, { x: lx, y: ly }) < dist(b, { x: lx, y: ly }) ? p : b, el[0]);
+    this.target = want && el.includes(want) ? want : el.reduce((b, p) => dist(p, { x: lx, y: ly }) < dist(b, { x: lx, y: ly }) ? p : b, el[0]);
     if (this.target?.me) this.inc('tgt');
     this.msg = '';
   }
@@ -429,6 +479,7 @@ export class LivePlay {
     this.camX += (this.camXTarget() - this.camX) * clamp(dt * 3.5, 0, 1);
     this.eye += (this.eyeTarget() - this.eye) * clamp(dt * 4, 0, 1);
     if (this.phase !== 'over' && this.phase !== 'done') this.camY += (this.camYTarget() - this.camY) * clamp(dt * 3, 0, 1);
+    this.syncTargets();
     this.syncButtons();
     this.draw(now);
     this.raf = requestAnimationFrame(this.loopFn);
@@ -579,7 +630,7 @@ export class LivePlay {
     const sk = this.sk;
     if (sk.diveT > 0) return;
     let sx = this.stick.x, sy = this.stick.y;
-    const k = this.keys, kx = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0), ky = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);
+    const k = this.keys, kx = (k.has('R') ? 1 : 0) - (k.has('L') ? 1 : 0), ky = (k.has('U') ? 1 : 0) - (k.has('D') ? 1 : 0);
     if (kx || ky) { const n = Math.hypot(kx, ky); sx = kx / n; sy = ky / n; }
     const mag = Math.min(1, Math.hypot(sx, sy));
     const boost = (this.juke > 0 ? 1.25 : 1) * (sk.turboT > 0 ? 1.22 : 1) * (sk.spinT > 0 ? .9 : 1);
@@ -835,7 +886,8 @@ export class LivePlay {
   }
   destroy() {
     this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer);
-    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
+    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey); window.removeEventListener('blur', this.onBlur);
+    this.offMode?.();
   }
   // ───────── 그리기 ─────────
   sy(Y) { return (Y_TOP - Y) * PPY - this.oy; }
@@ -858,6 +910,7 @@ export class LivePlay {
     for (const g of this.ghosts) { ctx.globalAlpha = g.life * 1.6; const spr = this.spriteOf(g.p, now); ctx.drawImage(spr, Math.round(g.x * PPY - spr.width / 2), Math.round(this.sy(g.y)) - spr.height + 2); ctx.globalAlpha = 1; }
     const order = [...this.P].sort((a, b) => b.y - a.y);
     for (const p of order) this.drawPlayer(ctx, p, now);
+    if (this.showTargets()) this.drawTargets(ctx, now);
     if (this.ball) {
       const b = this.ball, k = b.t / b.T, gx = b.sx + (b.x - b.sx) * k, gy = b.sy + (b.y - b.sy) * k, h = 4 * b.peak * k * (1 - k) + 1.2;
       const px = Math.round(gx * PPY), py = Math.round(this.sy(gy));
@@ -873,6 +926,17 @@ export class LivePlay {
     const big = t => { for (const s of [5, 4, 3]) if (t.length * 4 * s <= VW - 14) return s; return 2; };
     if (this.phase === 'pre') bigText(ctx, this.t < -.5 ? 'READY' : 'SET', VW / 2, ty, '#FFFFFF', 5);
     else if (this.msg) bigText(ctx, this.msg, VW / 2, ty, this.msgColor || '#FFFFFF', big(this.msg));
+  }
+  // 리시버 머리 위 번호 (색 = 열린 정도: 초록 열림 · 노랑 보통 · 빨강 붙음)
+  drawTargets(ctx, now) {
+    const pre = this.phase === 'pre', el = this.eligible();
+    this.tnum.forEach((p, i) => {
+      if (!pre && !el.includes(p)) return;
+      const x = Math.round(p.x * PPY), y = Math.round(this.sy(p.y)) - 31 - (Math.floor(now / 260 + i) % 2);
+      ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = OPEN_COLOR[pre ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
+      bigText(ctx, String(i + 1), x, y, '#FFFFFF', 1);
+    });
   }
   // 스냅 직전 우리 팀 작전 그림 (내 루트는 노랑, 1순위는 주황, 런은 빨강)
   drawRoutes(ctx) {

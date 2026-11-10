@@ -457,3 +457,42 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .gym-card strong { display: block; font-size: 15px; } .gym-card small { color: var(--muted); font-size: 13px; }
 .gym-mini { display: block; height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
 .gym-mini b { display: block; height: 100%; background: var(--accent); }
+
+/* ───────── 입력 방식: 컴퓨터(키보드) / 모바일(터치) ───────── */
+kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 .35em; border-radius: 6px; font: 800 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #1B2129; background: #F4F6F8; border: 1px solid #C9D0D8; box-shadow: 0 2px 0 #9AA4B0; text-shadow: none; letter-spacing: 0; }
+.lp-ctrl.kbd .lp-zone { display: none; }
+.lp-keys { display: none; position: absolute; left: 14px; bottom: 16px; grid-template-columns: repeat(3, 30px); grid-template-rows: 30px 30px; gap: 4px; opacity: .85; pointer-events: none; }
+.lp-ctrl.kbd .lp-keys { display: grid; }
+.lp-keys kbd { width: 30px; height: 30px; font-size: 13px; background: rgba(244, 246, 248, .9); }
+.lp-keys kbd[data-k="U"] { grid-column: 2; grid-row: 1; } .lp-keys kbd[data-k="L"] { grid-column: 1; grid-row: 2; } .lp-keys kbd[data-k="D"] { grid-column: 2; grid-row: 2; } .lp-keys kbd[data-k="R"] { grid-column: 3; grid-row: 2; }
+.lp-keys kbd.on { background: #FFD84A; border-color: #C9A21A; box-shadow: 0 0 0 #9AA4B0; transform: translateY(2px); }
+.lp-btn kbd { white-space: nowrap; position: absolute; z-index: 2; left: 50%; bottom: -3px; transform: translateX(-50%); font-size: 10px; height: 17px; min-width: 22px; box-shadow: 0 1px 0 #9AA4B0; }
+.lp-btn { overflow: visible; }
+.lp-btn::after { border-radius: 50%; }
+.lp-ctrl.kbd .lp-btn span { margin-bottom: 8px; }
+.lp-targets { position: absolute; top: 8px; left: 6px; right: 6px; display: flex; justify-content: center; gap: 4px; pointer-events: none; z-index: 3; }
+.lp-targets[hidden] { display: none; }
+.lp-tg { pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; display: flex; align-items: center; gap: 4px; min-width: 0; flex: 0 1 auto; padding: 3px 8px 3px 3px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .55); background: rgba(16, 22, 28, .72); color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; }
+.lp-tg b { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #E9EEF3; color: #1B2129; font-size: 13px; }
+.lp-ctrl.kbd .lp-tg b { border-radius: 6px; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.lp-tg span { overflow: hidden; text-overflow: ellipsis; }
+.lp-tg[data-o="open"] b { background: #3BB273; color: #fff; } .lp-tg[data-o="mid"] b { background: #F2C230; } .lp-tg[data-o="tight"] b { background: #E85A5A; color: #fff; }
+.lp-tg[data-o="open"] { border-color: #3BB273; }
+.lp-tg[data-o="gone"] { opacity: .35; }
+.lp-tg:active { transform: scale(.94); }
+.lp-qbt .lp-tip { top: 46px; }
+.cl-actions .choice { position: relative; }
+.cl-actions .choice > .cl-key { position: absolute; right: 12px; top: 12px; }
+.cl-actions .pb-card { position: relative; }
+.cl-actions .pb-card > .cl-key { position: absolute; left: 6px; top: 6px; z-index: 1; }
+.cl-actions button.primary .cl-key { margin-left: 6px; vertical-align: 1px; }
+.cl-key-hint { display: inline-flex; gap: 3px; align-items: center; flex: none; opacity: .85; padding-right: 2px; }
+.kp-keys { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 3; display: flex; gap: 4px; align-items: center; white-space: nowrap; background: rgba(0, 0, 0, .55); border-radius: 10px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: #fff; pointer-events: none; }
+.kp-keys[hidden] { display: none; }
+.gym-pad { position: relative; }
+.gym-pad kbd.gk { position: absolute; right: 8px; bottom: 7px; }
+.gym-pad.big kbd.gk { right: 12px; bottom: 10px; }
+.gym-cell { position: relative; }
+.gym-cell kbd.gk { position: absolute; left: 6px; top: 6px; opacity: .85; }
+.gym-ex strong kbd.gk { margin-right: 6px; vertical-align: 2px; }
+.gym-x kbd.gk, .gym-result .primary kbd.gk { margin-left: 6px; vertical-align: 1px; }

@@ -472,6 +472,45 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .gym-mini { display: block; height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
 .gym-mini b { display: block; height: 100%; background: var(--accent); }
 
+/* ───────── 입력 방식: 컴퓨터(키보드) / 모바일(터치) ───────── */
+kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; padding: 0 .35em; border-radius: 6px; font: 800 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #1B2129; background: #F4F6F8; border: 1px solid #C9D0D8; box-shadow: 0 2px 0 #9AA4B0; text-shadow: none; letter-spacing: 0; }
+.lp-ctrl.kbd .lp-zone { display: none; }
+.lp-keys { display: none; position: absolute; left: 14px; bottom: 16px; grid-template-columns: repeat(3, 30px); grid-template-rows: 30px 30px; gap: 4px; opacity: .85; pointer-events: none; }
+.lp-ctrl.kbd .lp-keys { display: grid; }
+.lp-keys kbd { width: 30px; height: 30px; font-size: 13px; background: rgba(244, 246, 248, .9); }
+.lp-keys kbd[data-k="U"] { grid-column: 2; grid-row: 1; } .lp-keys kbd[data-k="L"] { grid-column: 1; grid-row: 2; } .lp-keys kbd[data-k="D"] { grid-column: 2; grid-row: 2; } .lp-keys kbd[data-k="R"] { grid-column: 3; grid-row: 2; }
+.lp-keys kbd.on { background: #FFD84A; border-color: #C9A21A; box-shadow: 0 0 0 #9AA4B0; transform: translateY(2px); }
+.lp-btn kbd { white-space: nowrap; position: absolute; z-index: 2; left: 50%; bottom: -3px; transform: translateX(-50%); font-size: 10px; height: 17px; min-width: 22px; box-shadow: 0 1px 0 #9AA4B0; }
+.lp-btn { overflow: visible; }
+.lp-btn::after { border-radius: 50%; }
+.lp-ctrl.kbd .lp-btn span { margin-bottom: 8px; }
+.lp-targets { position: absolute; top: 8px; left: 6px; right: 6px; display: flex; justify-content: center; gap: 4px; pointer-events: none; z-index: 3; }
+.lp-targets[hidden] { display: none; }
+.lp-tg { pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; display: flex; align-items: center; gap: 4px; min-width: 0; flex: 0 1 auto; padding: 3px 8px 3px 3px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, .55); background: rgba(16, 22, 28, .72); color: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; }
+.lp-tg b { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #E9EEF3; color: #1B2129; font-size: 13px; }
+.lp-ctrl.kbd .lp-tg b { border-radius: 6px; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.lp-tg span { overflow: hidden; text-overflow: ellipsis; }
+.lp-tg[data-o="open"] b { background: #3BB273; color: #fff; } .lp-tg[data-o="mid"] b { background: #F2C230; } .lp-tg[data-o="tight"] b { background: #E85A5A; color: #fff; }
+.lp-tg[data-o="open"] { border-color: #3BB273; }
+.lp-tg[data-o="gone"] { opacity: .35; }
+.lp-tg:active { transform: scale(.94); }
+.lp-qbt .lp-tip { top: 46px; }
+.cl-actions .choice { position: relative; }
+.cl-actions .choice > .cl-key { position: absolute; right: 12px; top: 12px; }
+.cl-actions .pb-card { position: relative; }
+.cl-actions .pb-card > .cl-key { position: absolute; left: 6px; top: 6px; z-index: 1; }
+.cl-actions button.primary .cl-key { margin-left: 6px; vertical-align: 1px; }
+.cl-key-hint { display: inline-flex; gap: 3px; align-items: center; flex: none; opacity: .85; padding-right: 2px; }
+.kp-keys { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 3; display: flex; gap: 4px; align-items: center; white-space: nowrap; background: rgba(0, 0, 0, .55); border-radius: 10px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: #fff; pointer-events: none; }
+.kp-keys[hidden] { display: none; }
+.gym-pad { position: relative; }
+.gym-pad kbd.gk { position: absolute; right: 8px; bottom: 7px; }
+.gym-pad.big kbd.gk { right: 12px; bottom: 10px; }
+.gym-cell { position: relative; }
+.gym-cell kbd.gk { position: absolute; left: 6px; top: 6px; opacity: .85; }
+.gym-ex strong kbd.gk { margin-right: 6px; vertical-align: 2px; }
+.gym-x kbd.gk, .gym-result .primary kbd.gk { margin-left: 6px; vertical-align: 1px; }
+
 </style>
   <script>try{var t=localStorage.getItem('tdlife.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
   
@@ -3713,6 +3752,78 @@ function bigText(ctx, str, cx, cy, color, scale = 2, outline = OUT) {
 
 return { SPRITE_W, SPRITE_H, SCENE_W, SCENE_H, PIXEL_READY, sceneUrl, spriteUrl, portraitUrl, iconUrl, spriteCanvas, bigText, pixelText: text, textWidth, vivid, shade, lum, drawPlayer, OUT };
 });
+__def("js/ui/input.js", function () {
+// 입력 방식: 컴퓨터는 'key'(키보드·마우스), 모바일은 'touch'(터치).
+// 모든 직접 플레이 화면(실시간 필드·킥·헬스장·작전 고르기)은 같은 요소를 보여 주고 조작만 이 값에 따라 바꿉니다.
+// 설정에서 자동/컴퓨터/모바일을 고를 수 있습니다. 자동이면 기기 특성(주 포인터가 손가락인지)으로 먼저 정하고,
+// 실제로 화면을 터치하거나 게임 키를 누르면 그 방식으로 바로 바꿉니다 (터치 노트북·키보드를 연결한 태블릿).
+// 키는 e.code(물리 키 위치)로 읽어서 한글 입력 상태에서도 WASD·J·K·L이 그대로 동작합니다.
+const W = typeof window !== 'undefined' ? window : null;
+const PREF_KEY = 'tdlife.input.v1';
+let pref = 'auto';
+try { pref = W?.localStorage.getItem(PREF_KEY) || 'auto'; } catch { /* 저장소를 못 쓰면 자동 */ }
+let seen = null; // 자동일 때 실제 사용으로 정해진 방식
+const subs = new Set();
+
+function detect() {
+  if (!W?.matchMedia) return 'key';
+  if (W.matchMedia('(pointer: coarse)').matches) return 'touch';
+  if (!W.matchMedia('(any-pointer: fine)').matches && (W.navigator?.maxTouchPoints || 0) > 0) return 'touch';
+  return 'key';
+}
+const inputMode = () => (pref === 'key' || pref === 'touch' ? pref : seen || detect());
+const isKeyMode = () => inputMode() === 'key';
+const inputPref = () => pref;
+const INPUT_PREFS = [['auto', '자동'], ['key', '컴퓨터 (키보드)'], ['touch', '모바일 (터치)']];
+function setInputPref(v) {
+  pref = v === 'key' || v === 'touch' ? v : 'auto';
+  try { W?.localStorage.setItem(PREF_KEY, pref); } catch { /* 무시 */ }
+  emit();
+}
+// 방식이 바뀔 때 알림. 해제 함수를 돌려줍니다.
+function onInputMode(fn) { subs.add(fn); return () => subs.delete(fn); }
+let lastMode = null;
+function emit() {
+  const m = inputMode();
+  W?.document?.documentElement?.setAttribute('data-input', m);
+  if (m === lastMode) return;
+  lastMode = m;
+  for (const f of [...subs]) { try { f(m); } catch (err) { console.error(err); } }
+}
+
+// 물리 키 이름 (소문자): 'w' 'a' '1' 'space' 'shift' 'enter' 'tab' 'esc' 'up' 'down' 'left' 'right' ';'
+function keyName(e) {
+  const c = e.code || '';
+  if (c.startsWith('Key')) return c.slice(3).toLowerCase();
+  if (c.startsWith('Digit')) return c.slice(5);
+  if (/^Numpad\d$/.test(c)) return c.slice(6);
+  if (c.startsWith('Arrow')) return c.slice(5).toLowerCase();
+  const map = { Space: 'space', ShiftLeft: 'shift', ShiftRight: 'shift', Enter: 'enter', NumpadEnter: 'enter', Tab: 'tab', Escape: 'esc', Semicolon: ';', Comma: ',', Period: '.', Slash: '/', Backspace: 'backspace' };
+  if (map[c]) return map[c];
+  const k = e.key || '';
+  return k === ' ' ? 'space' : k.length === 1 ? k.toLowerCase() : k.toLowerCase();
+}
+// 화면에 보여 줄 키 글자
+function keyLabel(name) {
+  return { space: 'Space', shift: 'Shift', enter: 'Enter', tab: 'Tab', esc: 'Esc', up: '↑', down: '↓', left: '←', right: '→' }[name] || String(name).toUpperCase();
+}
+const kbd = name => `<kbd class="kc">${keyLabel(name)}</kbd>`;
+// 이동 키: WASD와 방향키
+const MOVE_KEYS = { w: 'U', up: 'U', s: 'D', down: 'D', a: 'L', left: 'L', d: 'R', right: 'R' };
+// 입력 칸에 글을 쓰는 중이면 게임 키로 보지 않습니다
+const typing = e => { const t = e.target; return !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')); };
+
+const GAME_KEYS = new Set(['w', 'a', 's', 'd', 'up', 'down', 'left', 'right', 'space', 'j', 'k', 'l', 'shift', '1', '2', '3', '4', '5', 'f', 'enter']);
+if (W) {
+  W.addEventListener('pointerdown', e => { if (pref === 'auto' && e.pointerType === 'touch' && seen !== 'touch') { seen = 'touch'; emit(); } }, { capture: true, passive: true });
+  W.addEventListener('keydown', e => { if (pref === 'auto' && seen !== 'key' && !typing(e) && GAME_KEYS.has(keyName(e))) { seen = 'key'; emit(); } }, true);
+  const mq = W.matchMedia?.('(pointer: coarse)');
+  mq?.addEventListener?.('change', () => { if (!seen) emit(); });
+  if (W.document?.documentElement) emit();
+}
+
+return { inputMode, isKeyMode, inputPref, INPUT_PREFS, kbd, MOVE_KEYS, typing, setInputPref, onInputMode, keyName, keyLabel };
+});
 __def("js/ui/sprites.js", function () {
 // 실시간 플레이용 고해상도 도트: 선수 15×19(외곽선 포함 17×21, 라인맨은 어깨가 더 넓음)와 6픽셀/야드 필드.
 // 공격은 등(등번호), 수비는 앞(페이스마스크·앞번호)을 보입니다. 모든 그림은 한 번 그려 캐시합니다.
@@ -4349,10 +4460,13 @@ __def("js/ui/liveplay.js", function () {
 // 수비는 맨·존(딥/훅/컬/플랫)·블리츠·스파이 배정을 그대로 수행합니다.
 // cfg: ball, toGo, control(QB|RB|WR|TE|OL|DL|LB|CB|S), edge, side('O'|'D'), me{attrs, ovr, number}, teamRating, oppRating,
 //      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용)
-// 조작: 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개). 쿼터백은 리시버를 탭하면 패스.
+// 조작은 입력 방식(input.js)에 따라 바뀌고 화면 요소는 같습니다.
+//  · 모바일(터치): 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개), 쿼터백은 리시버나 위쪽 리시버 칩을 탭하면 패스.
+//  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
+//    쿼터백은 숫자 키 1~5로 그 번호의 리시버에게 패스(리시버 머리 위 번호·위쪽 칩). 마우스로 버튼·칩·리시버를 눌러도 됩니다.
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
-// 키보드: 방향키 이동, 스페이스·Z·X·C·V로 버튼 1·1·2·3·4.
 const { bigText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
+const { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } = __req("js/ui/input.js");
 const { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } = __req("js/ui/sprites.js");
 const { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } = __req("js/ui/playbook.js");
 
@@ -4365,6 +4479,8 @@ const ROLE_SPD = { OL: .74, DL: .8, QB: .9, LB: .92, TE: .93, FB: .88, RB: 1, WR
 const NUMS = { QB: [[1, 19]], RB: [[20, 39]], FB: [[40, 49]], WR: [[10, 19], [80, 89]], TE: [[80, 89]], OL: [[60, 79]], DL: [[90, 99], [50, 59]], LB: [[40, 59]], CB: [[20, 39]], S: [[20, 49]] };
 const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
+const SLOT_KEYS = ['space', 'j', 'k', 'l'], LEGACY_KEYS = { z: 0, x: 1, c: 2, v: 3 }; // 버튼 1~4 키 (Z·X·C·V는 예전 키)
+const OPEN_COLOR = { open: '#3BB273', mid: '#F2C230', tight: '#E85A5A', pre: '#E9EEF3' };
 const ME_REACH = .25; // 내가 조종하는 리시버의 추가 캐치 범위(야드)
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
@@ -4377,9 +4493,12 @@ class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
     host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
-      <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div><div class="lp-btns"></div></div>`;
+      <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
+      <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
+      <div class="lp-targets" hidden aria-label="패스할 리시버"></div><div class="lp-btns"></div></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
-    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip');
+    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets');
+    this.kbd = isKeyMode(); this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.applyMode(); });
     this.H = 360; this.VW = VW_NEAR; this.scale = 2; this.inset = 0; this.camX = 0; this.oy = 0;
     this.stick = { x: 0, y: 0 }; this.sk = { cd: {}, pumps: 0 }; this.floats = []; this.ghosts = [];
     this.los = cfg.ball; this.first = Math.min(100, cfg.ball + cfg.toGo);
@@ -4398,7 +4517,7 @@ class LivePlay {
     this.vwF = this.VW = this.vwTarget(); this.fit();
     this.camX = this.camXTarget(); this.eye = this.eyeTarget(); this.camY = this.camYTarget(); this.oy = Math.round((Y_TOP - this.camY) * PPY - this.eye);
     if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
-    this.bindInput();
+    this.bindInput(); this.applyMode();
     if (cfg.banner) { this.pop(cfg.banner, '#FFFFFF'); this.msgT = 1.4; }
     this.last = performance.now();
     this.loopFn = this.loop.bind(this);
@@ -4565,6 +4684,8 @@ class LivePlay {
     this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15, 1.9, 4.3);
     this.qbDeadline = 2.5 + R() * 1.4; this.heatRoll = null; this.rushWon = false; // 공을 오래 끄는 날도 있습니다 (색이 나올 수 있게)
     this.qbFrozen = R() < clamp(.16 - (c.teamRating - 60) * .004, .05, .2) ? 1.6 : 0; // 가끔은 아무도 못 보고 공을 오래 끕니다
+    // 쿼터백이 고를 리시버 번호: 루트를 뛰는 선수를 정렬 위치 왼쪽부터 1~5
+    this.tnum = skill.filter(p => p.routeName !== 'block').sort((a, b) => a.home.x - b.home.x).slice(0, 5);
     this.readOrder = (play.read || skill.filter(p => p.routeName !== 'block').sort((a, b) => routeInfo(b.routeName).depth - routeInfo(a.routeName).depth).map(p => p.slot)).map(s => this.slotP(s)).filter(Boolean);
   }
   pick(role) {
@@ -4602,13 +4723,50 @@ class LivePlay {
     const end = e => { if (e.pointerId !== this.stickId) return; this.stickId = null; this.stick = { x: 0, y: 0 }; knob.style.transform = ''; Object.assign(base.style, { left: '', top: '', bottom: '' }); base.classList.remove('on'); };
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     this.btns.addEventListener('pointerdown', e => { const b = e.target.closest('[data-sk]'); if (!b) return; e.preventDefault(); b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); this.skill(b.dataset.sk); });
-    const SKEY = { ' ': 0, z: 0, x: 1, c: 2, v: 3 };
+    this.tgEl.addEventListener('pointerdown', e => { const b = e.target.closest('[data-tn]'); if (!b) return; e.preventDefault(); this.throwToNum(+b.dataset.tn); });
+    // 키보드: WASD·방향키 이동, Space·J·K·L = 버튼 1~4, Shift 터보, 숫자 1~5 = 그 리시버에게 패스
     this.onKey = e => {
-      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { e.preventDefault(); e.type === 'keydown' ? this.keys.add(k) : this.keys.delete(k); return; }
-      if (k in SKEY && e.type === 'keydown' && !e.repeat) { e.preventDefault(); const s = this.skills()[SKEY[k]]; if (s) this.skill(s.id); }
+      if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = keyName(e), down = e.type === 'keydown', dir = MOVE_KEYS[k];
+      if (dir) { e.preventDefault(); down ? this.keys.add(dir) : this.keys.delete(dir); this.syncKeys(); return; }
+      if (!down) return;
+      if (k === 'space') e.preventDefault();
+      if (e.repeat) return;
+      if (/^[1-5]$/.test(k)) { if (this.throwToNum(+k)) e.preventDefault(); return; }
+      if (k === 'shift') { if (this.skills().some(x => x.id === 'turbo')) this.skill('turbo', true); return; }
+      const slot = SLOT_KEYS.includes(k) ? SLOT_KEYS.indexOf(k) : LEGACY_KEYS[k] ?? -1;
+      if (slot >= 0) { e.preventDefault(); const x = this.skills()[slot]; if (x) this.skill(x.id, true); }
     };
-    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
+    this.onBlur = () => { this.keys.clear(); this.syncKeys(); };
+    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey); window.addEventListener('blur', this.onBlur);
+  }
+  // 입력 방식이 바뀌면: 스틱 ↔ 키 표시, 버튼·칩 위 키 글자
+  applyMode() {
+    this.ctrl.classList.toggle('kbd', this.kbd); this.host.classList.toggle('lp-kbd', this.kbd);
+    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys();
+    if (!this.ctrl.hidden) this.syncButtons();
+  }
+  syncKeys() { for (const el of this.ctrl.querySelectorAll('.lp-keys kbd')) el.classList.toggle('on', this.keys.has(el.dataset.k)); }
+  // 쿼터백(나)이 지금 던질 수 있나: 공을 들고 스크리미지 라인 뒤에 있을 때
+  qbThrowable() { const m = this.mine; return this.phase === 'live' && !!m && m === this.qb && this.carrier === m && !this.ball && m.y < this.los + .5; }
+  // 리시버 번호(왼쪽부터 1~5)를 보여 줄 때: 패스 작전에서 내가 쿼터백이면 스냅 직전부터 던지기 전까지
+  showTargets() { return !!this.tnum?.length && this.mine === this.qb && (!this.run || !!this.play?.rpo) && (this.phase === 'pre' || this.qbThrowable()); }
+  openLevel(r) { const d = Math.min(99, ...this.P.filter(p => p.team === 'D' && !(p.stun > 0)).map(p => dist(p, r))); return d >= 3 ? 'open' : d >= 1.6 ? 'mid' : 'tight'; }
+  throwToNum(n) {
+    const r = this.tnum?.[n - 1];
+    if (!r || !this.showTargets() || !this.qbThrowable() || !this.eligible().includes(r)) return false;
+    this.throwAt(this.qb, r, this.passType); this.syncButtons(); return true;
+  }
+  syncTargets() {
+    const show = this.showTargets(), el = this.tgEl;
+    if (el.hidden === show) { el.hidden = !show; this.host.classList.toggle('lp-qbt', show); }
+    if (!show) return;
+    const key = this.tnum.map(p => p.slot).join(',') + this.kbd;
+    if (key !== this.tgKey) {
+      this.tgKey = key;
+      el.innerHTML = this.tnum.map((p, i) => `<button class="lp-tg" data-tn="${i + 1}" aria-label="${i + 1}번 ${p.role} ${p.num}에게 패스"><b>${i + 1}</b><span>${p.role} ${p.num}</span></button>`).join('');
+    }
+    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.openLevel(p); if (b.dataset.o !== o) b.dataset.o = o; });
   }
   tap(f) {
     if (this.phase !== 'live') return;
@@ -4631,7 +4789,7 @@ class LivePlay {
     const nearBall = b && Math.hypot(m.x - b.x, m.y - b.y) < 7;
     if (m.team === 'O') {
       if (m.role === 'OL') return [S('punch', '펀치', 2.4, !!this.myMan), S('anchor', '버티기', 4)];
-      if (car && m === this.qb && this.inPocket()) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
+      if (m === this.qb && (this.phase === 'pre' || (car && this.inPocket()))) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
       if (car) return [S('spin', '스핀', 2.6), S('juke', '페이크', 2), S('turbo', '터보', 4), S('stiff', '스티프 암', 3)];
       if (nearBall) return [S('c_high', '하이포인트', 9, !sk.catchType), S('c_poss', '안전 캐치', 9, !sk.catchType), S('c_rac', 'RAC 캐치', 9, !sk.catchType), S('turbo', '터보', 4)];
       return [S('call', sk.callT > 0 ? '부르는 중' : '패스 콜', 1.5, this.canCall()), S('fake', '페이크', 3, !!this.nearestD(m, 3.8)), S('turbo', '터보', 4)];
@@ -4649,9 +4807,10 @@ class LivePlay {
     const rpoMe = play.rpo === m.slot && !this.handed;
     return (!this.run || this.fleaPhase === 2 || rpoMe) && (!play.flea || this.fleaPhase === 2);
   }
-  skill(id) {
+  skill(id, fromKey = false) {
     const m = this.mine; if (!m) return;
-    const def = this.skills().find(x => x.id === id); if (!def || !def.ready) return;
+    const list = this.skills(), def = list.find(x => x.id === id); if (!def || !def.ready) return;
+    if (fromKey) { const b = this.btns.children[list.indexOf(def)]; if (b) { b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); } }
     const sk = this.sk, a = this.cfg.me.attrs, A = k => a[k] ?? this.cfg.me.ovr;
     sk.cd[id] = def.cd;
     if (id === 'pass') return this.autoThrow();
@@ -4708,8 +4867,9 @@ class LivePlay {
     const show = this.phase === 'pre' || this.phase === 'live' || this.phase === 'over';
     if (this.ctrl.hidden === show) this.ctrl.hidden = !show;
     if (!show) return;
-    const list = this.skills(), key = list.map(x => x.id + x.label).join(',');
-    if (key !== this.btnKey) { this.btnKey = key; this.btns.innerHTML = list.map((x, i) => `<button class="lp-btn b${i}" data-sk="${x.id}" aria-label="${x.label}"><span>${x.label}</span></button>`).join(''); }
+    const list = this.skills(), key = list.map(x => x.id + x.label).join(',') + this.kbd;
+    const keyOf = (x, i) => keyLabel(x.id === 'turbo' ? 'shift' : SLOT_KEYS[i]);
+    if (key !== this.btnKey) { this.btnKey = key; this.btns.innerHTML = list.map((x, i) => `<button class="lp-btn b${i}" data-sk="${x.id}" aria-label="${x.label}${this.kbd ? ` (${keyOf(x, i)})` : ''}"><span>${x.label}</span>${this.kbd ? `<kbd>${keyOf(x, i)}</kbd>` : ''}</button>`).join(''); }
     list.forEach((x, i) => {
       const el = this.btns.children[i]; if (!el) return;
       const v = x.left.toFixed(2); if (el.dataset.cd !== v) { el.dataset.cd = v; el.style.setProperty('--cd', v); }
@@ -4748,8 +4908,9 @@ class LivePlay {
     if ((r.routeName === 'bubble' || r.routeName.startsWith('screen')) && r.route?.length) { const e = r.route.at(-1); return { x: e.x, y: e.y }; }
     const lead = this.flightTime(qb, r, type); return { x: r.x + r.vx * lead, y: r.y + r.vy * lead };
   }
-  throwAt(qb, r, type) { const a = this.aimPoint(qb, r, type); this.throwTo(a.x, a.y, qb, type); }
-  throwTo(tx, ty, qb, type = 'touch') {
+  // 내가 쿼터백이면 고른 리시버가 공을 받으러 갑니다 (AI 쿼터백은 떨어지는 곳에서 가장 가까운 리시버)
+  throwAt(qb, r, type) { const a = this.aimPoint(qb, r, type); this.throwTo(a.x, a.y, qb, type, qb.me ? r : null); }
+  throwTo(tx, ty, qb, type = 'touch', want = null) {
     const c = this.cfg, acc = qb.me ? (c.me.attrs.acc ?? c.me.ovr) : c.teamRating;
     const d = Math.hypot(tx - qb.x, ty - qb.y), pressure = this.P.some(p => p.team === 'D' && dist(p, qb) < 2.4) ? 1.7 : 1;
     const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
@@ -4759,7 +4920,7 @@ class LivePlay {
     this.carrier = null; this.thrown = true; this.passUsed = type; qb.throwT = .3;
     if (qb.me) this.inc('att');
     const el = this.eligible();
-    this.target = el.reduce((b, p) => dist(p, { x: lx, y: ly }) < dist(b, { x: lx, y: ly }) ? p : b, el[0]);
+    this.target = want && el.includes(want) ? want : el.reduce((b, p) => dist(p, { x: lx, y: ly }) < dist(b, { x: lx, y: ly }) ? p : b, el[0]);
     if (this.target?.me) this.inc('tgt');
     this.msg = '';
   }
@@ -4774,6 +4935,7 @@ class LivePlay {
     this.camX += (this.camXTarget() - this.camX) * clamp(dt * 3.5, 0, 1);
     this.eye += (this.eyeTarget() - this.eye) * clamp(dt * 4, 0, 1);
     if (this.phase !== 'over' && this.phase !== 'done') this.camY += (this.camYTarget() - this.camY) * clamp(dt * 3, 0, 1);
+    this.syncTargets();
     this.syncButtons();
     this.draw(now);
     this.raf = requestAnimationFrame(this.loopFn);
@@ -4924,7 +5086,7 @@ class LivePlay {
     const sk = this.sk;
     if (sk.diveT > 0) return;
     let sx = this.stick.x, sy = this.stick.y;
-    const k = this.keys, kx = (k.has('ArrowRight') ? 1 : 0) - (k.has('ArrowLeft') ? 1 : 0), ky = (k.has('ArrowUp') ? 1 : 0) - (k.has('ArrowDown') ? 1 : 0);
+    const k = this.keys, kx = (k.has('R') ? 1 : 0) - (k.has('L') ? 1 : 0), ky = (k.has('U') ? 1 : 0) - (k.has('D') ? 1 : 0);
     if (kx || ky) { const n = Math.hypot(kx, ky); sx = kx / n; sy = ky / n; }
     const mag = Math.min(1, Math.hypot(sx, sy));
     const boost = (this.juke > 0 ? 1.25 : 1) * (sk.turboT > 0 ? 1.22 : 1) * (sk.spinT > 0 ? .9 : 1);
@@ -5180,7 +5342,8 @@ class LivePlay {
   }
   destroy() {
     this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer);
-    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
+    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey); window.removeEventListener('blur', this.onBlur);
+    this.offMode?.();
   }
   // ───────── 그리기 ─────────
   sy(Y) { return (Y_TOP - Y) * PPY - this.oy; }
@@ -5203,6 +5366,7 @@ class LivePlay {
     for (const g of this.ghosts) { ctx.globalAlpha = g.life * 1.6; const spr = this.spriteOf(g.p, now); ctx.drawImage(spr, Math.round(g.x * PPY - spr.width / 2), Math.round(this.sy(g.y)) - spr.height + 2); ctx.globalAlpha = 1; }
     const order = [...this.P].sort((a, b) => b.y - a.y);
     for (const p of order) this.drawPlayer(ctx, p, now);
+    if (this.showTargets()) this.drawTargets(ctx, now);
     if (this.ball) {
       const b = this.ball, k = b.t / b.T, gx = b.sx + (b.x - b.sx) * k, gy = b.sy + (b.y - b.sy) * k, h = 4 * b.peak * k * (1 - k) + 1.2;
       const px = Math.round(gx * PPY), py = Math.round(this.sy(gy));
@@ -5218,6 +5382,17 @@ class LivePlay {
     const big = t => { for (const s of [5, 4, 3]) if (t.length * 4 * s <= VW - 14) return s; return 2; };
     if (this.phase === 'pre') bigText(ctx, this.t < -.5 ? 'READY' : 'SET', VW / 2, ty, '#FFFFFF', 5);
     else if (this.msg) bigText(ctx, this.msg, VW / 2, ty, this.msgColor || '#FFFFFF', big(this.msg));
+  }
+  // 리시버 머리 위 번호 (색 = 열린 정도: 초록 열림 · 노랑 보통 · 빨강 붙음)
+  drawTargets(ctx, now) {
+    const pre = this.phase === 'pre', el = this.eligible();
+    this.tnum.forEach((p, i) => {
+      if (!pre && !el.includes(p)) return;
+      const x = Math.round(p.x * PPY), y = Math.round(this.sy(p.y)) - 31 - (Math.floor(now / 260 + i) % 2);
+      ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = OPEN_COLOR[pre ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
+      bigText(ctx, String(i + 1), x, y, '#FFFFFF', 1);
+    });
   }
   // 스냅 직전 우리 팀 작전 그림 (내 루트는 노랑, 1순위는 주황, 런은 빨강)
   drawRoutes(ctx) {
@@ -5283,10 +5458,12 @@ __def("js/ui/kickplay.js", function () {
 // 키커·펀터 실시간 킥 (키커 뒤에서 내려다본 시점).
 // new KickPlay(host, cfg)로 골대와 바람을 먼저 보여 주고, snap()으로 스냅 → 손가락으로 위로 쓸어 올려 찹니다.
 // 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
+// 컴퓨터(키보드)에서는 같은 조준선·파워 막대를 키로: A·D(←·→)로 방향, Space를 꾹 눌러 힘을 모았다가 떼면 킥.
 // cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
 //        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
 const { pixelText, bigText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
 const { playerSprite, SKINS } = __req("js/ui/sprites.js");
+const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
 const RES = 2; // 캔버스는 화면 논리 크기의 2배 해상도 (선수 도트를 더 촘촘하게)
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
@@ -5299,7 +5476,7 @@ const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); 
 class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
-    host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div>`;
+    host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div><div class="kp-keys" hidden><kbd class="kc">A</kbd><kbd class="kc">D</kbd> 방향 · <kbd class="kc">Space</kbd> 꾹 → 떼기</div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
     if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
@@ -5311,6 +5488,8 @@ class KickPlay {
     this.phase = 'idle'; this.t = 0; this.msg = ''; this.msgT = 0; this.fx = [];
     this.ball = { x: 0, z: 0, h: this.fg ? .35 : 1, vx: 0, vz: 0, vh: 0 }; this.trail = [];
     this.kickT = -1; this.drag = null;
+    this.kb = { phi: 0, p: 0, hold: false, aim: new Set() }; this.kbd = isKeyMode(); this.keysEl = host.querySelector('.kp-keys');
+    this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.kb.hold = false; });
     // 라인 (우리 7명 + 상대 러셔)
     this.line = [-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].map(x => ({ x, z: this.losZ - .6 }));
     this.rush = [-5, -2.2, 0.6, 3.3, 5.6].map(x => ({ x, z: this.losZ + .9, x0: x }));
@@ -5330,7 +5509,7 @@ class KickPlay {
     return new Promise(res => { this.done = res; });
   }
   pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
-  destroy() { this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer); }
+  destroy() { this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer); window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey); this.offMode?.(); }
   // 화면에 꽉 차게: 세로로 긴 화면이면 캔버스를 늘리고 지평선을 내려 앞쪽 잔디를 더 보여 줍니다
   fit() {
     const w = this.host.clientWidth, h = this.host.clientHeight; if (!w || !h) return;
@@ -5349,7 +5528,18 @@ class KickPlay {
     cv.addEventListener('pointermove', e => { if (!this.drag) return; const p = this.pt(e); this.drag.x = p.x; this.drag.y = p.y; });
     cv.addEventListener('pointerup', () => { const d = this.drag; this.drag = null; if (!d || this.phase !== 'live') return; const s = this.swipe(d); if (s.up < 12) return; this.kick(s.p, s.phi); });
     cv.addEventListener('pointercancel', () => { this.drag = null; });
+    this.onKey = e => {
+      if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = keyName(e), down = e.type === 'keydown', kb = this.kb, dir = { a: 'L', left: 'L', d: 'R', right: 'R' }[k];
+      if (dir) { e.preventDefault(); down ? kb.aim.add(dir) : kb.aim.delete(dir); return; }
+      if (k !== 'space') return;
+      e.preventDefault();
+      if (down && !e.repeat && this.phase === 'live' && !kb.hold) { kb.hold = true; kb.p = 0; }
+      else if (!down && kb.hold) this.keyKick();
+    };
+    window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
   }
+  keyKick() { const kb = this.kb; kb.hold = false; if (this.phase === 'live' && kb.p > .08) this.kick(kb.p, kb.phi); kb.p = 0; }
   swipe(d) {
     const up = d.sy - d.y, dx = d.x - d.sx;
     return { up, p: clamp(up * this.scale / SWIPE_CSS, 0, 1.3), phi: Math.atan2(dx, Math.max(8, up)) * .36 };
@@ -5386,7 +5576,11 @@ class KickPlay {
     if (this.phase === 'pre') { if (this.t >= 0) { this.phase = 'live'; this.t = 0; this.pop(this.fg ? 'KICK!' : 'PUNT!', '#FFD84A'); this.msgT = .6; } return; }
     if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     // 러셔가 몰려옵니다 (킥을 하면 그 자리에서 멈춤)
-    if (this.phase === 'live') this.rushK = clamp(this.t / this.rushT, 0, 1);
+    if (this.phase === 'live') {
+      this.rushK = clamp(this.t / this.rushT, 0, 1);
+      const kb = this.kb; kb.phi = clamp(kb.phi + ((kb.aim.has('R') ? 1 : 0) - (kb.aim.has('L') ? 1 : 0)) * .3 * dt, -.3, .3);
+      if (kb.hold) { kb.p += dt / 1.05; if (kb.p >= 1.3) { kb.p = 1.3; this.keyKick(); if (this.phase !== 'live') return; } }
+    }
     const rushK = this.rushK || 0;
     for (const r of this.rush) { r.z = this.losZ + .9 - rushK * (this.losZ - 2.6) * (Math.abs(r.x0) < 3 ? .45 : 1); r.x = r.x0 * (1 - rushK * .45); }
     if (this.phase === 'live') {
@@ -5508,7 +5702,9 @@ class KickPlay {
     items.push({ z: b.z, f: () => this.drawBall(ctx, now) });
     items.sort((a, b2) => b2.z - a.z).forEach(i => i.f());
     // 조준선
-    if (this.drag && this.phase === 'live') this.drawAim(ctx);
+    if (this.drag && this.phase === 'live') this.drawAim(ctx, this.swipe(this.drag));
+    else if (this.kbd && this.phase === 'live') this.drawAim(ctx, { p: this.kb.p, phi: this.kb.phi });
+    if (this.keysEl.hidden === (this.kbd && this.phase === 'live')) this.keysEl.hidden = !(this.kbd && this.phase === 'live');
     // 바람
     this.drawWind(ctx);
     // 남은 시간 (러셔)
@@ -5551,8 +5747,8 @@ class KickPlay {
     ctx.fillStyle = '#8A4B22'; ctx.fillRect(Math.round(p.x - r), Math.round(p.y - r * .7), r * 2, Math.round(r * 1.4));
     if (r >= 2) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(p.x) - (spin ? 1 : 0), Math.round(p.y) - 1, 1, 2); }
   }
-  drawAim(ctx) {
-    const s = this.swipe(this.drag), p = Math.min(1, s.p), over = s.p > 1;
+  drawAim(ctx, s) {
+    const p = Math.min(1, s.p), over = s.p > 1;
     // 파워 막대 (오른쪽)
     const bx = CW - 10, by = this.hor + 34, bh = 100;
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx - 1, by - 1, 6, bh + 2);
@@ -5587,6 +5783,7 @@ __def("js/ui/clutch.js", function () {
 const { POSITIONS, LEVEL_AVG, clamp } = __req("js/engine/core.js");
 const { LivePlay } = __req("js/ui/liveplay.js");
 const { KickPlay } = __req("js/ui/kickplay.js");
+const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
 const { CX, OFF_CATS, DEF_CATS, FORMATIONS, DEF_FORMS, playsFor, defPlaysFor, suggestOff, suggestDef, offAdvice, defAdvice, whyOff, whyDef, aiOffPlay, aiDefPlay, playArt, defArt, CATCH_KIND_KO, CATCH_TYPE_KO, PASS_TYPE_KO } = __req("js/ui/playbook.js");
 
 // 내 포지션 → 필드에서 조작할 선수
@@ -5607,6 +5804,19 @@ const HINT = {
   CB: '스틱: 내 배정(노란 표시)대로 · 잼으로 출발 방해 · 공이 오면 가로채기·쳐내기',
   S: '스틱: 깊은 곳 지키기 · 공이 오면 가로채기·쳐내기 · 다이브 태클',
 };
+// 컴퓨터(키보드)로 할 때의 안내: 같은 기능을 키로 (버튼 1~4 = Space·J·K·L, 버튼 위에 키가 적혀 있어요)
+const HINT_KEY = {
+  QB: 'WASD 이동 · 숫자 키 1~5: 그 번호 리시버에게 패스 · Space 자동 패스 · J 펌프 페이크 · L 패스 종류',
+  RB: 'WASD 달리기 · Space·J·K·L 스핀·페이크·스티프 암 · Shift 터보 · 루트를 뛸 땐 Space 패스 콜',
+  WR: 'WASD 루트 · Space 패스 콜 · J 페이크 · Shift 터보 · 공이 오면 Space·J·K 하이포인트·안전·RAC 캐치',
+  TE: 'WASD 루트 · Space 패스 콜 · J 페이크 · Shift 터보 · 공이 오면 Space·J·K 하이포인트·안전·RAC 캐치',
+  OL: 'WASD: 빨간 화살표 러셔 앞을 막기 · Space 펀치 · J 버티기',
+  DL: 'WASD: 쿼터백에게 · 블로커에 걸리면 Space 스핀 무브 · J 스윔 · Shift 터보',
+  LB: 'WASD: 내 배정(노란 표시)대로 · Space 잼 · J 다이브 태클 · 공이 오면 Space 가로채기 · J 쳐내기',
+  CB: 'WASD: 내 배정(노란 표시)대로 · Space 잼 · J 다이브 · 공이 오면 Space 가로채기 · J 쳐내기',
+  S: 'WASD: 깊은 곳 지키기 · J 다이브 태클 · 공이 오면 Space 가로채기 · J 쳐내기 · Shift 터보',
+};
+const SNAP_MSG_KEY = { QB: '스냅! 열린 리시버의 번호 키(1~5)를 누르세요.', WR: '스냅! 떨어졌다 싶으면 Space 패스 콜!', TE: '스냅! 떨어졌다 싶으면 Space 패스 콜!' };
 const SNAP_MSG = {
   QB: '스냅! 열린 리시버를 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 떨어졌다 싶으면 패스 콜!', TE: '스냅! 떨어졌다 싶으면 패스 콜!',
   OL: '스냅! 빨간 표시 러셔를 막으세요.', DL: '스냅! 쿼터백을 향해!', LB: '상대가 스냅한다!', CB: '상대가 스냅한다!', S: '상대가 스냅한다!',
@@ -5640,7 +5850,30 @@ class Clutch {
     this.pf = 0; this.pa = 0;
     this.line = {}; this.snaps = []; this.log = [];
     this.build();
+    // 키보드: 숫자 키로 작전 카드·선택지, Q·E로 플레이북 분류, Enter·Space로 스냅·다음 (화면에 키 표시)
+    this.onKey = e => this.key(e); window.addEventListener('keydown', this.onKey);
+    this.offMode = onInputMode(() => this.decorate());
     this.startDrive();
+  }
+  keyItems() { return [...this.$('cl-actions').querySelectorAll('.pb-card, .choice')].slice(0, 9); }
+  key(e) {
+    if (this.closed || typing(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    const panel = this.$('cl-panel'); if (!panel || panel.hidden) return;
+    const k = keyName(e), box = this.$('cl-actions'), tabs = [...box.querySelectorAll('[data-tab]')];
+    if (tabs.length && (k === 'q' || k === 'e')) { e.preventDefault(); const i = tabs.findIndex(b => b.classList.contains('on')); tabs[(i + (k === 'e' ? 1 : -1) + tabs.length) % tabs.length].click(); return; }
+    if (/^[1-9]$/.test(k)) { const b = this.keyItems()[+k - 1]; if (b) { e.preventDefault(); b.click(); } return; }
+    if (k === 'enter' || k === 'space') { const items = this.keyItems(), b = box.querySelector('button.primary') || (items.length === 1 ? items[0] : null); if (b) { e.preventDefault(); b.click(); } }
+  }
+  // 키보드면 고를 수 있는 것마다 키를 붙입니다
+  decorate() {
+    const box = this.$('cl-actions'); if (!box) return;
+    const kbd = isKeyMode();
+    this.root.querySelector('.clutch')?.classList.toggle('kbd', kbd);
+    box.querySelectorAll('.cl-key, .cl-key-hint').forEach(x => x.remove());
+    if (!kbd) return;
+    this.keyItems().forEach((b, i) => b.insertAdjacentHTML('afterbegin', `<kbd class="cl-key">${i + 1}</kbd>`));
+    box.querySelector('button.primary')?.insertAdjacentHTML('beforeend', ' <kbd class="cl-key">Enter</kbd>');
+    box.querySelector('.pb-tabs')?.insertAdjacentHTML('afterbegin', '<span class="cl-key-hint" title="분류 바꾸기"><kbd class="cl-key">Q</kbd><kbd class="cl-key">E</kbd></span>');
   }
   // ───────── 화면 ─────────
   build() {
@@ -5666,6 +5899,7 @@ class Clutch {
   // 아래 패널(메시지·버튼)은 고를 것이 있을 때만 필드 위에 뜹니다. 플레이 중에는 숨기고 필드를 통째로 씁니다.
   actions(html) {
     this.$('cl-actions').innerHTML = html;
+    this.decorate();
     const panel = this.$('cl-panel'); panel.hidden = !html;
     this.view?.setInset(html ? panel.offsetHeight : 0);
   }
@@ -5694,7 +5928,8 @@ class Clutch {
   snapLive(opts) {
     this.actions('');
     this.snapCount = (this.snapCount || 0) + 1;
-    this.view.tip(this.snapCount <= 3 ? HINT[this.control] : SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4 : 2);
+    const kbd = isKeyMode();
+    this.view.tip(this.snapCount <= 3 ? (kbd ? HINT_KEY : HINT)[this.control] : (kbd && SNAP_MSG_KEY[this.control]) || SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4.5 : 2);
     return this.view.snap(opts);
   }
   boxCount() { const d = this.d; return this.view.P.filter(p => p.team === 'D' && Math.abs(p.home.x - CX) < 6.5 && p.home.y < d.ball + 7).length; }
@@ -5715,6 +5950,7 @@ class Clutch {
       this.root.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
       this.$('pb-advice').hidden = tab !== 'rec';
       this.root.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => onPick(list.find(p => p.id === b.dataset.pid)));
+      this.decorate();
     };
     this.actions(`<div class="pb"><div class="pb-tabs">${tabs.map(([k, n]) => `<button data-tab="${k}">${esc(n)}${k === 'rec' ? '' : ` <i>${list.filter(p => p.cat === k).length}</i>`}</button>`).join('')}</div>
       <p class="pb-advice" id="pb-advice">코치: ${esc(advice)}</p><div class="pb-cards" id="pb-cards"></div></div>`);
@@ -5869,7 +6105,7 @@ class Clutch {
     this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.view.tip('공 근처에서 위로 쓸어 올리세요! 오른쪽 막대 초록에서 놓기', 3);
+      this.actions(''); this.view.tip(isKeyMode() ? 'A·D로 방향 · Space를 꾹 눌러 힘을 모았다가 초록에서 떼기' : '공 근처에서 위로 쓸어 올리세요! 오른쪽 막대 초록에서 놓기', 3.5);
       this.view.snap().then(r => {
         const L = this.line, ok = !!r.good;
         inc(L, 'fga'); if (ok) { inc(L, 'fgm'); L.fglong = Math.max(L.fglong || 0, dist); this.pf += 3; }
@@ -5889,7 +6125,7 @@ class Clutch {
     this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.view.tip('위로 쓸어 올려 펀트! 비스듬히 차면 사이드라인 쪽으로', 3);
+      this.actions(''); this.view.tip(isKeyMode() ? 'A·D로 방향 · Space 꾹 → 초록에서 떼면 펀트! 비스듬히 차면 사이드라인 쪽으로' : '위로 쓸어 올려 펀트! 비스듬히 차면 사이드라인 쪽으로', 3.5);
       this.view.snap().then(r => {
         const L = this.line;
         let land, text;
@@ -5916,6 +6152,7 @@ class Clutch {
   finish(auto) {
     if (this.closed) return;
     this.closed = true;
+    window.removeEventListener('keydown', this.onKey); this.offMode?.();
     this.clearView();
     if (auto && this.drive === 0 && !this.snaps.length) { this.root.innerHTML = ''; return this.done(null); }
     // 아직 남은 장면은 자동으로: 공격·수비 각각 평범한 결과로 채웁니다.
@@ -6037,9 +6274,12 @@ return { GYM_TIERS, MAX_SETS, EXERCISES, POS_DRILL, exerciseName, gradeOf, gymTi
 __def("js/ui/gym.js", function () {
 // 헬스장 화면: 도트 체육관 장면 + 운동 목록 + 운동별 미니게임(연타·타이밍·좌우 연타·방향 QTE·모았다 떼기·표적 탭).
 // 결과 점수(0~1.25)를 engine/gym.js의 finishExercise에 넘겨 능력치 진행도를 올립니다.
+// 조작: 모바일은 화면 버튼 터치, 컴퓨터는 같은 버튼을 키로(버튼마다 키 표시). Space 연타·탭·꾹, F·J(A·D) 좌우 발,
+// WASD(방향키) 콘, Q·W·E / A·S·D / Z·X·C 표적 9칸. 목록에서 숫자 키로 운동 고르기, Enter 다른 운동, Esc 나가기.
 const { bigText, pixelText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
 const { playerSprite, SKINS } = __req("js/ui/sprites.js");
 const { ATTR } = __req("js/engine/core.js");
+const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
 const { EXERCISES, GYM_TIERS, MAX_SETS, gymTier, gymState, gymDayLabel, exerciseAttr, exerciseName, canExercise, finishExercise, gradeOf } = __req("js/engine/gym.js");
 
 const W = 240, H = 124, R = Math.random, clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -6047,6 +6287,19 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': 
 const KIND_KO = { mash: '연타', timing: '타이밍', alt: '좌우 연타', arrows: '방향 QTE', charge: '모았다 떼기', targets: '표적 탭' };
 const TIER_SIGN = ['', 'TOWN GYM', 'PERFORMANCE', 'ELITE LAB'];
 const DIRS = { up: '↑', left: '←', right: '→', down: '↓' };
+// 키보드: 운동 종류별 키 → 버튼, 버튼에 적을 키
+const PAD_KEYS = {
+  mash: { space: 'push' }, timing: { space: 'tap' }, charge: { space: 'hold' },
+  alt: { f: 'L', a: 'L', left: 'L', j: 'R', d: 'R', right: 'R' },
+  arrows: { w: 'up', up: 'up', a: 'left', left: 'left', s: 'down', down: 'down', d: 'right', right: 'right' },
+  targets: Object.fromEntries([...'qweasdzxc'].map((k, i) => [k, 'c' + i])),
+};
+const KEY_HOW = {
+  bench: 'Space 연타! 바를 끝까지 밀어 올리면 1회', squat: '바늘이 초록(깊이)에 왔을 때 Space · 금색이면 완벽', sprint: 'F·J(또는 A·D)를 번갈아 연타 (같은 발 두 번은 손해)',
+  cone: '화살표가 가리키는 쪽 키(W·A·S·D)를 빨리', box: 'Space를 꾹 눌러 힘을 모았다가 초록에서 떼기 · 넘치면 실패', drill: '불이 들어온 칸의 키(Q·W·E / A·S·D / Z·X·C)를 사라지기 전에',
+};
+const howOf = ex => (isKeyMode() && KEY_HOW[ex.id]) || ex.how;
+const PAD_LABEL = { push: 'Space', tap: 'Space', hold: 'Space', L: 'F', R: 'J', up: 'W', left: 'A', down: 'S', right: 'D', ...Object.fromEntries([...'QWEASDZXC'].map((k, i) => ['c' + i, k])) };
 
 function openGym(root, s, hooks) { return new Promise(res => new Gym(root, s, hooks, res)); }
 
@@ -6064,6 +6317,7 @@ class Gym {
     this.cv = root.querySelector('#gy-cv'); this.ctx = this.cv.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     root.querySelector('[data-gy="close"]').onclick = () => this.close();
     this.onKey = e => this.key(e); window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
+    this.offMode = onInputMode(() => this.decorate());
     this.last = performance.now(); this.loopFn = this.loop.bind(this); this.raf = requestAnimationFrame(this.loopFn);
     this.list();
   }
@@ -6084,10 +6338,24 @@ class Gym {
       return `<button class="gym-ex" data-ex="${ex.id}" ${can.ok ? '' : 'disabled'}>
         <div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill ${can.ok ? 'green' : ''}">${can.ok ? `체력 ${ex.cost} · ${sets}/${MAX_SETS}세트` : esc(can.why)}</span></div>
         ${k ? `<div class="gym-prog"><span>${esc(ATTR[k][0])} <b>${p.attrs[k]}</b></span><i><b style="width:${Math.round(prog * 100)}%"></b></i><small>${prog.toFixed(2)}</small></div>` : ''}
-        <small class="gym-how">${KIND_KO[ex.kind]} · ${esc(ex.how)}</small></button>`;
+        <small class="gym-how" data-how="${ex.id}" data-pre="${KIND_KO[ex.kind]} · ">${KIND_KO[ex.kind]} · ${esc(howOf(ex))}</small></button>`;
     }).join('');
     this.$('gy-body').innerHTML = `<p class="gym-note">운동 결과만큼 능력치 진행도가 차고, 1이 되면 능력치가 1 올라요. 게임 속 하루(시즌 진행 한 단계)마다 체력이 다시 차고, 운동 하나는 하루 ${MAX_SETS}세트까지예요. 무리하면 누적 피로가 조금씩 쌓여요.</p><div class="gym-list">${rows}</div>`;
     this.root.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => this.start(b.dataset.ex));
+    this.decorate();
+  }
+  // 키보드면 버튼마다 누를 키를 붙입니다
+  decorate() {
+    const kbd = isKeyMode();
+    this.root.querySelectorAll('kbd.gk').forEach(x => x.remove());
+    this.root.querySelectorAll('[data-how]').forEach(el => { el.textContent = el.dataset.pre + howOf(EXERCISES.find(e => e.id === el.dataset.how)); });
+    this.root.querySelector('.clutch')?.classList.toggle('kbd', kbd);
+    if (!kbd) return;
+    const add = (el, t, where = 'beforeend') => el?.insertAdjacentHTML(where, `<kbd class="kc gk">${t}</kbd>`);
+    add(this.root.querySelector('[data-gy="close"]'), 'Esc');
+    this.root.querySelectorAll('.gym-ex').forEach((b, i) => add(b.querySelector('strong'), i + 1, 'afterbegin'));
+    this.root.querySelectorAll('[data-pad]').forEach(b => add(b, PAD_LABEL[b.dataset.pad]));
+    add(this.root.querySelector('[data-gy="back"]'), 'Enter');
   }
   // ───────── 미니게임 ─────────
   start(id) {
@@ -6109,19 +6377,31 @@ class Gym {
       charge: `<div class="gym-bar"><div class="z green"></div><div class="z gold"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
       targets: `<div class="gym-grid">${Array.from({ length: 9 }, (_, i) => `<button class="gym-cell" data-pad="c${i}"></button>`).join('')}</div>`,
     }[g.kind];
-    this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how">${esc(ex.how)}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
+    this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how" data-how="${ex.id}" data-pre="">${esc(howOf(ex))}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
     this.root.querySelectorAll('[data-pad]').forEach(b => {
       b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); this.press(b.dataset.pad, true); });
       const up = e => { b.classList.remove('press'); this.press(b.dataset.pad, false); };
       b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', e => { if (e.buttons) up(e); });
     });
+    this.decorate();
   }
   key(e) {
-    const g = this.game; if (!g || g.phase === 'end') return;
-    const down = e.type === 'keydown'; if (down && e.repeat) return;
-    const k = e.key, map = { ' ': g.kind === 'mash' ? 'push' : g.kind === 'timing' ? 'tap' : g.kind === 'charge' ? 'hold' : null, f: 'L', j: 'R', ArrowLeft: g.kind === 'alt' ? 'L' : 'left', ArrowRight: g.kind === 'alt' ? 'R' : 'right', ArrowUp: 'up', ArrowDown: 'down' };
-    const pad = map[k.length === 1 ? k.toLowerCase() : k]; if (!pad) return;
-    e.preventDefault(); this.press(pad, down);
+    if (this.closed || typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const g = this.game, k = keyName(e), down = e.type === 'keydown';
+    if (down && e.repeat) { if (k === 'space') e.preventDefault(); return; }
+    // 목록·결과 화면: 숫자 키로 운동, Enter·Space 다른 운동, Esc 나가기
+    if (!g || g.phase === 'end') {
+      if (!down) return;
+      if (k === 'esc') { e.preventDefault(); return this.close(); }
+      if (this.result && (k === 'enter' || k === 'space')) { e.preventDefault(); return this.list(); }
+      if (!g && /^[1-9]$/.test(k)) { const b = this.root.querySelectorAll('.gym-ex')[+k - 1]; if (b && !b.disabled) { e.preventDefault(); this.start(b.dataset.ex); } }
+      return;
+    }
+    if (k === 'esc' && down) { e.preventDefault(); return this.list(); }
+    const pad = PAD_KEYS[g.kind]?.[k]; if (!pad) return;
+    e.preventDefault();
+    const el = this.root.querySelector(`[data-pad="${pad}"]`); el?.classList.toggle('press', down);
+    this.press(pad, down);
   }
   press(pad, down) {
     const g = this.game; if (!g || g.phase !== 'play') return;
@@ -6212,10 +6492,11 @@ class Gym {
       ${res.tired ? '<p class="tiny" style="opacity:.75">땀을 많이 흘렸어요. 누적 피로 +1</p>' : ''}
       <button class="primary" data-gy="back">다른 운동</button></div>`;
     this.root.querySelector('[data-gy="back"]').onclick = () => this.list();
+    this.decorate();
     if (res.ups) this.burst();
   }
   close() {
-    this.closed = true; cancelAnimationFrame(this.raf);
+    this.closed = true; cancelAnimationFrame(this.raf); this.offMode?.();
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
     this.root.innerHTML = ''; this.done();
   }
@@ -6465,9 +6746,10 @@ const { teamPower, leagueTop, displayName } = __req("js/engine/league.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
 const { GYM_TIERS, gymTier, gymState } = __req("js/engine/gym.js");
-const PATCH = { id: '2026-11-11d', title: '캐치 범위 · 헬스장 오픈 · 패스 콜', items: [['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+const PATCH = { id: '2026-11-12', title: '컴퓨터 키보드 조작 · 리시버 지정 패스', items: [['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
 const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
+const { INPUT_PREFS, inputPref, inputMode } = __req("js/ui/input.js");
 const { COLLEGES } = __req("js/data/colleges.js");
 
 const TABS = [['home', '홈', 'home'], ['season', '시즌', 'season'], ['player', '선수', 'player'], ['records', '기록', 'records'], ['social', '반응', 'social']];
@@ -6943,6 +7225,7 @@ function shopSheet(s) {
 const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요. 휴대폰·PC 어디서 열어도 이어집니다.', connecting: '계정 저장소에 연결하는 중이에요.', offline: '계정 저장소에 잠시 닿지 않아요. 이 브라우저에는 저장되고 있어요.', quota: '계정 저장 공간이 가득 찼어요. 저장 데이터를 내보내 두세요.', local: '이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 내보내 두세요.' };
 function settingsSheet(s, status = 'local') {
   return sheet(`<h2>설정</h2><p class="lead">${STORAGE_TEXT[status] || STORAGE_TEXT.local}</p>
+    <div class="option"><strong>${icon('settings')} 조작 방식</strong><div class="sub">직접 플레이(빅게임·킥·헬스장) 조작이에요. 컴퓨터는 키보드(WASD 이동 · Space·J·K·L 기술 · 숫자 키로 리시버 지정), 모바일은 터치(스틱·버튼·리시버 탭). 지금: <b>${inputMode() === 'key' ? '키보드' : '터치'}</b>${inputPref() === 'auto' ? ' (자동)' : ''}</div><div class="seg" style="margin-top:8px">${INPUT_PREFS.map(([v, n]) => `<button class="${inputPref() === v ? 'on' : ''}" data-action="input-pref" data-v="${v}">${esc(n)}</button>`).join('')}</div></div>
     <button class="option" data-action="export"><strong>${icon('download')} 저장 파일 내보내기</strong><div class="sub">커리어와 은퇴 기록을 JSON 파일로 받아요.</div></button>
     <label class="option" style="cursor:pointer"><strong>${icon('upload')} 저장 파일 가져오기</strong><div class="sub">내보낸 파일로 커리어를 이어 가요.</div><input type="file" accept="application/json,.json" data-input="import" hidden></label>
     <div class="option"><strong>${icon('upload')} 저장 데이터 붙여넣기</strong><div class="sub">내보낸 글자를 붙여 넣어 불러와요.</div><textarea id="import-text" rows="3" placeholder='{"app":"touchdown-life",...}' style="width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);color:var(--ink);font-size:12px"></textarea><button class="secondary" data-action="import-text" style="margin-top:8px;padding:10px">불러오기</button></div>
@@ -6998,6 +7281,7 @@ const { ATTR, attrsOf } = __req("js/engine/core.js");
 const FX = __req("js/ui/fx.js");
 const { openClutch, clutchLevelAvg } = __req("js/ui/clutch.js");
 const { openGym } = __req("js/ui/gym.js");
+const { setInputPref, inputMode } = __req("js/ui/input.js");
 const { sceneUrl, iconUrl } = __req("js/ui/pixel.js");
 const { TEAM_BY_ID } = __req("js/data/teams.js");
 const { CARD_BY_ID } = __req("js/engine/events.js");
@@ -7184,6 +7468,7 @@ document.addEventListener('click', e => {
     case 'close-sheet': closeSheet(); break;
     case 'theme': cycleTheme(); break;
     case 'settings': openSheet({ kind: 'settings' }); break;
+    case 'input-pref': setInputPref(v); openSheet({ kind: 'settings' }); toast(inputMode() === 'key' ? '키보드로 조작해요 (WASD·Space·J·K·L·숫자 키)' : '터치로 조작해요 (스틱·버튼·탭)'); break;
     case 'archive': openSheet({ kind: 'archive' }); break;
     // 생성
     case 'setup-av': setup.avatar[el.dataset.k] = +v; render(); break;
