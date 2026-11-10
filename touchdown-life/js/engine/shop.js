@@ -28,7 +28,8 @@ export const STAFF = [
   { id: 'pr', name: '홍보 매니저', fee: 40000, desc: '팔로워 증가 +25%' },
 ];
 export const FACILITIES = [
-  { id: 'gym', name: '개인 웨이트룸', prices: [20000, 150000, 1e6], desc: '모든 성장 +5% / 단계' },
+  { id: 'club', name: '헬스장 회원권', names: ['동네 헬스장', '퍼포먼스 센터', '엘리트 트레이닝 랩'], prices: [80, 9000, 300000], desc: '헬스장에 들어가 연타·타이밍 운동으로 능력치를 직접 올려요 (단계마다 운동 종류·하루 체력·효과 증가)' },
+  { id: 'gym', name: '개인 웨이트룸', prices: [20000, 150000, 1e6], desc: '모든 성장 +5% / 단계 · 헬스장도 같은 단계로 이용' },
   { id: 'recovery', name: '회복실', prices: [15000, 120000, 800000], desc: '부상 확률 −10% / 단계' },
 ];
 export function refreshStock(s, r) {

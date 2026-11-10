@@ -5,6 +5,7 @@ import { pull } from './engine/shop.js';
 import { ATTR, attrsOf } from './engine/core.js';
 import * as FX from './ui/fx.js';
 import { openClutch, clutchLevelAvg } from './ui/clutch.js';
+import { openGym } from './ui/gym.js';
 import { sceneUrl, iconUrl } from './ui/pixel.js';
 import { TEAM_BY_ID } from './data/teams.js';
 import { CARD_BY_ID } from './engine/events.js';
@@ -256,9 +257,10 @@ document.addEventListener('click', e => {
     case 'focus-pick': focusDraft = focusDraft.includes(v) ? focusDraft.filter(x => x !== v) : [...focusDraft, v].slice(-2); renderSheet(); break;
     case 'turning': mutate(() => chooseTurning(state, v, { focus: focusDraft }), text => { closeSheet(); toast(text); }); break;
     case 'open-shop': markSeen('shop'); openSheet({ kind: 'shop' }); break;
+    case 'gym-open': { if (busy || !state) break; busy = true; closeSheet(); openGym(document.getElementById('clutch-root'), state, { colors: V.teamColors(state), persist, toast }).then(() => { busy = false; persist(); render(); }); break; }
     case 'buy': mutate(() => buyItem(state, v), lines => { toast(`구매 완료 · ${lines.join(', ')}`); renderSheet(); }); break;
     case 'staff': { const on = !state.shop.staff[v]; mutate(() => hireStaff(state, v, on), () => { toast(on ? `${STAFF.find(x => x.id === v).name}와 계약했어요.` : '계약을 해지했어요.'); renderSheet(); }); break; }
-    case 'facility': mutate(() => buyFacility(state, v), () => { toast('시설을 업그레이드했어요.'); renderSheet(); }); break;
+    case 'facility': mutate(() => buyFacility(state, v), () => { toast(v === 'club' ? '헬스장 회원권을 샀어요. 헬스장에 들어가 운동해 보세요!' : '시설을 업그레이드했어요.'); renderSheet(); }); break;
     case 'retire-ask': openSheet({ kind: 'confirm', title: '지금 은퇴할까요?', body: '은퇴하면 이 커리어는 끝나고, 은퇴 기록과 커리어 카드가 남아요.', action: 'retire-now', label: '은퇴하기' }); break;
     case 'retire-now': mutate(() => retireCareer(state, '스스로 은퇴를 결정했습니다.'), () => { closeSheet(); retireShow(); }); break;
     case 'share-card': shareCard(); break;

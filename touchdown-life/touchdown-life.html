@@ -416,6 +416,62 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .pb-card:hover, .pb-card:active { border-color: var(--board-flag); background: rgba(255, 255, 255, .15); }
 .lp-btn.press { transform: scale(.9); }
 
+/* ───────── 헬스장 ───────── */
+.clutch.gym { overflow-y: auto; }
+.gym-top { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 12px 6px; }
+.gym-top b { display: block; font-size: 16px; font-weight: 900; }
+.gym-top small { font-size: 12px; opacity: .75; }
+.gym-x { border: 1.5px solid rgba(255, 255, 255, .25); background: rgba(255, 255, 255, .08); color: inherit; border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: 13px; }
+.clutch > .gym-energy { flex: none; position: relative; height: 18px; width: calc(100% - 24px); max-width: 496px; margin: 0 auto 8px; border-radius: 9px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.gym-energy i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #3FBF7E, #F2C230); transition: width .3s; }
+.gym-energy span { position: relative; display: block; text-align: center; font-size: 11.5px; font-weight: 800; line-height: 18px; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.gym-scene { flex: none; display: block; width: 100%; height: auto; aspect-ratio: 240 / 124; image-rendering: pixelated; }
+.gym-body { padding: 10px 12px 18px; }
+.gym-note { font-size: 12px; opacity: .75; line-height: 1.45; margin: 0 0 8px; }
+.gym-list { display: grid; gap: 7px; }
+.gym-ex { text-align: left; border: 1.5px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .07); color: inherit; border-radius: 14px; padding: 10px 12px; display: grid; gap: 5px; touch-action: manipulation; }
+.gym-ex:disabled { opacity: .5; }
+.gym-ex:not(:disabled):hover { border-color: var(--board-flag); }
+.gym-ex strong { font-size: 15px; }
+.gym-how { font-size: 11.5px; opacity: .72; }
+.gym-prog { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.gym-prog i { display: block; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.gym-prog i b { display: block; height: 100%; background: var(--board-flag); border-radius: 4px; transition: width .5s; }
+.gym-prog small { font-family: var(--font-num); opacity: .8; }
+.gym-prog.big { font-size: 14px; margin: 6px 0; } .gym-prog.big i { height: 12px; border-radius: 6px; }
+.gym-game { display: grid; gap: 10px; }
+.gym-stat { text-align: center; font-family: var(--font-num); font-size: 20px; font-weight: 800; margin: 0; }
+.gym-pad { flex: 1; min-height: 64px; border: 0; border-radius: 16px; background: #D9483B; color: #fff; font-size: 18px; font-weight: 900; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; box-shadow: 0 4px 0 rgba(0, 0, 0, .35); }
+.gym-pad.big { min-height: 84px; font-size: 22px; }
+.gym-pad.press { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); filter: brightness(1.15); }
+.gym-game .row .gym-pad:last-child { background: #2F6FD6; }
+.gym-prompt { text-align: center; font-size: 54px; font-weight: 900; line-height: 1; margin: 0; color: var(--board-flag); text-shadow: 0 3px 0 rgba(0, 0, 0, .4); min-height: 56px; }
+.gym-cross { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 280px; margin: 0 auto; width: 100%; }
+.gym-cross .gym-pad { min-height: 60px; font-size: 26px; background: #2F6FD6; }
+.gym-gauge { position: relative; height: 150px; width: 54px; margin: 0 auto; border-radius: 12px; background: rgba(232, 90, 90, .3); overflow: hidden; }
+.gym-gauge .z, .gym-bar .z { position: absolute; }
+.gym-gauge .z.green { left: 0; right: 0; bottom: 66%; height: 20%; background: rgba(107, 216, 138, .65); }
+.gym-gauge .z.gold { left: 0; right: 0; bottom: 74%; height: 6%; background: #F2C230; }
+.gym-gauge i { position: absolute; left: -2px; right: -2px; height: 4px; margin-bottom: -2px; background: #fff; box-shadow: 0 0 0 2px var(--board); }
+.gym-bar { position: relative; height: 34px; border-radius: 12px; background: rgba(232, 90, 90, .3); overflow: hidden; }
+.gym-bar .z.green { top: 0; bottom: 0; left: 62.5%; width: 16.7%; background: rgba(107, 216, 138, .65); }
+.gym-bar .z.gold { top: 0; bottom: 0; left: 68.3%; width: 5%; background: #F2C230; }
+.gym-bar i { position: absolute; inset: 0 auto 0 0; background: rgba(255, 255, 255, .55); border-right: 3px solid #fff; }
+.gym-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 300px; margin: 0 auto; width: 100%; }
+.gym-cell { aspect-ratio: 1; border: 2px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .06); border-radius: 14px; touch-action: none; }
+.gym-cell.on { background: #F2C230; border-color: #FFF3C2; box-shadow: 0 0 16px rgba(242, 194, 48, .7); }
+.gym-result { text-align: center; display: grid; gap: 6px; }
+.gym-grade { font-family: var(--font-num); font-size: 40px; font-weight: 800; color: var(--board-flag); }
+.gym-grade.g-miss, .gym-grade.g-ok { color: #FF9A9A; }
+.gym-gain { font-size: 18px; } .gym-gain b { color: var(--board-flag); font-family: var(--font-num); font-size: 24px; }
+.gym-up { font-weight: 900; color: #7FE0A0; font-size: 16px; animation: pop .45s ease-out; }
+.gym-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 0; color: inherit; cursor: pointer; }
+.gym-card .badge { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; flex: none; }
+.gym-card .badge.gold { background: var(--gold-soft); color: var(--gold); }
+.gym-card strong { display: block; font-size: 15px; } .gym-card small { color: var(--muted); font-size: 13px; }
+.gym-mini { display: block; height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
+.gym-mini b { display: block; height: 100%; background: var(--accent); }
+
 </style>
   <script>try{var t=localStorage.getItem('tdlife.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
   
@@ -2163,7 +2219,8 @@ const STAFF = [
   { id: 'pr', name: '홍보 매니저', fee: 40000, desc: '팔로워 증가 +25%' },
 ];
 const FACILITIES = [
-  { id: 'gym', name: '개인 웨이트룸', prices: [20000, 150000, 1e6], desc: '모든 성장 +5% / 단계' },
+  { id: 'club', name: '헬스장 회원권', names: ['동네 헬스장', '퍼포먼스 센터', '엘리트 트레이닝 랩'], prices: [80, 9000, 300000], desc: '헬스장에 들어가 연타·타이밍 운동으로 능력치를 직접 올려요 (단계마다 운동 종류·하루 체력·효과 증가)' },
+  { id: 'gym', name: '개인 웨이트룸', prices: [20000, 150000, 1e6], desc: '모든 성장 +5% / 단계 · 헬스장도 같은 단계로 이용' },
   { id: 'recovery', name: '회복실', prices: [15000, 120000, 800000], desc: '부상 확률 −10% / 단계' },
 ];
 function refreshStock(s, r) {
@@ -5877,6 +5934,360 @@ const clutchLevelAvg = s => s.stage === 'hs' ? 48 : s.stage === 'college' ? 62 :
 
 return { clutchLevelAvg, openClutch };
 });
+__def("js/engine/gym.js", function () {
+// 헬스장: 훈련장에서 헬스장 회원권(또는 개인 웨이트룸·차고 홈짐)을 사면 들어갈 수 있습니다.
+// 운동마다 연타·타이밍 미니게임을 하고, 결과(0~1.25)만큼 그 운동의 능력치가 조금씩 오릅니다.
+// 게임 속 '하루'(시즌 진행 한 단계, 오프시즌·시즌 준비도 각각 하루)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지라
+// 한 번에 많이 올릴 수는 없습니다. 소수점 진행도가 1이 되면 능력치가 1 오릅니다.
+const { clamp, ATTR, attrsOf, overall } = __req("js/engine/core.js");
+
+// 단계: 1 동네 헬스장 · 2 퍼포먼스 센터 · 3 엘리트 트레이닝 랩
+const GYM_TIERS = [
+  null,
+  { name: '동네 헬스장', energy: 100, mult: 1 },
+  { name: '퍼포먼스 센터', energy: 120, mult: 1.15 },
+  { name: '엘리트 트레이닝 랩', energy: 140, mult: 1.3 },
+];
+const MAX_SETS = 2;
+// kind: mash 연타 · timing 타이밍 탭 · alt 좌우 번갈아 연타 · arrows 방향 QTE · charge 모았다 떼기 · targets 표적 탭
+// attrs: 앞에서부터 내 포지션에 있는 능력치 하나를 올립니다
+const EXERCISES = [
+  { id: 'bench', name: '벤치프레스', kind: 'mash', cost: 30, tier: 1, attrs: ['str', 'tkl', 'rdef', 'kpow', 'ath'], how: '연타! 바를 끝까지 밀어 올리면 1회' },
+  { id: 'squat', name: '스쿼트', kind: 'timing', cost: 30, tier: 1, attrs: ['kpow', 'rblk', 'rdef', 'rush', 'str', 'ath', 'mob', 'tkl', 'spd'], how: '바늘이 초록(깊이)에 왔을 때 탭 · 금색이면 완벽' },
+  { id: 'sprint', name: '40야드 스프린트', kind: 'alt', cost: 25, tier: 1, attrs: ['spd', 'mob', 'ath', 'stam'], how: '왼발·오른발을 번갈아 연타 (같은 발 두 번은 손해)' },
+  { id: 'cone', name: '콘 드릴', kind: 'arrows', cost: 25, tier: 2, attrs: ['agi', 'mob', 'ath', 'cov', 'hand', 'route', 'spd'], how: '화살표가 가리키는 콘으로! 같은 방향 버튼을 빨리' },
+  { id: 'box', name: '박스 점프', kind: 'charge', cost: 25, tier: 2, attrs: ['ath', 'spd', 'rush', 'agi', 'mob', 'stam'], how: '꾹 눌러 힘을 모았다가 초록에서 떼기 · 넘치면 실패' },
+  { id: 'drill', name: '포지션 드릴', kind: 'targets', cost: 30, tier: 3, attrs: null, how: '나타나는 표적을 사라지기 전에 탭' },
+];
+// 포지션 드릴: 포지션의 기술 능력치와 이름
+const POS_DRILL = { QB: ['acc', '타깃 패스'], RB: ['carry', '볼 시큐리티'], WR: ['hands', '캐치 머신'], TE: ['hands', '캐치 머신'], OL: ['pblk', '패스 프로 미러'], DT: ['hand', '손기술 패드'], EDGE: ['rush', '러시 백'], LB: ['tkl', '태클 링'], CB: ['cov', '미러 드릴'], S: ['ball', '볼 호크 드릴'], K: ['kacc', '킥 타깃'], P: ['pnt', '펀트 타깃'] };
+
+function gymTier(s) {
+  const f = s.shop?.facilities || {};
+  return Math.max(f.club || 0, f.gym || 0, s.shop?.owned?.some(o => o.id === 'homegym') ? 1 : 0);
+}
+// 게임 속 하루: 시즌 중에는 진행 단계마다, 시즌 밖에서는 오프시즌·시즌 준비가 각각 하루
+function gymDayKey(s) {
+  if (['season', 'card', 'bigGame'].includes(s.phase) && s.season) return `${s.year}-S${s.season.seg}`;
+  return `${s.year}-${s.phase}`;
+}
+function gymDayLabel(s) {
+  const z = s.season;
+  if (['season', 'card', 'bigGame'].includes(s.phase) && z) return z.seg < z.segments.length ? `${s.year} 시즌 · ${z.segLabels?.[z.seg] || `${z.seg + 1}구간`}` : `${s.year} 포스트시즌`;
+  return s.phase === 'offseason' ? `${s.year} 오프시즌` : s.phase === 'ready' ? `${s.year} 시즌 준비` : String(s.year);
+}
+// 헬스장 상태 (새 하루면 체력·세트를 채웁니다)
+function gymState(s) {
+  const g = (s.gym ||= { day: null, energy: 0, sets: {}, prog: {}, best: {}, total: 0, fat: 0, log: [] });
+  const key = gymDayKey(s), tier = GYM_TIERS[gymTier(s)];
+  if (g.day !== key) { g.day = key; g.energy = tier?.energy ?? 0; g.cap = tier?.energy ?? 0; g.sets = {}; g.today = 0; }
+  // 같은 날 회원권을 올리면 늘어난 만큼 체력을 바로 채워 줍니다
+  if (tier && tier.energy > (g.cap ?? 0)) { g.energy += tier.energy - (g.cap ?? 0); g.cap = tier.energy; }
+  if (tier && g.energy > tier.energy) g.energy = tier.energy;
+  return g;
+}
+function exerciseAttr(s, ex) {
+  const keys = attrsOf(s.player.pos);
+  if (!ex.attrs) { const d = POS_DRILL[s.player.pos]; return d && keys.includes(d[0]) ? d[0] : s.player.focus[0]; }
+  return ex.attrs.find(k => keys.includes(k)) || null;
+}
+const exerciseName = (s, ex) => ex.id === 'drill' ? `포지션 드릴 · ${POS_DRILL[s.player.pos]?.[1] || '기술'}` : ex.name;
+function canExercise(s, ex) {
+  const tier = gymTier(s), g = gymState(s);
+  if (!tier) return { ok: false, why: '헬스장 회원권이 필요해요' };
+  if (s.phase === 'retired') return { ok: false, why: '은퇴했어요' };
+  if (ex.tier > tier) return { ok: false, why: `${GYM_TIERS[ex.tier].name}부터` };
+  if (!exerciseAttr(s, ex)) return { ok: false, why: '이 포지션엔 해당 없음' };
+  if (s.season?.injury?.out > 0) return { ok: false, why: '부상 중에는 쉬어요' };
+  if ((g.sets[ex.id] || 0) >= MAX_SETS) return { ok: false, why: '오늘은 끝 (하루 2세트)' };
+  if (g.energy < ex.cost) return { ok: false, why: '체력 부족 · 다음 날에' };
+  return { ok: true };
+}
+// 운동 결과 반영. perf: 0~1.25 (미니게임 점수)
+function finishExercise(s, exId, perf, detail = '') {
+  const ex = EXERCISES.find(e => e.id === exId), can = canExercise(s, ex);
+  if (!can.ok) throw Error(can.why);
+  const p = s.player, g = gymState(s), tier = GYM_TIERS[gymTier(s)], k = exerciseAttr(s, ex);
+  perf = clamp(perf, 0, 1.25);
+  g.energy -= ex.cost; g.sets[ex.id] = (g.sets[ex.id] || 0) + 1;
+  const ageF = p.age <= 21 ? 1.1 : p.age <= 25 ? 1 : p.age <= 29 ? .8 : .6;
+  const room = clamp((99 - p.attrs[k]) / 40, .15, 1);
+  const talent = Math.sqrt(Math.exp(.034 * (p.potential - 80)));
+  const gain = Math.round(.24 * perf * tier.mult * ageF * room * talent * 100) / 100;
+  g.prog[k] = (g.prog[k] || 0) + gain;
+  let ups = 0;
+  while (g.prog[k] >= 1 && p.attrs[k] < 99) { g.prog[k] -= 1; p.attrs[k] += 1; ups++; }
+  if (p.attrs[k] >= 99) g.prog[k] = 0;
+  const before = p.ovr;
+  if (ups) { p.ovr = overall(p.pos, p.attrs); p.peak = Math.max(p.peak, p.ovr); }
+  // 무리하면 누적 피로가 조금씩 쌓입니다
+  g.fat = (g.fat || 0) + ex.cost / 320; let tired = false;
+  if (g.fat >= 1) { g.fat -= 1; s.meters.body = clamp(s.meters.body + 1, 0, 10); tired = true; }
+  g.best[ex.id] = Math.max(g.best[ex.id] || 0, perf);
+  g.total = Math.round(((g.total || 0) + gain) * 100) / 100; g.today = Math.round(((g.today || 0) + gain) * 100) / 100;
+  g.log = [{ day: g.day, ex: ex.id, attr: k, gain, perf: Math.round(perf * 100) / 100, detail }, ...(g.log || [])].slice(0, 30);
+  return { attr: k, attrName: ATTR[k][0], gain, ups, value: p.attrs[k], prog: g.prog[k], ovrUp: p.ovr - before, ovr: p.ovr, energy: g.energy, tired };
+}
+const gradeOf = perf => perf >= 1.05 ? 'PERFECT' : perf >= .85 ? 'GREAT' : perf >= .6 ? 'GOOD' : perf >= .3 ? 'OK' : 'MISS';
+
+return { GYM_TIERS, MAX_SETS, EXERCISES, POS_DRILL, exerciseName, gradeOf, gymTier, gymDayKey, gymDayLabel, gymState, exerciseAttr, canExercise, finishExercise };
+});
+__def("js/ui/gym.js", function () {
+// 헬스장 화면: 도트 체육관 장면 + 운동 목록 + 운동별 미니게임(연타·타이밍·좌우 연타·방향 QTE·모았다 떼기·표적 탭).
+// 결과 점수(0~1.25)를 engine/gym.js의 finishExercise에 넘겨 능력치 진행도를 올립니다.
+const { bigText, pixelText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
+const { playerSprite, SKINS } = __req("js/ui/sprites.js");
+const { ATTR } = __req("js/engine/core.js");
+const { EXERCISES, GYM_TIERS, MAX_SETS, gymTier, gymState, gymDayLabel, exerciseAttr, exerciseName, canExercise, finishExercise, gradeOf } = __req("js/engine/gym.js");
+
+const W = 240, H = 124, R = Math.random, clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
+const KIND_KO = { mash: '연타', timing: '타이밍', alt: '좌우 연타', arrows: '방향 QTE', charge: '모았다 떼기', targets: '표적 탭' };
+const TIER_SIGN = ['', 'TOWN GYM', 'PERFORMANCE', 'ELITE LAB'];
+const DIRS = { up: '↑', left: '←', right: '→', down: '↓' };
+
+function openGym(root, s, hooks) { return new Promise(res => new Gym(root, s, hooks, res)); }
+
+class Gym {
+  constructor(root, s, hooks, done) {
+    this.root = root; this.s = s; this.hooks = hooks; this.done = done;
+    const [c1, c2] = hooks.colors.map(vivid);
+    this.kit = { jersey: c1, num: lum(c1) > .6 ? shade(c1, -.6) : '#FFFFFF', helmet: c1, stripe: c2, pants: '#2B3038', socks: c1 };
+    this.c1 = c1; this.c2 = c2; this.game = null; this.result = null;
+    root.innerHTML = `<div class="clutch gym" role="dialog" aria-modal="true" aria-label="헬스장">
+      <div class="gym-top"><div><b id="gy-title"></b><small id="gy-day"></small></div><button class="gym-x" data-gy="close" aria-label="나가기">나가기</button></div>
+      <div class="gym-energy"><i id="gy-en"></i><span id="gy-ent"></span></div>
+      <canvas class="gym-scene" id="gy-cv" width="${W * 2}" height="${H * 2}" aria-label="체육관"></canvas>
+      <div class="gym-body" id="gy-body"></div></div>`;
+    this.cv = root.querySelector('#gy-cv'); this.ctx = this.cv.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
+    root.querySelector('[data-gy="close"]').onclick = () => this.close();
+    this.onKey = e => this.key(e); window.addEventListener('keydown', this.onKey); window.addEventListener('keyup', this.onKey);
+    this.last = performance.now(); this.loopFn = this.loop.bind(this); this.raf = requestAnimationFrame(this.loopFn);
+    this.list();
+  }
+  $(id) { return this.root.querySelector('#' + id); }
+  head() {
+    const s = this.s, g = gymState(s), tier = GYM_TIERS[gymTier(s)];
+    this.$('gy-title').textContent = `헬스장 · ${tier.name}`;
+    this.$('gy-day').textContent = `${gymDayLabel(s)} · 오늘 +${(g.today || 0).toFixed(2)}`;
+    this.$('gy-en').style.width = `${Math.round(g.energy / tier.energy * 100)}%`;
+    this.$('gy-ent').textContent = `오늘 체력 ${g.energy}/${tier.energy}`;
+  }
+  // ───────── 운동 목록 ─────────
+  list() {
+    this.game = null; this.result = null; this.head();
+    const s = this.s, g = gymState(s), p = s.player;
+    const rows = EXERCISES.map(ex => {
+      const k = exerciseAttr(s, ex), can = canExercise(s, ex), sets = g.sets[ex.id] || 0, prog = k ? g.prog[k] || 0 : 0;
+      return `<button class="gym-ex" data-ex="${ex.id}" ${can.ok ? '' : 'disabled'}>
+        <div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill ${can.ok ? 'green' : ''}">${can.ok ? `체력 ${ex.cost} · ${sets}/${MAX_SETS}세트` : esc(can.why)}</span></div>
+        ${k ? `<div class="gym-prog"><span>${esc(ATTR[k][0])} <b>${p.attrs[k]}</b></span><i><b style="width:${Math.round(prog * 100)}%"></b></i><small>${prog.toFixed(2)}</small></div>` : ''}
+        <small class="gym-how">${KIND_KO[ex.kind]} · ${esc(ex.how)}</small></button>`;
+    }).join('');
+    this.$('gy-body').innerHTML = `<p class="gym-note">운동 결과만큼 능력치 진행도가 차고, 1이 되면 능력치가 1 올라요. 게임 속 하루(시즌 진행 한 단계)마다 체력이 다시 차고, 운동 하나는 하루 ${MAX_SETS}세트까지예요. 무리하면 누적 피로가 조금씩 쌓여요.</p><div class="gym-list">${rows}</div>`;
+    this.root.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => this.start(b.dataset.ex));
+  }
+  // ───────── 미니게임 ─────────
+  start(id) {
+    const ex = EXERCISES.find(e => e.id === id), s = this.s, k = exerciseAttr(s, ex), a = s.player.attrs[k] ?? 60;
+    if (!canExercise(s, ex).ok) return;
+    const boost = 1 + (a - 60) * .004; // 능력치가 높을수록 조금 쉬워짐
+    const g = this.game = { ex, kind: ex.kind, t: 0, phase: 'ready', ready: 1.2, boost, score: 0, n: 0, dir: null };
+    if (g.kind === 'mash') Object.assign(g, { dur: 5, meter: 0, reps: 0 });
+    if (g.kind === 'timing') Object.assign(g, { total: 5, rep: 0, needle: 0, nt: 0, pause: 0, scores: [] });
+    if (g.kind === 'alt') Object.assign(g, { dist: 0, lastFoot: null, cap: 9 });
+    if (g.kind === 'arrows') Object.assign(g, { total: 10, i: -1, win: 0, left: 0, gap: .25, hits: 0 });
+    if (g.kind === 'charge') Object.assign(g, { total: 3, jump: 0, charge: 0, holding: false, scores: [], hop: 0 });
+    if (g.kind === 'targets') Object.assign(g, { total: 12, i: -1, cell: -1, left: 0, gap: .2, hits: 0 });
+    const pads = {
+      mash: `<button class="gym-pad big" data-pad="push">밀어!</button>`,
+      timing: `<div class="gym-gauge"><div class="z green"></div><div class="z gold"></div><i id="gy-needle"></i></div><button class="gym-pad big" data-pad="tap">앉았다 일어나기!</button>`,
+      alt: `<div class="row"><button class="gym-pad" data-pad="L">왼발</button><button class="gym-pad" data-pad="R">오른발</button></div>`,
+      arrows: `<p class="gym-prompt" id="gy-prompt">…</p><div class="gym-cross"><span></span><button class="gym-pad" data-pad="up">↑</button><span></span><button class="gym-pad" data-pad="left">←</button><span></span><button class="gym-pad" data-pad="right">→</button><span></span><button class="gym-pad" data-pad="down">↓</button><span></span></div>`,
+      charge: `<div class="gym-bar"><div class="z green"></div><div class="z gold"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
+      targets: `<div class="gym-grid">${Array.from({ length: 9 }, (_, i) => `<button class="gym-cell" data-pad="c${i}"></button>`).join('')}</div>`,
+    }[g.kind];
+    this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how">${esc(ex.how)}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
+    this.root.querySelectorAll('[data-pad]').forEach(b => {
+      b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); this.press(b.dataset.pad, true); });
+      const up = e => { b.classList.remove('press'); this.press(b.dataset.pad, false); };
+      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', e => { if (e.buttons) up(e); });
+    });
+  }
+  key(e) {
+    const g = this.game; if (!g || g.phase === 'end') return;
+    const down = e.type === 'keydown'; if (down && e.repeat) return;
+    const k = e.key, map = { ' ': g.kind === 'mash' ? 'push' : g.kind === 'timing' ? 'tap' : g.kind === 'charge' ? 'hold' : null, f: 'L', j: 'R', ArrowLeft: g.kind === 'alt' ? 'L' : 'left', ArrowRight: g.kind === 'alt' ? 'R' : 'right', ArrowUp: 'up', ArrowDown: 'down' };
+    const pad = map[k.length === 1 ? k.toLowerCase() : k]; if (!pad) return;
+    e.preventDefault(); this.press(pad, down);
+  }
+  press(pad, down) {
+    const g = this.game; if (!g || g.phase !== 'play') return;
+    if (g.kind === 'charge' && pad === 'hold') { if (g.scores.length >= g.total) return; if (down && !g.holding && g.hop <= 0) { g.holding = true; g.charge = 0; } else if (!down && g.holding) this.releaseJump(); return; }
+    if (!down) return;
+    if (g.kind === 'mash' && pad === 'push') g.meter += .18 * g.boost;
+    if (g.kind === 'timing' && pad === 'tap' && g.pause <= 0) {
+      const v = g.needle, sc = v >= .74 && v <= .8 ? 1.25 : v >= .66 && v <= .86 ? .95 : v >= .58 && v <= .92 ? .5 : .15;
+      g.scores.push(sc); g.pause = .5; g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .9 ? 'GOOD' : sc >= .5 ? 'OK' : 'MISS';
+      if (g.scores.length >= g.total) this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}회 완벽`);
+    }
+    if (g.kind === 'alt' && (pad === 'L' || pad === 'R')) { g.dist += (pad !== g.lastFoot ? 1.05 : .25) * g.boost; g.lastFoot = pad; g.step = .12; }
+    if (g.kind === 'arrows' && DIRS[pad] && g.dir) { if (pad === g.dir) { g.hits++; g.score += 1 + .3 * (g.left / g.win); g.flash = 'GOOD'; } else g.flash = 'MISS'; g.dir = null; g.left = g.gap; }
+    if (g.kind === 'targets' && pad.startsWith('c') && g.cell >= 0) { if (+pad.slice(1) === g.cell) { g.hits++; g.flash = 'HIT'; } else g.flash = 'MISS'; this.setCell(-1); g.left = g.gap; }
+  }
+  releaseJump() {
+    const g = this.game, v = g.charge; g.holding = false;
+    const sc = v > .95 ? .2 : v >= .82 && v <= .88 ? 1.25 : v >= .75 ? 1 - Math.abs(v - .85) * 2 : v * .8;
+    g.scores.push(sc); g.hop = .7; g.hopH = clamp(v, 0, .95); g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .85 ? 'GOOD' : v > .95 ? 'OVER!' : 'LOW';
+    if (g.scores.length >= g.total) setTimeout(() => this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}번 완벽`), 650);
+  }
+  setCell(i) { const g = this.game; g.cell = i; this.root.querySelectorAll('.gym-cell').forEach((b, j) => b.classList.toggle('on', j === i)); }
+  update(dt) {
+    const g = this.game; if (!g) return;
+    if (g.flashT > 0) g.flashT -= dt;
+    if (g.phase === 'ready') { g.ready -= dt; this.$('gy-stat').textContent = g.ready > .6 ? '준비…' : '시작!'; if (g.ready <= 0) g.phase = 'play'; return; }
+    if (g.phase !== 'play') return;
+    g.t += dt;
+    const stat = this.$('gy-stat');
+    if (g.kind === 'mash') {
+      g.meter = Math.max(0, g.meter - dt * .4);
+      if (g.meter >= 1) { g.reps++; g.meter = 0; g.flash = 'REP!'; }
+      stat.textContent = `${g.reps}회 · 남은 시간 ${Math.max(0, g.dur - g.t).toFixed(1)}초`;
+      if (g.t >= g.dur) this.end(g.reps / 4, `5초에 ${g.reps}회`);
+    }
+    if (g.kind === 'timing') {
+      if (g.pause > 0) { g.pause -= dt; if (g.pause <= 0) g.nt = 0; }
+      else { g.nt += dt; const period = 1.3 - g.scores.length * .08, ph = (g.nt % period) / period; g.needle = ph < .5 ? ph * 2 : 2 - ph * 2; }
+      const nd = this.$('gy-needle'); if (nd) nd.style.bottom = `${Math.round(g.needle * 100)}%`;
+      stat.textContent = `${g.scores.length}/${g.total}회`;
+    }
+    if (g.kind === 'alt') {
+      if (g.step > 0) g.step -= dt;
+      stat.textContent = `${Math.min(40, g.dist).toFixed(1)}야드 · ${g.t.toFixed(2)}초`;
+      if (g.dist >= 40 || g.t >= g.cap) { const time = g.dist >= 40 ? g.t : g.cap + (40 - g.dist) * .2; this.end(clamp((8.2 - time) / 3, .05, 1.25), `40야드 ${time.toFixed(2)}초`); }
+    }
+    if (g.kind === 'arrows') {
+      g.left -= dt;
+      if (g.left <= 0) {
+        if (g.dir) { g.dir = null; g.flash = 'SLOW'; g.left = g.gap; }
+        else if (g.i + 1 >= g.total) return this.end(g.score / g.total, `${g.hits}/${g.total} 성공`);
+        else { g.i++; g.dir = ['up', 'left', 'right', 'down'][Math.floor(R() * 4)]; g.win = g.left = (1.15 - g.i * .05) * (g.boost > 1 ? 1.05 : 1); }
+      }
+      stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 성공 ${g.hits}`;
+      const pr = this.$('gy-prompt'); if (pr) { const v = g.dir ? DIRS[g.dir] : '·'; if (pr.textContent !== v) { pr.textContent = v; pr.dataset.dir = g.dir || ''; } }
+    }
+    if (g.kind === 'charge') {
+      if (g.holding) { g.charge += dt / 1.1; if (g.charge >= 1.2) this.releaseJump(); }
+      if (g.hop > 0) g.hop -= dt;
+      const ch = this.$('gy-charge'); if (ch) ch.style.width = `${Math.round(clamp(g.charge, 0, 1.2) / 1.2 * 100)}%`;
+      stat.textContent = `점프 ${g.scores.length}/${g.total}`;
+    }
+    if (g.kind === 'targets') {
+      g.left -= dt;
+      if (g.left <= 0) {
+        if (g.cell >= 0) { this.setCell(-1); g.flash = 'SLOW'; g.left = g.gap; }
+        else if (g.i + 1 >= g.total) return this.end(g.hits / g.total * 1.15, `${g.hits}/${g.total} 명중`);
+        else { g.i++; let c; do c = Math.floor(R() * 9); while (c === g.prev); g.prev = c; this.setCell(c); g.left = (1 - g.i * .04) * (g.boost > 1 ? 1.05 : 1); }
+      }
+      stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 명중 ${g.hits}`;
+    }
+    if (g.flash && !g.flashT) g.flashT = .55;
+    if (g.flashT <= 0) { g.flash = null; g.flashT = 0; }
+  }
+  end(perf, detail) {
+    const g = this.game; if (!g || g.phase === 'end') return;
+    g.phase = 'end';
+    let res;
+    try { res = finishExercise(this.s, g.ex.id, perf, detail); } catch (err) { this.hooks.toast?.(err.message); return this.list(); }
+    this.hooks.persist?.();
+    this.result = { ...res, grade: gradeOf(perf), perf, detail, t: 0 };
+    this.head();
+    const p = this.s.player;
+    this.$('gy-body').innerHTML = `<div class="gym-result"><b class="gym-grade g-${this.result.grade.toLowerCase()}">${this.result.grade}</b><p>${esc(detail)}</p>
+      <p class="gym-gain">${esc(res.attrName)} <b>+${res.gain.toFixed(2)}</b></p>
+      <div class="gym-prog big"><span>${esc(res.attrName)} <b>${res.value}</b></span><i><b style="width:${Math.round(res.prog * 100)}%"></b></i><small>${res.prog.toFixed(2)}</small></div>
+      ${res.ups ? `<p class="gym-up">${esc(res.attrName)} ${res.value - res.ups} → ${res.value}!${res.ovrUp ? ` 종합 ${p.ovr - res.ovrUp} → ${p.ovr}` : ''}</p>` : ''}
+      ${res.tired ? '<p class="tiny" style="opacity:.75">땀을 많이 흘렸어요. 누적 피로 +1</p>' : ''}
+      <button class="primary" data-gy="back">다른 운동</button></div>`;
+    this.root.querySelector('[data-gy="back"]').onclick = () => this.list();
+    if (res.ups) this.burst();
+  }
+  close() {
+    this.closed = true; cancelAnimationFrame(this.raf);
+    window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
+    this.root.innerHTML = ''; this.done();
+  }
+  burst() { this.fx = Array.from({ length: 60 }, (_, i) => { const a = R() * Math.PI * 2, v = .6 + R() * 2; return { x: W / 2, y: H * .45, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', this.c1, '#6BD88A'][i % 4] }; }); }
+  loop(now) {
+    if (this.closed) return;
+    const dt = clamp((now - this.last) / 1000, 0, .05); this.last = now;
+    this.update(dt); this.draw(now);
+    this.raf = requestAnimationFrame(this.loopFn);
+  }
+  // ───────── 장면 (논리 240×124, 2배 해상도) ─────────
+  sprite(frame, view = 'front', flip = false) { const s = this.s; return playerSprite({ ...this.kit, skin: SKINS[(s.player.avatar?.skin ?? 1) % SKINS.length], number: s.player.number, view, frame, big: ['OL', 'DT'].includes(s.player.pos), flip }); }
+  put(spr, x, yFeet, k = 2) { const ctx = this.ctx, w = spr.width * k / 2, h = spr.height * k / 2; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x - w * .35, yFeet - 1, w * .7, 2); ctx.drawImage(spr, Math.round((x - w / 2) * 2) / 2, Math.round((yFeet - h + 1) * 2) / 2, w, h); }
+  draw(now) {
+    const ctx = this.ctx, g = this.game, t = now / 1000;
+    ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
+    // 벽·거울·바닥
+    ctx.fillStyle = '#222A33'; ctx.fillRect(0, 0, W, 70);
+    ctx.fillStyle = this.c1; ctx.fillRect(0, 10, W, 4); ctx.fillStyle = this.c2; ctx.fillRect(0, 14, W, 1);
+    ctx.fillStyle = '#8FB8CC'; ctx.fillRect(70, 20, 100, 46); ctx.fillStyle = '#A9D0E0'; for (let i = 0; i < 4; i++) ctx.fillRect(78 + i * 24, 22 + i * 3, 3, 40 - i * 6); ctx.fillStyle = '#3A4654'; ctx.fillRect(68, 18, 104, 2); ctx.fillRect(68, 66, 104, 2);
+    bigText(ctx, TIER_SIGN[gymTier(this.s)] || 'GYM', W / 2, 5, '#F2C230', 1);
+    // 덤벨 랙
+    ctx.fillStyle = '#4A525E'; ctx.fillRect(8, 48, 52, 3); ctx.fillRect(180, 48, 52, 3);
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = '#9AA4B0'; ctx.fillRect(10 + i * 8, 44, 6, 4); ctx.fillRect(182 + i * 8, 44, 6, 4); ctx.fillStyle = '#2B3038'; ctx.fillRect(11 + i * 8, 45, 1, 2); ctx.fillRect(183 + i * 8, 45, 1, 2); }
+    for (let y = 70; y < H; y++) { ctx.fillStyle = Math.floor((y - 70) / 6) % 2 ? '#6E4C30' : '#7A5536'; ctx.fillRect(0, y, W, 1); }
+    ctx.fillStyle = '#5E3F27'; for (let x = 0; x < W; x += 30) ctx.fillRect(x + ((Math.floor(x / 30) % 2) * 12), 70, 1, H - 70);
+    ctx.fillStyle = '#2A2F35'; ctx.fillRect(50, 82, 140, 34);
+    const kind = g?.kind || 'idle', cx = W / 2, floor = 106;
+    if (kind === 'idle') { // 대기: 가볍게 몸 풀기
+      ctx.fillStyle = '#5A6270'; ctx.fillRect(cx + 34, 64, 3, 42); ctx.fillRect(cx + 58, 64, 3, 42); ctx.fillStyle = '#9AA4B0'; ctx.fillRect(cx + 30, 72, 36, 2); ctx.fillStyle = '#20242A'; ctx.fillRect(cx + 28, 68, 4, 10); ctx.fillRect(cx + 64, 68, 4, 10);
+      this.put(this.sprite(Math.floor(t * 2) % 2 ? 'stand' : 'catch'), cx - 14, floor);
+    } else if (kind === 'mash') { // 벤치프레스: 누워서 바벨을 밀어 올림
+      ctx.fillStyle = '#20242A'; ctx.fillRect(cx - 30, 92, 60, 6); ctx.fillStyle = '#3A3F46'; ctx.fillRect(cx - 26, 98, 4, 8); ctx.fillRect(cx + 22, 98, 4, 8);
+      ctx.fillStyle = '#5A6270'; ctx.fillRect(cx - 40, 66, 3, 40); ctx.fillRect(cx + 37, 66, 3, 40);
+      this.put(this.sprite('dive', 'front'), cx, 96, 2);
+      const up = clamp(g.meter, 0, 1), by = 88 - up * 16 - (g.flash === 'REP!' ? 2 : 0);
+      ctx.fillStyle = '#B9C2CC'; ctx.fillRect(cx - 44, by, 88, 2); ctx.fillStyle = '#20242A'; ctx.fillRect(cx - 44, by - 6, 6, 14); ctx.fillRect(cx + 38, by - 6, 6, 14); ctx.fillStyle = '#C8323A'; ctx.fillRect(cx - 38, by - 4, 3, 10); ctx.fillRect(cx + 35, by - 4, 3, 10);
+    } else if (kind === 'timing') { // 스쿼트
+      ctx.fillStyle = '#5A6270'; ctx.fillRect(cx - 34, 50, 3, 56); ctx.fillRect(cx + 31, 50, 3, 56);
+      const down = g.pause > 0 ? g.pause > .25 : g.needle > .5, spr = this.sprite(down ? 'stance' : 'stand');
+      this.put(spr, cx, floor);
+      const by = floor - spr.height + 8 + (down ? 4 : 0);
+      ctx.fillStyle = '#B9C2CC'; ctx.fillRect(cx - 40, by, 80, 2); ctx.fillStyle = '#20242A'; ctx.fillRect(cx - 40, by - 5, 6, 12); ctx.fillRect(cx + 34, by - 5, 6, 12);
+    } else if (kind === 'alt') { // 스프린트 트랙 (앞으로 달려 나감)
+      ctx.fillStyle = '#B5553A'; ctx.beginPath(); ctx.moveTo(cx - 70, H); ctx.lineTo(cx - 14, 70); ctx.lineTo(cx + 14, 70); ctx.lineTo(cx + 70, H); ctx.fill();
+      ctx.fillStyle = '#F1E7DA'; for (let i = 0; i < 6; i++) { const k = ((i * 8 + g.dist * 2) % 48) / 48, y = 70 + k * k * (H - 70), w = 28 + k * 112; ctx.fillRect(cx - w / 2, Math.round(y), w, 1); }
+      this.put(this.sprite(g.step > 0 ? (g.lastFoot === 'L' ? 'run0' : 'run1') : 'stand', 'back'), cx, floor + 6, 3);
+      bigText(ctx, `${Math.min(40, Math.floor(g.dist))} YD`, cx, 30, '#FFFFFF', 2);
+    } else if (kind === 'arrows') { // 콘 드릴
+      const spots = { up: [cx, 80], left: [cx - 46, 96], right: [cx + 46, 96], down: [cx, 114] };
+      for (const [d, [x, y]] of Object.entries(spots)) { ctx.fillStyle = d === g.dir ? '#FFD84A' : '#FF7A1A'; ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x, y - 9); ctx.lineTo(x + 5, y); ctx.fill(); }
+      const tgt = g.dir ? spots[g.dir] : [cx, 98]; g.px = (g.px ?? cx) + (tgt[0] - (g.px ?? cx)) * .18; g.py = (g.py ?? 98) + (tgt[1] - (g.py ?? 98)) * .18;
+      this.put(this.sprite(g.dir ? (Math.floor(t * 9) % 2 ? 'run0' : 'run1') : 'stand'), g.px, g.py);
+      if (g.dir) bigText(ctx, DIRS[g.dir] === '↑' ? 'UP' : DIRS[g.dir] === '↓' ? 'DOWN' : DIRS[g.dir] === '←' ? 'LEFT' : 'RIGHT', cx, 36, '#FFD84A', 3);
+    } else if (kind === 'charge') { // 박스 점프
+      ctx.fillStyle = '#8A5A33'; ctx.fillRect(cx + 10, 84, 34, 22); ctx.fillStyle = '#6E4526'; ctx.fillRect(cx + 10, 84, 34, 3); ctx.fillStyle = '#A06A3E'; ctx.fillRect(cx + 14, 90, 26, 1);
+      const k = g.hop > 0 ? 1 - g.hop / .7 : 0, lift = g.hop > 0 ? Math.sin(k * Math.PI) * (12 + g.hopH * 34) : 0, onBox = g.hop > 0 && k > .5 && g.hopH >= .75;
+      this.put(this.sprite(g.holding ? 'stance' : g.hop > 0 ? 'catch' : 'stand'), cx - 14 + (onBox ? 40 * (k - .5) * 2 : 0), floor - lift - (onBox ? 22 * Math.min(1, (k - .5) * 4) : 0));
+    } else if (kind === 'targets') { // 포지션 드릴: 표적 판
+      ctx.fillStyle = '#1C232B'; ctx.fillRect(cx - 4, 26, 56, 56);
+      for (let i = 0; i < 9; i++) { const x = cx + 2 + (i % 3) * 18, y = 32 + Math.floor(i / 3) * 18; ctx.fillStyle = i === g.cell ? '#FFD84A' : '#3A4654'; ctx.fillRect(x, y, 12, 12); if (i === g.cell) { ctx.fillStyle = '#E85A5A'; ctx.fillRect(x + 4, y + 4, 4, 4); } }
+      const pos = this.s.player.pos;
+      this.put(this.sprite(g.cell >= 0 ? (pos === 'QB' ? 'throw' : ['K', 'P'].includes(pos) ? 'run0' : 'catch') : 'stand'), cx - 40, floor);
+    }
+    if (g?.phase === 'ready') bigText(ctx, g.ready > .6 ? 'READY' : 'GO!', W / 2, 40, '#FFFFFF', 4);
+    if (g?.flash && g.phase === 'play') bigText(ctx, g.flash, W / 2, 52, g.flash === 'MISS' || g.flash === 'SLOW' || g.flash === 'OVER!' ? '#E85A5A' : '#F2C230', 2);
+    if (this.result) bigText(ctx, this.result.grade, W / 2, 56, this.result.grade === 'MISS' ? '#E85A5A' : '#F2C230', 3);
+    if (this.fx) { this.fx = this.fx.filter(p => p.life-- > 0); for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .05; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); } }
+    void pixelText; void OUT;
+  }
+}
+
+return { openGym };
+});
 __def("js/storage.js", function () {
 // 저장: 진행 중인 커리어 1개 + 은퇴 기록 보관함.
 // 1) 브라우저 저장(localStorage) — 어디서나, 다만 지워질 수 있음
@@ -6051,7 +6462,8 @@ const { pullPrice, pullPriceN, RATES, PITY, RARITY } = __req("js/engine/shop.js"
 const { teamPower, leagueTop, displayName } = __req("js/engine/league.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
-const PATCH = { id: '2026-11-11b', title: '패스 콜 · 플레이북 · 고해상도 필드', items: [['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+const { GYM_TIERS, gymTier, gymState } = __req("js/engine/gym.js");
+const PATCH = { id: '2026-11-11c', title: '헬스장 오픈 · 패스 콜 · 플레이북', items: [['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
 const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
 const { COLLEGES } = __req("js/data/colleges.js");
@@ -6273,11 +6685,17 @@ function homePage(s) {
   else if (s.phase === 'bigGame') { main = bigGameCard(s); }
   else if (s.phase === 'offseason') { main = todoList(s); dock = s.path ? `<button class="primary" data-action="open-path">다음 진로 정하기 ${icon('arrow')}</button>` : ''; }
   const nudge = s.phase === 'offseason' && checkRetirementNudge(s) ? `<p class="small muted" style="text-align:center;margin-top:6px">구단이 조심스럽게 은퇴 이야기를 꺼냈어요.</p>` : '';
-  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
+  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}${gymCard(s)}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
     ${dock ? `<div class="dock">${dock}</div>` : ''}${nudge}
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
 
+// 헬스장 카드: 회원권이 있으면 오늘 남은 체력과 함께
+function gymCard(s) {
+  const t = gymTier(s); if (!t || s.phase === 'retired') return '';
+  const g = gymState(s), max = GYM_TIERS[t].energy;
+  return `<button class="card gym-card" data-action="gym-open"><span class="badge gold">${icon('bolt')}</span><span class="grow"><strong>헬스장 · ${esc(GYM_TIERS[t].name)}</strong><small>오늘 체력 ${g.energy}/${max}${g.today ? ` · 오늘 +${g.today.toFixed(2)}` : ''} · 연타·타이밍 운동</small><i class="gym-mini"><b style="width:${Math.round(g.energy / max * 100)}%"></b></i></span>${icon('chevron', 'chev')}</button>`;
+}
 const bigHow = pos => pos === 'QB' ? '리시버를 탭해 패스 · 펌프 페이크 · 스틱으로 스크램블' : pos === 'OL' ? '스틱으로 러셔 앞을 막고 펀치·버티기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '스틱으로 달리고 스핀·페이크·터보로 태클 피하기' : ['EDGE', 'DT'].includes(pos) ? '스틱으로 돌진, 스핀 무브·스윔으로 블로커 떼기' : '스틱으로 커버하고 잼·점프·다이브 태클';
 function bigGameCard(s) {
   const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
@@ -6510,13 +6928,15 @@ function broadcastSheet(s, year, shown) {
 }
 function shopSheet(s) {
   const stock = s.shop.stock.map(id => ITEMS.find(i => i.id === id)).filter(Boolean), bought = s.shop.boughtYear === s.year;
+  const gt = gymTier(s);
   return sheet(`<p class="eyebrow">훈련장 · 상점</p><h2>이번 시즌 입고</h2><p class="lead">보유 자금 <b>${usd(s.money)}</b> <span class="tiny">(${krw(s.money)})</span></p>
+    ${gt ? `<button class="primary" data-action="gym-open" style="margin-top:10px">${icon('bolt')} 헬스장 들어가기 · ${esc(GYM_TIERS[gt].name)}</button>` : `<p class="tiny muted" style="margin-top:8px">아래 <b>개인 시설</b>에서 헬스장 회원권을 사면 헬스장에서 직접 운동할 수 있어요.</p>`}
     ${stock.map(it => `<button class="option" data-action="buy" data-v="${it.id}" ${canBuy(s, it) ? '' : 'disabled'} style="${canBuy(s, it) ? '' : 'opacity:.55'}"><div class="row between"><strong>${esc(it.name)}</strong><b>${usd(it.price)}</b></div><div class="sub">${esc(it.note)} · ${it.attr ? `${it.attr === 'main' ? '집중 육성 능력치' : ATTR[it.attr]?.[0] || '능력치'} +${it.up}` : ''}${it.body ? ` 누적 피로 −${it.body}` : ''}</div></button>`).join('')}
     <p class="tiny muted" style="margin-top:8px">${bought ? '이번 시즌에는 이미 하나를 샀어요. 다음 시즌에 새 상품 3개가 들어와요.' : '한 시즌에 하나만 살 수 있고, 다음 시즌에 새 상품 3개가 들어와요.'}</p>
     <h3 style="margin-top:18px">훈련 카드 뽑기</h3><p class="tiny muted">전설 ${Math.round(RATES.legend * 100)}% · 영웅 ${Math.round(RATES.epic * 100)}% · 희귀 ${Math.round(RATES.rare * 100)}% · 일반 ${Math.round(RATES.common * 100)}% · ${PITY.rare}회 안에 희귀 이상, ${PITY.legend}회 안에 전설 보장 (전설까지 ${PITY.legend - (s.shop.pity?.legend || 0)}회) · 같은 해에 뽑을수록 1.5배씩 비싸져요</p>
     <div class="row" style="margin-top:8px"><button class="secondary grow" data-action="pull" data-v="1" ${s.money >= pullPrice(s) ? '' : 'disabled'}>1회 · ${usd(pullPrice(s))}</button><button class="primary grow" data-action="pull" data-v="5" ${s.money >= pullPriceN(s, 5) ? '' : 'disabled'}>5회 · ${usd(pullPriceN(s, 5))}</button></div>
     <h3 style="margin-top:18px">스태프 (시즌마다 비용)</h3>${STAFF.map(st => { const on = !!s.shop.staff[st.id]; return `<button class="option ${on ? 'sel' : ''}" data-action="staff" data-v="${st.id}"><div class="row between"><strong>${esc(st.name)}</strong><span class="pill ${on ? 'green' : ''}">${on ? (s.shop.staff[st.id].free ? `무료 계약 ~${s.shop.staff[st.id].until}` : '계약 중 · 해지') : st.fee ? `${usd(st.fee)}/시즌` : '수수료 3%'}</span></div><div class="sub">${esc(st.desc)}</div></button>`; }).join('')}
-    <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} Lv.${lvl}</strong><b>${max ? '최고 단계' : usd(f.prices[lvl])}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
+    <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} ${f.names ? `· ${esc(lvl ? f.names[lvl - 1] : '없음')}` : `Lv.${lvl}`}</strong><b>${max ? '최고 단계' : `${f.names ? `${esc(f.names[lvl])} ` : ''}${usd(f.prices[lvl])}`}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
 }
 const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요. 휴대폰·PC 어디서 열어도 이어집니다.', connecting: '계정 저장소에 연결하는 중이에요.', offline: '계정 저장소에 잠시 닿지 않아요. 이 브라우저에는 저장되고 있어요.', quota: '계정 저장 공간이 가득 찼어요. 저장 데이터를 내보내 두세요.', local: '이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 내보내 두세요.' };
 function settingsSheet(s, status = 'local') {
@@ -6575,6 +6995,7 @@ const { pull } = __req("js/engine/shop.js");
 const { ATTR, attrsOf } = __req("js/engine/core.js");
 const FX = __req("js/ui/fx.js");
 const { openClutch, clutchLevelAvg } = __req("js/ui/clutch.js");
+const { openGym } = __req("js/ui/gym.js");
 const { sceneUrl, iconUrl } = __req("js/ui/pixel.js");
 const { TEAM_BY_ID } = __req("js/data/teams.js");
 const { CARD_BY_ID } = __req("js/engine/events.js");
@@ -6826,9 +7247,10 @@ document.addEventListener('click', e => {
     case 'focus-pick': focusDraft = focusDraft.includes(v) ? focusDraft.filter(x => x !== v) : [...focusDraft, v].slice(-2); renderSheet(); break;
     case 'turning': mutate(() => chooseTurning(state, v, { focus: focusDraft }), text => { closeSheet(); toast(text); }); break;
     case 'open-shop': markSeen('shop'); openSheet({ kind: 'shop' }); break;
+    case 'gym-open': { if (busy || !state) break; busy = true; closeSheet(); openGym(document.getElementById('clutch-root'), state, { colors: V.teamColors(state), persist, toast }).then(() => { busy = false; persist(); render(); }); break; }
     case 'buy': mutate(() => buyItem(state, v), lines => { toast(`구매 완료 · ${lines.join(', ')}`); renderSheet(); }); break;
     case 'staff': { const on = !state.shop.staff[v]; mutate(() => hireStaff(state, v, on), () => { toast(on ? `${STAFF.find(x => x.id === v).name}와 계약했어요.` : '계약을 해지했어요.'); renderSheet(); }); break; }
-    case 'facility': mutate(() => buyFacility(state, v), () => { toast('시설을 업그레이드했어요.'); renderSheet(); }); break;
+    case 'facility': mutate(() => buyFacility(state, v), () => { toast(v === 'club' ? '헬스장 회원권을 샀어요. 헬스장에 들어가 운동해 보세요!' : '시설을 업그레이드했어요.'); renderSheet(); }); break;
     case 'retire-ask': openSheet({ kind: 'confirm', title: '지금 은퇴할까요?', body: '은퇴하면 이 커리어는 끝나고, 은퇴 기록과 커리어 카드가 남아요.', action: 'retire-now', label: '은퇴하기' }); break;
     case 'retire-now': mutate(() => retireCareer(state, '스스로 은퇴를 결정했습니다.'), () => { closeSheet(); retireShow(); }); break;
     case 'share-card': shareCard(); break;

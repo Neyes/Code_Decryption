@@ -14,7 +14,8 @@ import { pullPrice, pullPriceN, RATES, PITY, RARITY } from '../engine/shop.js';
 import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
-export const PATCH = { id: '2026-11-11b', title: '패스 콜 · 플레이북 · 고해상도 필드', items: [['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+import { GYM_TIERS, gymTier, gymState } from '../engine/gym.js';
+export const PATCH = { id: '2026-11-11c', title: '헬스장 오픈 · 패스 콜 · 플레이북', items: [['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { COLLEGES } from '../data/colleges.js';
@@ -236,11 +237,17 @@ export function homePage(s) {
   else if (s.phase === 'bigGame') { main = bigGameCard(s); }
   else if (s.phase === 'offseason') { main = todoList(s); dock = s.path ? `<button class="primary" data-action="open-path">다음 진로 정하기 ${icon('arrow')}</button>` : ''; }
   const nudge = s.phase === 'offseason' && checkRetirementNudge(s) ? `<p class="small muted" style="text-align:center;margin-top:6px">구단이 조심스럽게 은퇴 이야기를 꺼냈어요.</p>` : '';
-  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
+  return `${profileCard(s)}${hero && s.phase !== 'card' ? `<section class="card hero-scene">${hero}</section>` : ''}${gymCard(s)}<section class="card"><div class="stat-grid">${career.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div></section>${main}
     ${dock ? `<div class="dock">${dock}</div>` : ''}${nudge}
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
 
+// 헬스장 카드: 회원권이 있으면 오늘 남은 체력과 함께
+function gymCard(s) {
+  const t = gymTier(s); if (!t || s.phase === 'retired') return '';
+  const g = gymState(s), max = GYM_TIERS[t].energy;
+  return `<button class="card gym-card" data-action="gym-open"><span class="badge gold">${icon('bolt')}</span><span class="grow"><strong>헬스장 · ${esc(GYM_TIERS[t].name)}</strong><small>오늘 체력 ${g.energy}/${max}${g.today ? ` · 오늘 +${g.today.toFixed(2)}` : ''} · 연타·타이밍 운동</small><i class="gym-mini"><b style="width:${Math.round(g.energy / max * 100)}%"></b></i></span>${icon('chevron', 'chev')}</button>`;
+}
 const bigHow = pos => pos === 'QB' ? '리시버를 탭해 패스 · 펌프 페이크 · 스틱으로 스크램블' : pos === 'OL' ? '스틱으로 러셔 앞을 막고 펀치·버티기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '스틱으로 달리고 스핀·페이크·터보로 태클 피하기' : ['EDGE', 'DT'].includes(pos) ? '스틱으로 돌진, 스핀 무브·스윔으로 블로커 떼기' : '스틱으로 커버하고 잼·점프·다이브 태클';
 function bigGameCard(s) {
   const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
@@ -473,13 +480,15 @@ export function broadcastSheet(s, year, shown) {
 }
 export function shopSheet(s) {
   const stock = s.shop.stock.map(id => ITEMS.find(i => i.id === id)).filter(Boolean), bought = s.shop.boughtYear === s.year;
+  const gt = gymTier(s);
   return sheet(`<p class="eyebrow">훈련장 · 상점</p><h2>이번 시즌 입고</h2><p class="lead">보유 자금 <b>${usd(s.money)}</b> <span class="tiny">(${krw(s.money)})</span></p>
+    ${gt ? `<button class="primary" data-action="gym-open" style="margin-top:10px">${icon('bolt')} 헬스장 들어가기 · ${esc(GYM_TIERS[gt].name)}</button>` : `<p class="tiny muted" style="margin-top:8px">아래 <b>개인 시설</b>에서 헬스장 회원권을 사면 헬스장에서 직접 운동할 수 있어요.</p>`}
     ${stock.map(it => `<button class="option" data-action="buy" data-v="${it.id}" ${canBuy(s, it) ? '' : 'disabled'} style="${canBuy(s, it) ? '' : 'opacity:.55'}"><div class="row between"><strong>${esc(it.name)}</strong><b>${usd(it.price)}</b></div><div class="sub">${esc(it.note)} · ${it.attr ? `${it.attr === 'main' ? '집중 육성 능력치' : ATTR[it.attr]?.[0] || '능력치'} +${it.up}` : ''}${it.body ? ` 누적 피로 −${it.body}` : ''}</div></button>`).join('')}
     <p class="tiny muted" style="margin-top:8px">${bought ? '이번 시즌에는 이미 하나를 샀어요. 다음 시즌에 새 상품 3개가 들어와요.' : '한 시즌에 하나만 살 수 있고, 다음 시즌에 새 상품 3개가 들어와요.'}</p>
     <h3 style="margin-top:18px">훈련 카드 뽑기</h3><p class="tiny muted">전설 ${Math.round(RATES.legend * 100)}% · 영웅 ${Math.round(RATES.epic * 100)}% · 희귀 ${Math.round(RATES.rare * 100)}% · 일반 ${Math.round(RATES.common * 100)}% · ${PITY.rare}회 안에 희귀 이상, ${PITY.legend}회 안에 전설 보장 (전설까지 ${PITY.legend - (s.shop.pity?.legend || 0)}회) · 같은 해에 뽑을수록 1.5배씩 비싸져요</p>
     <div class="row" style="margin-top:8px"><button class="secondary grow" data-action="pull" data-v="1" ${s.money >= pullPrice(s) ? '' : 'disabled'}>1회 · ${usd(pullPrice(s))}</button><button class="primary grow" data-action="pull" data-v="5" ${s.money >= pullPriceN(s, 5) ? '' : 'disabled'}>5회 · ${usd(pullPriceN(s, 5))}</button></div>
     <h3 style="margin-top:18px">스태프 (시즌마다 비용)</h3>${STAFF.map(st => { const on = !!s.shop.staff[st.id]; return `<button class="option ${on ? 'sel' : ''}" data-action="staff" data-v="${st.id}"><div class="row between"><strong>${esc(st.name)}</strong><span class="pill ${on ? 'green' : ''}">${on ? (s.shop.staff[st.id].free ? `무료 계약 ~${s.shop.staff[st.id].until}` : '계약 중 · 해지') : st.fee ? `${usd(st.fee)}/시즌` : '수수료 3%'}</span></div><div class="sub">${esc(st.desc)}</div></button>`; }).join('')}
-    <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} Lv.${lvl}</strong><b>${max ? '최고 단계' : usd(f.prices[lvl])}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
+    <h3 style="margin-top:18px">개인 시설</h3>${FACILITIES.map(f => { const lvl = s.shop.facilities[f.id] || 0, max = lvl >= f.prices.length; return `<button class="option" data-action="facility" data-v="${f.id}" ${max ? 'disabled' : ''}><div class="row between"><strong>${esc(f.name)} ${f.names ? `· ${esc(lvl ? f.names[lvl - 1] : '없음')}` : `Lv.${lvl}`}</strong><b>${max ? '최고 단계' : `${f.names ? `${esc(f.names[lvl])} ` : ''}${usd(f.prices[lvl])}`}</b></div><div class="sub">${esc(f.desc)}</div></button>`; }).join('')}`);
 }
 const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요. 휴대폰·PC 어디서 열어도 이어집니다.', connecting: '계정 저장소에 연결하는 중이에요.', offline: '계정 저장소에 잠시 닿지 않아요. 이 브라우저에는 저장되고 있어요.', quota: '계정 저장 공간이 가득 찼어요. 저장 데이터를 내보내 두세요.', local: '이 브라우저에 자동 저장돼요. 브라우저 데이터를 지우면 사라지니 중요한 커리어는 내보내 두세요.' };
 export function settingsSheet(s, status = 'local') {
