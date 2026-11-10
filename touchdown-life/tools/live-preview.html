@@ -1,6 +1,6 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>실시간 플레이 미리보기</title><link rel="stylesheet" href="../css/app.css">
-<body style="background:#101814;color:#fff;padding:12px"><div class="clutch" style="position:static"><div id="host" class="cl-live"></div><button id="go" class="primary" style="margin-top:8px">스냅</button><pre id="out"></pre></div>
+<body style="background:#101814;color:#fff;margin:0"><div class="clutch"><div class="cl-stage"><div id="host" class="cl-live"></div><div class="cl-panel" id="panel"><button id="go" class="primary">스냅</button></div></div><pre id="out" style="flex:none;max-height:20vh;overflow:auto;margin:0;font-size:11px"></pre></div>
 <script type="module">
 // 개발용: 실시간 플레이 한 번을 바로 띄웁니다. ?pos=QB|RB|WR|TE|OL|DT|EDGE|LB|CB|S&concept=flood · ?pos=K&dist=45 · ?pos=P&start=30
 // &auto=1 이면 스냅 버튼 없이 바로 시작합니다.
@@ -18,7 +18,8 @@ else {
     offColors: off ? home : opp, defColors: off ? opp : home, endzone: off ? [home[0], opp[0]] : [opp[0], home[0]], away: off ? 'D' : 'O', banner: '1ST & 10', hint: pos });
 }
 window.view = view;
-const go = () => { document.getElementById('go').hidden = true; window.result = view.snap({ concept: CONCEPTS.find(c => c.id === (q.get('concept') || (pos === 'RB' ? 'run' : 'flood'))), defCall: q.get('call') || 'man' }).then(r => { document.getElementById('out').textContent = JSON.stringify(r, null, 1); return r; }); };
+view.setInset(document.getElementById('panel').offsetHeight);
+const go = () => { document.getElementById('panel').hidden = true; view.setInset(0); window.result = view.snap({ concept: CONCEPTS.find(c => c.id === (q.get('concept') || (pos === 'RB' ? 'run' : 'flood'))), defCall: q.get('call') || 'man' }).then(r => { document.getElementById('out').textContent = JSON.stringify(r, null, 1); return r; }); };
 document.getElementById('go').onclick = go;
 if (q.get('auto')) go();
 </script>

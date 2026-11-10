@@ -14,7 +14,7 @@ import { pullPrice, pullPriceN, RATES, PITY, RARITY } from '../engine/shop.js';
 import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
-export const PATCH = { id: '2026-11-10', title: '빅게임이 실시간 플레이로 바뀌었어요', items: [['어디서 하나요?', '홈 화면의 빅게임 카드(라이벌전·플레이오프·결승)에서 "실시간 직접 플레이"를 누르세요. 위에서 내려다본 필드가 바로 떠요.'], ['조작', '작전을 고르면 스냅! 노란 표시(YOU)가 내 선수예요. 손가락을 대고 끌면 그쪽으로 달려요.'], ['쿼터백', '열린 리시버 쪽을 탭하면 그 자리로 패스, 끌면 스크램블. 잡히면 받은 선수를 조작해요.'], ['리시버·러닝백·수비', '노란 선이 내 루트예요. 공이 떨어질 노란 원으로 가서 받거나 가로채고, 볼 캐리어에 닿으면 태클.'], ['라인맨', '빨간 화살표 러셔 앞을 막아서 쿼터백을 지켜요. 놓치면 색!'], ['키커·펀터', '키커 뒤 시점에서 위로 쓸어 올려 차요. 끈 길이가 파워, 기울기가 방향, 바람은 직접 계산해요.']] };
+export const PATCH = { id: '2026-11-10b', title: '아날로그 스틱과 스킬 버튼', items: [['큰 화면', '빅게임 화면 전체가 필드예요. 카메라가 내 선수를 가까이 따라가고, 쿼터백은 패스 전에 필드 전체를 넓게 봐요.'], ['아날로그 스틱', '왼쪽 아래를 누르면 그 자리에 스틱이 생겨요. 기울인 만큼 빠르게 달리고, 살짝 기울이면 걸어요.'], ['스킬 버튼', '오른쪽 아래 버튼이 상황에 맞게 바뀌어요. 공을 들면 스핀·페이크·터보, 루트를 뛸 땐 페이크·패스 콜, 공이 뜨면 점프 캐치.'], ['쿼터백', '리시버를 탭하면 그 리시버 앞으로 리드 패스, 패스 버튼은 가장 빈 리시버에게. 펌프 페이크로 수비를 얼려요.'], ['수비·라인', '수비는 잼·다이브 태클·점프, 패스 러셔는 스핀 무브·스윔, 라인맨은 펀치·버티기.'], ['키커·펀터', '위로 쓸어 올려 차요. 끈 길이가 파워(초록에서 놓기), 기울기가 방향, 바람은 직접 계산.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { COLLEGES } from '../data/colleges.js';
@@ -241,7 +241,7 @@ export function homePage(s) {
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
 
-const bigHow = pos => pos === 'QB' ? '작전을 고르고, 열린 리시버를 탭해서 패스' : pos === 'OL' ? '빨간 표시 러셔를 몸으로 막아 쿼터백을 지키기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '내 선수를 끌어서 달리고, 공을 받고, 태클을 피하기' : '내 수비수를 끌어서 커버하고, 가로채고, 태클하기';
+const bigHow = pos => pos === 'QB' ? '리시버를 탭해 패스 · 펌프 페이크 · 스틱으로 스크램블' : pos === 'OL' ? '스틱으로 러셔 앞을 막고 펀치·버티기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '스틱으로 달리고 스핀·페이크·터보로 태클 피하기' : ['EDGE', 'DT'].includes(pos) ? '스틱으로 돌진, 스핀 무브·스윔으로 블로커 떼기' : '스틱으로 커버하고 잼·점프·다이브 태클';
 function bigGameCard(s) {
   const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
   const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: g.final ? 'FINAL' : 'BIG GAME', players: [{ pose: kickerPose(s, 'stance'), ...look(s), x: 46 }, { pose: 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '빅게임', 'scene');

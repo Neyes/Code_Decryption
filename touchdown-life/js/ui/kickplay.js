@@ -7,7 +7,7 @@ import { pixelText, bigText, vivid, shade, OUT } from './pixel.js';
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
 const G = 10.7, HALF_W = 26.65, UPRIGHT = 3.08, BAR = 3.33, UP_H = 11.7;
-const SWIPE_FULL = 92; // 캔버스 픽셀: 이만큼 끌면 파워 100%
+const SWIPE_CSS = 190; // 화면 css 픽셀: 이만큼 끌면 파워 100% (화면 크기와 상관없이 같은 손 길이)
 const R = Math.random;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
@@ -38,8 +38,10 @@ function figure(helmet, stripe, kit, front, kneel = false) {
 export class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
-    host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="킥 화면"></canvas><p class="lp-hint">${cfg.hint || ''}</p>`;
+    host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
+    this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
+    if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
     this.fg = cfg.mode === 'fg';
     // 필드 좌표 Y(0 = 우리 골라인, 100 = 상대 골라인), 공은 z = 0, 화면 안쪽이 +z
     this.spotY = this.fg ? 110 - cfg.dist : cfg.start - 15;
@@ -63,9 +65,19 @@ export class KickPlay {
     return new Promise(res => { this.done = res; });
   }
   pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
-  destroy() { this.closed = true; cancelAnimationFrame(this.raf); }
+  destroy() { this.closed = true; cancelAnimationFrame(this.raf); this.ro?.disconnect(); clearTimeout(this.tipTimer); }
+  // 화면에 꽉 차게: 세로로 긴 화면이면 캔버스를 늘리고 지평선을 내려 앞쪽 잔디를 더 보여 줍니다
+  fit() {
+    const w = this.host.clientWidth, h = this.host.clientHeight; if (!w || !h) return;
+    const ch0 = clamp(Math.round(CW * h / w), CH, 320);
+    if (ch0 !== this.ch) { this.ch = ch0; this.hor = HOR + Math.round((ch0 - CH) * .55); this.canvas.height = ch0; this.ctx.imageSmoothingEnabled = false; if (this.stands) this.stands = this.makeStands(); }
+    const cw = Math.min(w, h * CW / this.ch), chh = cw * this.ch / CW;
+    this.canvas.style.width = `${Math.round(cw)}px`; this.canvas.style.height = `${Math.round(chh)}px`; this.scale = chh / this.ch;
+  }
+  setInset() {}
+  tip(text, sec = 3) { const el = this.tipEl; clearTimeout(this.tipTimer); el.textContent = text; el.hidden = !text; if (text) this.tipTimer = setTimeout(() => { el.hidden = true; }, sec * 1000); }
   // ───────── 입력 ─────────
-  pt(e) { const r = this.canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * CH / r.height }; }
+  pt(e) { const r = this.canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * this.ch / r.height }; }
   bind() {
     const cv = this.canvas;
     cv.addEventListener('pointerdown', e => { e.preventDefault(); if (this.phase !== 'live') return; cv.setPointerCapture?.(e.pointerId); const p = this.pt(e); this.drag = { sx: p.x, sy: p.y, x: p.x, y: p.y }; });
@@ -75,7 +87,7 @@ export class KickPlay {
   }
   swipe(d) {
     const up = d.sy - d.y, dx = d.x - d.sx;
-    return { up, p: clamp(up / SWIPE_FULL, 0, 1.3), phi: Math.atan2(dx, Math.max(8, up)) * .36 };
+    return { up, p: clamp(up * this.scale / SWIPE_CSS, 0, 1.3), phi: Math.atan2(dx, Math.max(8, up)) * .36 };
   }
   // ───────── 킥 ─────────
   kick(p, phi) {
@@ -174,17 +186,17 @@ export class KickPlay {
   }
   end(res, wait = 1.3) { if (this.phase === 'over' || this.phase === 'done') return; this.result = res; this.phase = 'over'; this.endT = wait; }
   finish() { this.phase = 'done'; const d = this.done; this.done = null; d?.(this.result); }
-  burst() { for (let i = 0; i < 50; i++) { const a = R() * Math.PI * 2, v = .5 + R() * 1.6; this.fx.push({ x: CW / 2, y: CH * .3, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .5, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', '#E85A5A', '#6BD88A'][i % 4] }); } }
+  burst() { for (let i = 0; i < 50; i++) { const a = R() * Math.PI * 2, v = .5 + R() * 1.6; this.fx.push({ x: CW / 2, y: this.ch * .3, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .5, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', '#E85A5A', '#6BD88A'][i % 4] }); } }
   // ───────── 그리기 ─────────
-  proj(x, z, h) { const d = z - this.camZ; if (d < .4) return null; return { x: CW / 2 + F * (x - this.camX) / d, y: HOR + F * (CAM_H - h) / d, d }; }
+  proj(x, z, h) { const d = z - this.camZ; if (d < .4) return null; return { x: CW / 2 + F * (x - this.camX) / d, y: this.hor + F * (CAM_H - h) / d, d }; }
   makeStands() {
-    const cv = document.createElement('canvas'); cv.width = CW; cv.height = HOR; const ctx = cv.getContext('2d');
-    for (let y = 0; y < HOR; y++) { const k = y / HOR; ctx.fillStyle = `rgb(${Math.round(14 + 20 * k)},${Math.round(22 + 30 * k)},${Math.round(44 + 40 * k)})`; ctx.fillRect(0, y, CW, 1); }
+    const cv = document.createElement('canvas'); cv.width = CW; cv.height = this.hor; const ctx = cv.getContext('2d');
+    for (let y = 0; y < this.hor; y++) { const k = y / this.hor; ctx.fillStyle = `rgb(${Math.round(14 + 20 * k)},${Math.round(22 + 30 * k)},${Math.round(44 + 40 * k)})`; ctx.fillRect(0, y, CW, 1); }
     // 관중석
-    const top = HOR - 22, colors = this.cfg.colors.concat(this.cfg.oppColors, ['#F2F2F2', '#D9C27A', '#8A93A6']).map(vivid);
+    const top = this.hor - 22, colors = this.cfg.colors.concat(this.cfg.oppColors, ['#F2F2F2', '#D9C27A', '#8A93A6']).map(vivid);
     ctx.fillStyle = '#20262E'; ctx.fillRect(0, top, CW, 22);
-    for (let y = top + 1; y < HOR - 3; y += 2) for (let x = (y % 4) / 2; x < CW; x += 2) if (R() < .78) { ctx.fillStyle = colors[Math.floor(R() * colors.length)]; ctx.fillRect(x, y, 1, 1); }
-    ctx.fillStyle = '#3A424D'; ctx.fillRect(0, HOR - 3, CW, 3);
+    for (let y = top + 1; y < this.hor - 3; y += 2) for (let x = (y % 4) / 2; x < CW; x += 2) if (R() < .78) { ctx.fillStyle = colors[Math.floor(R() * colors.length)]; ctx.fillRect(x, y, 1, 1); }
+    ctx.fillStyle = '#3A424D'; ctx.fillRect(0, this.hor - 3, CW, 3);
     // 조명탑
     for (const lx of [14, CW - 22]) { ctx.fillStyle = '#5A6270'; ctx.fillRect(lx + 3, 8, 2, top - 8); ctx.fillStyle = '#FFF6C8'; ctx.fillRect(lx, 4, 8, 4); ctx.fillStyle = 'rgba(255,246,200,.18)'; ctx.fillRect(lx - 4, 0, 16, 12); }
     return cv;
@@ -194,8 +206,8 @@ export class KickPlay {
     ctx.drawImage(this.stands, 0, 0);
     // 잔디 (줄마다 깊이를 계산)
     const ez = vivid(c.oppColors[0]), ez0 = vivid(c.colors[0]);
-    for (let sy = HOR; sy < CH; sy++) {
-      const d = F * CAM_H / (sy - HOR + .5), Y = this.spotY + this.camZ + d, hw = F * HALF_W / d, cx = CW / 2 - F * this.camX / d;
+    for (let sy = this.hor; sy < this.ch; sy++) {
+      const d = F * CAM_H / (sy - this.hor + .5), Y = this.spotY + this.camZ + d, hw = F * HALF_W / d, cx = CW / 2 - F * this.camX / d;
       ctx.fillStyle = '#2B5E37'; ctx.fillRect(0, sy, CW, 1);
       ctx.fillStyle = Y > 110 ? '#20262E' : Y > 100 ? ez : Y < 0 ? ez0 : Math.floor(Y / 5) % 2 ? '#3E9A52' : '#368A49';
       ctx.fillRect(Math.round(cx - hw), sy, Math.round(hw * 2), 1);
@@ -206,9 +218,9 @@ export class KickPlay {
     for (let Y = 0; Y <= 110; Y += 5) {
       if (Y > 100 && Y !== 110) continue;
       const a = this.proj(-HALF_W, Y - this.spotY, 0), b = this.proj(HALF_W, Y - this.spotY, 0);
-      if (!a || a.y < HOR || a.y > CH) continue;
+      if (!a || a.y < this.hor || a.y > this.ch) continue;
       ctx.fillRect(Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Y === 100 || Y === 0 ? 2 : 1);
-      if (Y % 10 === 0 && Y > 0 && Y < 100 && a.y > HOR + 10) { const n = String(Y <= 50 ? Y : 100 - Y), l = this.proj(-HALF_W + 7, Y - this.spotY, 0), r = this.proj(HALF_W - 7, Y - this.spotY, 0); pixelText(ctx, n, Math.round(l.x) - 3, Math.round(l.y) - 6, '#FFFFFF'); pixelText(ctx, n, Math.round(r.x) - 3, Math.round(r.y) - 6, '#FFFFFF'); ctx.fillStyle = '#FFFFFF'; }
+      if (Y % 10 === 0 && Y > 0 && Y < 100 && a.y > this.hor + 10) { const n = String(Y <= 50 ? Y : 100 - Y), l = this.proj(-HALF_W + 7, Y - this.spotY, 0), r = this.proj(HALF_W - 7, Y - this.spotY, 0); pixelText(ctx, n, Math.round(l.x) - 3, Math.round(l.y) - 6, '#FFFFFF'); pixelText(ctx, n, Math.round(r.x) - 3, Math.round(r.y) - 6, '#FFFFFF'); ctx.fillStyle = '#FFFFFF'; }
     }
     // 스크리미지 라인
     { const a = this.proj(-HALF_W, this.losZ, 0), b = this.proj(HALF_W, this.losZ, 0); if (a) { ctx.fillStyle = '#4A8CFF'; ctx.fillRect(Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), 1); } }
@@ -232,13 +244,13 @@ export class KickPlay {
     // 바람
     this.drawWind(ctx);
     // 남은 시간 (러셔)
-    if (this.phase === 'live') { const k = 1 - this.t / this.rushT; ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(40, CH - 7, 80, 4); ctx.fillStyle = k < .35 ? '#E85A5A' : '#FFD84A'; ctx.fillRect(40, CH - 7, Math.round(80 * k), 4); }
+    if (this.phase === 'live') { const k = 1 - this.t / this.rushT; ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(40, this.ch - 7, 80, 4); ctx.fillStyle = k < .35 ? '#E85A5A' : '#FFD84A'; ctx.fillRect(40, this.ch - 7, Math.round(80 * k), 4); }
     // 파티클·글자
     this.fx = this.fx.filter(p => p.life-- > 0);
     for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .03; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
-    if (this.phase === 'pre') bigText(ctx, this.t < -.45 ? 'READY' : 'SET', CW / 2, CH * .36, '#FFFFFF', 3);
-    else if (this.msg) bigText(ctx, this.msg, CW / 2, CH * .36, this.msgColor || '#FFFFFF', this.msg.length > 10 ? 2 : 3);
-    if (this.phase === 'idle') { const bob = Math.floor(now / 300) % 2; bigText(ctx, this.fg ? `${c.dist} YD FG` : 'PUNT', CW / 2, CH * .36 - bob, '#FFD84A', 2); }
+    if (this.phase === 'pre') bigText(ctx, this.t < -.45 ? 'READY' : 'SET', CW / 2, this.ch * .36, '#FFFFFF', 3);
+    else if (this.msg) bigText(ctx, this.msg, CW / 2, this.ch * .36, this.msgColor || '#FFFFFF', this.msg.length > 10 ? 2 : 3);
+    if (this.phase === 'idle') { const bob = Math.floor(now / 300) % 2; bigText(ctx, this.fg ? `${c.dist} YD FG` : 'PUNT', CW / 2, this.ch * .36 - bob, '#FFD84A', 2); }
   }
   drawPosts(ctx) {
     const z = 110 - this.spotY, base = this.proj(0, z, 0), bar = this.proj(0, z, BAR);
@@ -252,7 +264,7 @@ export class KickPlay {
     ctx.fillRect(Math.round(r.x), Math.round(rt.y), w, Math.round(r.y - rt.y));
   }
   drawFig(ctx, x, z, helmet, stripe, kit, front, kneel = false, kicking = false) {
-    const p = this.proj(x, z, 0); if (!p || p.y < HOR - 4) return;
+    const p = this.proj(x, z, 0); if (!p || p.y < this.hor - 4) return;
     const cv = figure(helmet, stripe, kit, front, kneel), s = clamp(Math.round(F * 1.9 / p.d / 13), 1, 4);
     const w = cv.width * s, h = cv.height * s, dx = Math.round(p.x - w / 2), dy = Math.round(p.y - h);
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(dx + s, Math.round(p.y) - s, w - 2 * s, s);
@@ -262,7 +274,7 @@ export class KickPlay {
   drawBall(ctx, now) {
     const b = this.ball, g = this.proj(b.x, b.z, 0), p = this.proj(b.x, b.z, b.h);
     if (!p) return;
-    if (g && g.y >= HOR) { ctx.fillStyle = 'rgba(0,0,0,.3)'; const r = Math.max(1, Math.round(F * .25 / g.d)); ctx.fillRect(Math.round(g.x - r), Math.round(g.y), r * 2, Math.max(1, Math.round(r / 2))); }
+    if (g && g.y >= this.hor) { ctx.fillStyle = 'rgba(0,0,0,.3)'; const r = Math.max(1, Math.round(F * .25 / g.d)); ctx.fillRect(Math.round(g.x - r), Math.round(g.y), r * 2, Math.max(1, Math.round(r / 2))); }
     // 꼬리
     if (this.phase === 'flight' || this.phase === 'over') for (const [i, t] of this.trail.entries()) { const q = this.proj(t.x, t.z, t.h); if (q) { ctx.fillStyle = `rgba(255,255,255,${.06 + i * .03})`; ctx.fillRect(Math.round(q.x), Math.round(q.y), 1, 1); } }
     const r = clamp(Math.round(F * .2 / p.d), 1, 5), spin = Math.floor(now / 70) % 2;
@@ -273,7 +285,7 @@ export class KickPlay {
   drawAim(ctx) {
     const s = this.swipe(this.drag), p = Math.min(1, s.p), over = s.p > 1;
     // 파워 막대 (오른쪽)
-    const bx = CW - 10, by = 84, bh = 100;
+    const bx = CW - 10, by = this.hor + 34, bh = 100;
     ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx - 1, by - 1, 6, bh + 2);
     ctx.fillStyle = 'rgba(107,216,138,.45)'; ctx.fillRect(bx, by + Math.round(bh * (1 - 1)), 4, Math.round(bh * .18));
     ctx.fillStyle = over ? '#E85A5A' : p >= .82 ? '#6BD88A' : '#FFD84A';

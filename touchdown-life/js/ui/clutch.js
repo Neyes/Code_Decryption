@@ -11,16 +11,17 @@ const TELLS = {
 };
 // 내 포지션 → 필드에서 조작할 선수
 const CONTROL = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', OL: 'OL', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' };
+// 스냅 직후 필드 위에 잠깐 뜨는 조작 안내 (왼쪽 스틱 이동, 오른쪽 버튼 스킬)
 const HINT = {
-  QB: '탭: 그 자리로 패스 · 끌기: 스크램블 · 패스가 잡히면 받은 선수를 조작',
-  RB: '끌기: 달리기 · 공을 들고 탭: 저크로 태클 피하기',
-  WR: '끌기: 루트 달리기 · 노란 원으로 가면 캐치 · 공 들고 탭: 저크',
-  TE: '끌기: 루트 달리기 · 노란 원으로 가면 캐치 · 공 들고 탭: 저크',
-  OL: '끌기: 빨간 표시 러셔 앞을 막아서기 · 쿼터백을 지키세요',
-  DL: '끌기: 블로커를 돌아 쿼터백·볼 캐리어에게',
-  LB: '끌기: 내 수비수 이동 · 볼 캐리어에 닿으면 태클',
-  CB: '끌기: 마크맨을 따라가기 · 노란 원에 먼저 가면 인터셉트',
-  S: '끌기: 깊은 곳 지키기 · 노란 원에 먼저 가면 인터셉트',
+  QB: '리시버를 탭하면 패스 · 스틱: 스크램블 · 펌프 페이크로 수비를 속이기',
+  RB: '스틱: 달리기 · 스핀·페이크로 태클 피하기 · 터보로 질주',
+  WR: '스틱: 루트 달리기 · 페이크로 수비 떼기 · 패스 콜 · 공이 오면 점프 캐치',
+  TE: '스틱: 루트 달리기 · 페이크로 수비 떼기 · 패스 콜 · 공이 오면 점프 캐치',
+  OL: '스틱: 빨간 화살표 러셔 앞을 막기 · 붙으면 펀치·버티기',
+  DL: '스틱: 쿼터백에게 · 블로커에 걸리면 스핀 무브·스윔',
+  LB: '스틱: 볼 캐리어 쫓기 · 다이브로 태클 · 공이 뜨면 점프',
+  CB: '스틱: 마크맨 따라가기 · 잼으로 출발 방해 · 공이 뜨면 점프',
+  S: '스틱: 깊은 곳 지키기 · 공이 뜨면 점프 · 다이브로 태클',
 };
 const SNAP_MSG = {
   QB: '스냅! 열린 리시버 쪽을 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 노란 선이 내 루트예요.', TE: '스냅! 노란 선이 내 루트예요.',
@@ -60,12 +61,11 @@ class Clutch {
   build() {
     const c = this.c;
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
-      <div class="cl-board"><div class="cl-team"><small>${esc(c.myName)}</small><b id="cl-pf">0</b></div><div class="cl-mid"><span id="cl-q" class="cl-q">1Q</span><small id="cl-dd"></small></div><div class="cl-team"><small>${esc(c.oppName)}</small><b id="cl-pa">0</b></div></div>
-      <div class="cl-title"><span class="cl-live-tag">LIVE · 직접 조작</span>${esc(c.game.title || c.game.round || '빅게임')}</div>
-      <div id="cl-live" class="cl-live"></div>
-      <p id="cl-msg" class="cl-msg"></p>
-      <div id="cl-actions" class="cl-actions"></div>
-      <div class="cl-foot"><button class="ghost" data-cl="auto">자동으로 마무리</button></div></div>`;
+      <div class="cl-top"><div class="cl-team"><b id="cl-pf">0</b><small>${esc(c.myName)}</small></div>
+        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
+        <div class="cl-team opp"><b id="cl-pa">0</b><small>${esc(c.oppName)}</small></div></div>
+      <div class="cl-stage"><div id="cl-live" class="cl-live"></div>
+        <div id="cl-panel" class="cl-panel"><p id="cl-msg" class="cl-msg"></p><div id="cl-actions" class="cl-actions"></div><button class="cl-auto" data-cl="auto">자동으로 마무리</button></div></div></div>`;
     this.root.querySelector('[data-cl="auto"]').onclick = () => this.finish(true);
   }
   $(id) { return this.root.querySelector('#' + id); }
@@ -78,7 +78,12 @@ class Clutch {
     this.$('cl-dd').textContent = dd;
   }
   msg(t) { this.$('cl-msg').innerHTML = t; }
-  actions(html) { this.$('cl-actions').innerHTML = html; }
+  // 아래 패널(메시지·버튼)은 고를 것이 있을 때만 필드 위에 뜹니다. 플레이 중에는 숨기고 필드를 통째로 씁니다.
+  actions(html) {
+    this.$('cl-actions').innerHTML = html;
+    const panel = this.$('cl-panel'); panel.hidden = !html;
+    this.view?.setInset(html ? panel.offsetHeight : 0);
+  }
   spot(y) { return y >= 50 ? `상대 진영 ${100 - y}` : y === 50 ? '미드필드' : `자기 진영 ${y}`; }
   dd() { const d = this.d; return d ? `${['', '1st', '2nd', '3rd', '4th'][d.down]} & ${d.goal ? 'Goal' : d.toGo} · ${this.spot(d.ball)}` : ''; }
   banner() { const d = this.d; return `${ORD[d.down]} & ${d.goal ? 'GOAL' : d.toGo}`; }
@@ -95,14 +100,16 @@ class Clutch {
       offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
       endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
       away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
-      hint: HINT[this.control], banner: this.banner(),
+      banner: this.banner(),
     };
   }
   // 스냅 전 포메이션을 바로 보여 줍니다.
-  preview() { this.clearView(); this.view = new LivePlay(this.$('cl-live'), this.liveCfg()); }
+  preview() { this.clearView(); this.view = new LivePlay(this.$('cl-live'), this.liveCfg()); this.view.setInset(this.$('cl-panel').hidden ? 0 : this.$('cl-panel').offsetHeight); }
   snapLive(opts) {
     this.actions('');
-    this.msg(esc(SNAP_MSG[this.control] || '스냅!'));
+    this.snapCount = (this.snapCount || 0) + 1;
+    // 처음 몇 번은 조작법, 그 뒤로는 짧은 한마디
+    this.view.tip(this.snapCount <= 3 ? HINT[this.control] : SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4 : 2);
     return this.view.snap(opts);
   }
   showConcepts(cb) {
@@ -233,11 +240,11 @@ class Clutch {
     this.d = { ball: 100 - (dist - 17), down: 4, toGo: 3, first: 103, goal: false };
     this.board(`${dist}야드 필드골`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, hint: '위로 쓸어 올려 킥 · 길이 = 파워(초록에서 놓기) · 기울기 = 방향' });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
     this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.msg('위로 쓸어 올리세요!');
+      this.actions(''); this.view.tip('공 근처에서 위로 쓸어 올리세요! 오른쪽 막대 초록에서 놓기', 3);
       this.view.snap().then(r => {
         const L = this.line, ok = !!r.good;
         inc(L, 'fga'); if (ok) { inc(L, 'fgm'); L.fglong = Math.max(L.fglong || 0, dist); this.pf += 3; }
@@ -253,11 +260,11 @@ class Clutch {
     this.d = { ball: start, down: 4, toGo: 6, first: start + 6, goal: false };
     this.board(`4th & 6 · ${this.spot(start)}`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, hint: '위로 쓸어 올려 펀트 · 금색 구역(20야드 안)에 떨어뜨리면 최고 · 사이드라인 밖도 OK' });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
     this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
-      this.actions(''); this.msg('위로 쓸어 올리세요!');
+      this.actions(''); this.view.tip('위로 쓸어 올려 펀트! 비스듬히 차면 사이드라인 쪽으로', 3);
       this.view.snap().then(r => {
         const L = this.line;
         let land, text;
