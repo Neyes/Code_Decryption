@@ -20,6 +20,7 @@ const ROLE_SPD = { OL: .74, DL: .8, QB: .9, LB: .92, TE: .93, FB: .88, RB: 1, WR
 const NUMS = { QB: [[1, 19]], RB: [[20, 39]], FB: [[40, 49]], WR: [[10, 19], [80, 89]], TE: [[80, 89]], OL: [[60, 79]], DL: [[90, 99], [50, 59]], LB: [[40, 59]], CB: [[20, 39]], S: [[20, 49]] };
 const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
+const ME_REACH = .25; // 내가 조종하는 리시버의 추가 캐치 범위(야드)
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
 export function runLivePlay(host, cfg) {
@@ -745,7 +746,8 @@ export class LivePlay {
     const b = this.ball, spot = { x: b.x, y: b.y }, c = this.cfg, sk = this.sk;
     this.ball = null;
     const near = this.P.filter(p => !(p.stun > 0)).map(p => ({ p, d: dist(p, spot) })).sort((a, b2) => a.d - b2.d);
-    const off = near.find(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb), def = near.find(x => x.p.team === 'D');
+    // 내가 직접 잡는 리시버면 팔이 0.25야드 더 닿는 것처럼 계산합니다 (잡는 범위·수비와의 거리 비교 모두)
+    const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - ME_REACH) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
     const ct = off ? (off.p.me ? sk.catchType || 'norm' : this.aiCatchType(off.p, def)) : 'norm';
     const REACH = { high: .7, poss: -.1, rac: -.25, norm: 0 }, CONTEST = { high: .08, poss: .18, rac: .32, norm: .25 };
     const hands = off ? (off.p.me ? c.me.attrs.hands ?? c.me.ovr : off.p.rating) : 0;
