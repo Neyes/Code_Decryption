@@ -14,7 +14,7 @@ import { pullPrice, pullPriceN, RATES, PITY, RARITY } from '../engine/shop.js';
 import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
-export const PATCH = { id: '2026-11-10b', title: '아날로그 스틱과 스킬 버튼', items: [['큰 화면', '빅게임 화면 전체가 필드예요. 카메라가 내 선수를 가까이 따라가고, 쿼터백은 패스 전에 필드 전체를 넓게 봐요.'], ['아날로그 스틱', '왼쪽 아래를 누르면 그 자리에 스틱이 생겨요. 기울인 만큼 빠르게 달리고, 살짝 기울이면 걸어요.'], ['스킬 버튼', '오른쪽 아래 버튼이 상황에 맞게 바뀌어요. 공을 들면 스핀·페이크·터보, 루트를 뛸 땐 페이크·패스 콜, 공이 뜨면 점프 캐치.'], ['쿼터백', '리시버를 탭하면 그 리시버 앞으로 리드 패스, 패스 버튼은 가장 빈 리시버에게. 펌프 페이크로 수비를 얼려요.'], ['수비·라인', '수비는 잼·다이브 태클·점프, 패스 러셔는 스핀 무브·스윔, 라인맨은 펀치·버티기.'], ['키커·펀터', '위로 쓸어 올려 차요. 끈 길이가 파워(초록에서 놓기), 기울기가 방향, 바람은 직접 계산.']] };
+export const PATCH = { id: '2026-11-11', title: '플레이북과 고해상도 필드', items: [['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { COLLEGES } from '../data/colleges.js';

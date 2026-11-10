@@ -1,20 +1,22 @@
-<!doctype html><meta charset="utf-8"><title>실시간 플레이 밸런스</title><body><div id="host" style="width:160px"></div><pre id="out">running</pre>
+<!doctype html><meta charset="utf-8"><title>실시간 플레이 밸런스</title><body><div id="host" style="width:192px"></div><pre id="out">running</pre>
 <script type="module">
-// 개발용: AI끼리 실시간 플레이를 빠르게 여러 번 돌려 결과 분포를 봅니다. ?pos=CB&n=40&concept=flood
-import { runLivePlay, CONCEPTS } from '../js/ui/liveplay.js';
+// 개발용: AI끼리 실시간 플레이를 빠르게 여러 번 돌려 결과 분포를 봅니다. ?pos=CB&n=80[&play=flood][&def=c3][&assist=1]
+import { runLivePlay } from '../js/ui/liveplay.js';
+import { OFF_PLAYS, DEF_PLAYS } from '../js/ui/playbook.js';
 const q = new URLSearchParams(location.search), pos = q.get('pos') || 'CB', n = +(q.get('n') || 30);
 const control = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', OL: 'OL', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' }[pos];
 const res = [];
 for (let i = 0; i < n; i++) {
-  const concept = q.get('concept') ? CONCEPTS.find(c => c.id === q.get('concept')) : CONCEPTS[i % CONCEPTS.length];
-  res.push({ c: concept.id, ...(await runLivePlay(document.getElementById('host'), { ball: 30, toGo: 10, concept, defCall: ['man', 'zone', 'blitz'][i % 3], control, assist: q.get('assist') ? +q.get('assist') : undefined, edge: pos === 'EDGE', side: ['QB', 'RB', 'WR', 'TE', 'OL'].includes(pos) ? 'O' : 'D', speedup: 6,
-    me: { attrs: { spd: 70, agi: 70, hands: 70, cov: 70, ball: 70, tkl: 70, pblk: 70, rblk: 70 }, ovr: 70 }, teamRating: +(q.get('o') || 70), oppRating: +(q.get('d') || 70), offColors: ['#E31837', '#FFB81C'], defColors: ['#002244', '#69BE28'], endzone: ['#E31837', '#002244'] })) });
+  const play = q.get('play') || OFF_PLAYS[Math.floor(Math.random() * OFF_PLAYS.length)].id, def = q.get('def') || DEF_PLAYS[Math.floor(Math.random() * DEF_PLAYS.length)].id;
+  const r = await runLivePlay(document.getElementById('host'), { ball: 30, toGo: 10, play, defPlay: def, control, assist: q.get('assist') ? +q.get('assist') : undefined, edge: pos === 'EDGE', side: ['QB', 'RB', 'WR', 'TE', 'OL'].includes(pos) ? 'O' : 'D', speedup: 6,
+    me: { attrs: { spd: 70, agi: 70, hands: 70, cov: 70, ball: 70, tkl: 70, pblk: 70, rblk: 70 }, ovr: 70 }, teamRating: +(q.get('o') || 70), oppRating: +(q.get('d') || 70), offColors: ['#E31837', '#FFB81C'], defColors: ['#002244', '#69BE28'], endzone: ['#E31837', '#002244'] });
+  res.push({ ...r, playId: play, defId: def });
 }
 const k = f => res.filter(f).length;
+const by = key => { const m = {}; for (const r of res) { const g = key(r); (m[g] ??= []).push(r); } return Object.fromEntries(Object.entries(m).map(([g, l]) => [g, { n: l.length, avg: +(l.reduce((a, r) => a + (r.incomplete || r.turnover ? 0 : r.gain || 0), 0) / l.length).toFixed(1), td: l.filter(r => r.td).length, to: l.filter(r => r.turnover).length, inc: l.filter(r => r.incomplete).length, sack: l.filter(r => r.sack).length }])); };
 const summary = { n, avgGain: (res.reduce((a, r) => a + (r.incomplete || r.turnover ? 0 : r.gain || 0), 0) / n).toFixed(1), td: k(r => r.td), int: k(r => r.turnover === 'INT'), fumble: k(r => r.turnover === 'FUMBLE'), sack: k(r => r.sack), inc: k(r => r.incomplete), firstDowns: k(r => !r.incomplete && !r.turnover && r.gain >= 10),
-  catches: res.filter(r => r.dbg).slice(0, 24).map(r => `${r.c}:${r.dbg.who}:o${r.dbg.offD}/d${r.dbg.defD}/r${r.dbg.reachO}/T${r.dbg.T}=${r.td ? 'TD' : r.turnover || (r.incomplete ? 'inc' : r.gain)}`),
-  byConcept: Object.fromEntries(CONCEPTS.map(c => [c.id, res.filter(r => r.c === c.id).map(r => r.td ? 'TD' : r.turnover ? r.turnover : r.incomplete ? 'inc' : r.sack ? 'sack' : r.gain).join(' ')])) };
-document.getElementById('out').textContent = JSON.stringify(summary);
-window.__res = res.filter(r => r.dbg?.sacker).map(r => r.c + ":" + r.dbg.sacker + ":" + (r.stats?.sa ? "SA" : "")).join(" ");
+  catchKinds: by(r => r.catch ? r.catch.kind : 'none'), yac: (() => { const c = res.filter(r => r.catch); return { n: c.length, air: +(c.reduce((a, r) => a + r.catch.air, 0) / (c.length || 1)).toFixed(1), yac: +(c.reduce((a, r) => a + r.catch.yac, 0) / (c.length || 1)).toFixed(1), sep: +(c.reduce((a, r) => a + (r.dbg?.defD || 0), 0) / (c.length || 1)).toFixed(1), big: c.filter(r => r.catch.yac >= 15).length }; })(), byOffCat: by(r => r.play.cat), byDefCat: by(r => r.def.cat), passTypes: by(r => r.pass || 'run') };
+window.__res = res.filter(r => r.dbg?.sacker).map(r => r.playId + ":" + r.dbg.sacker + ":" + (r.stats?.sa ? "SA" : "")).join(" ");
+document.getElementById('out').textContent = JSON.stringify(summary, null, 1);
 window.done = summary;
 </script>

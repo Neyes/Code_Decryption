@@ -21,6 +21,26 @@ function visit(file) {
 }
 visit(join(root, 'js/main.js'));
 
+// 선언 목록에서 이름들을 찾습니다 (괄호 깊이 0의 쉼표로 구분, 문자열·템플릿·정규식은 건너뜀)
+function declNames(s, i) {
+  const names = [], first = /^\s*([A-Za-z_$][\w$]*)/.exec(s.slice(i));
+  if (first) names.push(first[1]);
+  let depth = 0, prev = '=';
+  for (; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '"' || ch === "'" || ch === '`') { const q = ch; for (i++; i < s.length && s[i] !== q; i++) if (s[i] === '\\') i++; prev = q; continue; }
+    if (ch === '/' && s[i + 1] === '/') { while (i < s.length && s[i] !== '\n') i++; continue; }
+    if (ch === '/' && s[i + 1] === '*') { i = s.indexOf('*/', i + 2) + 1; continue; }
+    if (ch === '/' && '(,=:[!&|?{};+-*%<>~^'.includes(prev)) { let cls = false; for (i++; i < s.length; i++) { if (s[i] === '\\') { i++; continue; } if (s[i] === '[') cls = true; else if (s[i] === ']') cls = false; else if (s[i] === '/' && !cls) break; } prev = '/'; continue; }
+    if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch)) depth--;
+    else if (depth === 0 && ch === ';') break;
+    else if (depth === 0 && ch === ',') { const m = /^\s*([A-Za-z_$][\w$]*)\s*=/.exec(s.slice(i + 1)); if (m) names.push(m[1]); }
+    if (!/\s/.test(ch)) prev = ch;
+  }
+  return names;
+}
+
 function transform(key) {
   let src = sources[key];
   const exports = [];
@@ -30,7 +50,9 @@ function transform(key) {
     const names = what.slice(1, -1).split(',').map(x => x.trim()).filter(Boolean).map(x => x.replace(/\s+as\s+/, ': '));
     return `const { ${names.join(', ')} } = __req(${JSON.stringify(dep)});`;
   });
-  src = src.replace(/^export\s+(async\s+function|function|const|let|class)\s+([A-Za-z_$][\w$]*)/gm, (_, kind, name) => { exports.push(name); return `${kind} ${name}`; });
+  // export const a = 1, b = 2; 처럼 한 줄에 여러 개를 선언해도 모두 내보냅니다
+  src = src.replace(/^export\s+(const|let)\s+/gm, (m, kind, at, whole) => { exports.push(...declNames(whole, at + m.length)); return `${kind} `; });
+  src = src.replace(/^export\s+(async\s+function|function|class)\s+([A-Za-z_$][\w$]*)/gm, (_, kind, name) => { exports.push(name); return `${kind} ${name}`; });
   src = src.replace(/^export\s*\{([^}]*)\};?/gm, (_, list) => { for (const x of list.split(',').map(y => y.trim()).filter(Boolean)) exports.push(x.includes(' as ') ? x.replace(/(\w+)\s+as\s+(\w+)/, '$2: $1') : x); return ''; });
   if (/\bexport\b\s/.test(src.replace(/(['"`]).*?\1/g, ''))) throw Error(`처리하지 못한 export: ${key}`);
   return `__def(${JSON.stringify(key)}, function () {\n${src}\nreturn { ${exports.join(', ')} };\n});`;

@@ -369,7 +369,7 @@ export function spriteCanvas(o) {
 export function bigText(ctx, str, cx, cy, color, scale = 2, outline = OUT) {
   const w = textWidth(str) * scale, x0 = Math.round(cx - w / 2), y0 = Math.round(cy - 5 * scale / 2);
   let x = x0;
-  for (const ch of String(str).toUpperCase()) {
+  if (outline) for (const ch of String(str).toUpperCase()) {
     const g = FONT[ch] || FONT[' '];
     for (let i = 0; i < 15; i++) if (g[i] === '1') {
       const px = x + (i % 3) * scale, py = y0 + Math.floor(i / 3) * scale;

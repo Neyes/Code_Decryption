@@ -3,7 +3,9 @@
 // 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
 // cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
 //        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
-import { pixelText, bigText, vivid, shade, OUT } from './pixel.js';
+import { pixelText, bigText, vivid, shade, lum, OUT } from './pixel.js';
+import { playerSprite, SKINS } from './sprites.js';
+const RES = 2; // 캔버스는 화면 논리 크기의 2배 해상도 (선수 도트를 더 촘촘하게)
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
 const G = 10.7, HALF_W = 26.65, UPRIGHT = 3.08, BAR = 3.33, UP_H = 11.7;
@@ -12,33 +14,10 @@ const R = Math.random;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 
-// 9×11 뒷모습/앞모습 선수 (외곽선 포함 11×13)
-const FIG = ['...HHH...', '..HHHHH..', '..HHHHH..', '.JJJJJJJ.', 'JJJJJJJJJ', 'JJJJJJJJJ', '.JJJJJJJ.', '..PPPPP..', '..PP.PP..', '..PP.PP..', '..BB.BB..'];
-const figCache = new Map();
-function figure(helmet, stripe, kit, front, kneel = false) {
-  const key = [helmet, stripe, kit, front, kneel].join('|');
-  if (figCache.has(key)) return figCache.get(key);
-  const rows = kneel ? [...FIG.slice(0, 7), '.PPPPPPP.', '.BB...BB.'] : FIG;
-  const w = 11, h = rows.length + 2, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  const ctx = cv.getContext('2d');
-  const col = ch => ch === 'H' ? helmet : ch === 'J' ? kit : ch === 'P' ? '#E9ECEF' : ch === 'B' ? '#22262B' : null;
-  // 외곽선
-  ctx.fillStyle = OUT;
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (col(ch)) ctx.fillRect(x, y, 3, 3); }));
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { const c = col(ch); if (c) { ctx.fillStyle = c; ctx.fillRect(x + 1, y + 1, 1, 1); } }));
-  ctx.fillStyle = stripe; ctx.fillRect(5, 1, 1, 3);                       // 헬멧 줄무늬
-  ctx.fillStyle = shade(kit, -.25); ctx.fillRect(2, 7, 7, 1);              // 저지 밑단
-  ctx.fillStyle = shade(helmet, .35); ctx.fillRect(4, 2, 1, 1);            // 헬멧 광택
-  if (front) { ctx.fillStyle = '#C9CED6'; ctx.fillRect(4, 3, 3, 1); ctx.fillStyle = shade(kit, .45); ctx.fillRect(5, 5, 1, 2); } // 페이스마스크·앞번호
-  else { ctx.fillStyle = shade(kit, .45); ctx.fillRect(4, 5, 1, 2); ctx.fillRect(6, 5, 1, 2); } // 등번호
-  figCache.set(key, cv);
-  return cv;
-}
-
 export class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
-    host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div>`;
+    host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
     if (typeof ResizeObserver !== 'undefined') { this.ro = new ResizeObserver(() => this.fit()); this.ro.observe(host); }
@@ -54,6 +33,10 @@ export class KickPlay {
     this.line = [-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].map(x => ({ x, z: this.losZ - .6 }));
     this.rush = [-5, -2.2, 0.6, 3.3, 5.6].map(x => ({ x, z: this.losZ + .9, x0: x }));
     this.stands = this.makeStands();
+    // 유니폼: 우리 팀은 팀 색, 상대는 흰 원정 유니폼
+    const [m1, m2] = cfg.colors.map(vivid), [o1, o2] = cfg.oppColors.map(vivid);
+    this.kits = { me: { jersey: m1, num: lum(m1) > .6 ? shade(m1, -.6) : '#FFFFFF', helmet: m1, stripe: m2, pants: '#ECEAE4', socks: m1 }, opp: { jersey: '#F2F2EE', num: o1, helmet: o1, stripe: o2, pants: lum(o2) > .85 ? shade(o1, -.1) : o2, socks: o1 } };
+    this.line.forEach((l, i) => { l.num = 60 + i * 3; l.skin = i % 5; }); this.rush.forEach((r, i) => { r.num = 90 + i * 2; r.skin = (i + 2) % 5; });
     this.bind();
     this.last = performance.now();
     this.loopFn = this.loop.bind(this);
@@ -70,7 +53,7 @@ export class KickPlay {
   fit() {
     const w = this.host.clientWidth, h = this.host.clientHeight; if (!w || !h) return;
     const ch0 = clamp(Math.round(CW * h / w), CH, 320);
-    if (ch0 !== this.ch) { this.ch = ch0; this.hor = HOR + Math.round((ch0 - CH) * .55); this.canvas.height = ch0; this.ctx.imageSmoothingEnabled = false; if (this.stands) this.stands = this.makeStands(); }
+    if (ch0 !== this.ch) { this.ch = ch0; this.hor = HOR + Math.round((ch0 - CH) * .55); this.canvas.height = ch0 * RES; this.ctx.imageSmoothingEnabled = false; if (this.stands) this.stands = this.makeStands(); }
     const cw = Math.min(w, h * CW / this.ch), chh = cw * this.ch / CW;
     this.canvas.style.width = `${Math.round(cw)}px`; this.canvas.style.height = `${Math.round(chh)}px`; this.scale = chh / this.ch;
   }
@@ -203,6 +186,7 @@ export class KickPlay {
   }
   draw(now) {
     const ctx = this.ctx, c = this.cfg;
+    ctx.setTransform(RES, 0, 0, RES, 0, 0); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(this.stands, 0, 0);
     // 잔디 (줄마다 깊이를 계산)
     const ez = vivid(c.oppColors[0]), ez0 = vivid(c.colors[0]);
@@ -229,13 +213,15 @@ export class KickPlay {
     // 공 그림자·선수·공 (먼 것부터)
     const items = [];
     const my = c.colors.map(vivid), op = c.oppColors.map(vivid);
-    for (const r of this.rush) items.push({ z: r.z, f: () => this.drawFig(ctx, r.x, r.z, op[0], op[1], op[0], true) });
-    for (const l of this.line) items.push({ z: l.z, f: () => this.drawFig(ctx, l.x, l.z, my[0], my[1], my[0], false) });
-    if (this.fg) items.push({ z: .25, f: () => this.drawFig(ctx, -.9, .25, my[0], my[1], my[0], false, true) });
+    const rushing = this.phase === 'live' || this.phase === 'flight';
+    for (const r of this.rush) items.push({ z: r.z, f: () => this.drawFig(ctx, r.x, r.z, 'opp', 'front', rushing ? (Math.floor(now / 110 + r.num) % 2 ? 'run0' : 'run1') : 'stance', r) });
+    for (const l of this.line) items.push({ z: l.z, f: () => this.drawFig(ctx, l.x, l.z, 'me', 'back', rushing ? 'block' : 'stance', l, true) });
+    if (this.fg) items.push({ z: .25, f: () => this.drawFig(ctx, -.9, .25, 'me', 'back', 'stance', { num: 12, skin: 1 }) });
     // 키커: 공 뒤에서 달려와 찹니다
     const kk = this.kickT < 0 ? 0 : clamp(this.kickT / .22, 0, 1);
     const kx = this.fg ? -1.1 + kk * .9 : 0, kz = this.fg ? -2.4 + kk * 2.1 : -.9 + kk * .5;
-    items.push({ z: kz, f: () => this.drawFig(ctx, kx, kz, my[0], my[1], my[0], false, false, this.kickT >= 0 && this.kickT < .5) });
+    const kf = this.kickT >= 0 && this.kickT < .35 ? 'run0' : this.result?.good || this.result?.in20 ? 'catch' : 'stand';
+    items.push({ z: kz, f: () => this.drawFig(ctx, kx, kz, 'me', 'back', kf, { num: c.me.number ?? 3, skin: 0 }) });
     const b = this.ball;
     items.push({ z: b.z, f: () => this.drawBall(ctx, now) });
     items.sort((a, b2) => b2.z - a.z).forEach(i => i.f());
@@ -263,13 +249,14 @@ export class KickPlay {
     ctx.fillRect(Math.round(l.x), Math.round(lt.y), w, Math.round(l.y - lt.y));
     ctx.fillRect(Math.round(r.x), Math.round(rt.y), w, Math.round(r.y - rt.y));
   }
-  drawFig(ctx, x, z, helmet, stripe, kit, front, kneel = false, kicking = false) {
+  // 선수: 실시간 플레이와 같은 고해상도 도트 (기기 픽셀 단위로 정수 배율)
+  drawFig(ctx, x, z, team, view, frame, who, big = false) {
     const p = this.proj(x, z, 0); if (!p || p.y < this.hor - 4) return;
-    const cv = figure(helmet, stripe, kit, front, kneel), s = clamp(Math.round(F * 1.9 / p.d / 13), 1, 4);
-    const w = cv.width * s, h = cv.height * s, dx = Math.round(p.x - w / 2), dy = Math.round(p.y - h);
-    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(dx + s, Math.round(p.y) - s, w - 2 * s, s);
-    ctx.drawImage(cv, dx, dy, w, h);
-    if (kicking) { ctx.fillStyle = OUT; ctx.fillRect(dx + 6 * s, dy + 5 * s, 3 * s, 5 * s); ctx.fillStyle = '#E9ECEF'; ctx.fillRect(dx + 7 * s, dy + 6 * s, s, 3 * s); ctx.fillStyle = '#22262B'; ctx.fillRect(dx + 7 * s, dy + 5 * s, s, s); }
+    const spr = playerSprite({ ...this.kits[team], skin: SKINS[who.skin % SKINS.length], number: who.num, view, frame, big });
+    const k = clamp(Math.round(F * 1.95 * RES / p.d / 21), 1, 8), w = spr.width * k / RES, h = spr.height * k / RES;
+    const dx = Math.round((p.x - w / 2) * RES) / RES, dy = Math.round((p.y - h + k / RES) * RES) / RES;
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(dx + w * .15, p.y - k / RES, w * .7, k / RES * 1.5);
+    ctx.drawImage(spr, dx, dy, w, h);
   }
   drawBall(ctx, now) {
     const b = this.ball, g = this.proj(b.x, b.z, 0), p = this.proj(b.x, b.z, b.h);

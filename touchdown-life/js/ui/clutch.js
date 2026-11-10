@@ -1,35 +1,37 @@
 // 빅게임 직접 플레이. 모든 포지션이 실시간으로 진행됩니다.
-// 공격·수비: 작전(수비 콜)을 고르면 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js).
+// 공격·수비: 플레이북(포메이션 8·플레이 50여 개 / 수비 포메이션 6·플레이 21개)에서 작전 카드를 고르면
+// 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js · playbook.js). 코치 추천과 상대 정렬 읽기도 있습니다.
 // 키커·펀터: 키커 뒤 시점에서 위로 쓸어 올려 찹니다 (kickplay.js). 4번째 다운·2점 컨버전도 직접 정합니다.
 import { POSITIONS, LEVEL_AVG, clamp } from '../engine/core.js';
-import { LivePlay, conceptsFor, CONCEPTS, DEF_CALLS } from './liveplay.js';
+import { LivePlay } from './liveplay.js';
 import { KickPlay } from './kickplay.js';
+import { CX, OFF_CATS, DEF_CATS, FORMATIONS, DEF_FORMS, playsFor, defPlaysFor, suggestOff, suggestDef, offAdvice, defAdvice, whyOff, whyDef, aiOffPlay, aiDefPlay, playArt, defArt, CATCH_KIND_KO, CATCH_TYPE_KO, PASS_TYPE_KO } from './playbook.js';
 
-const TELLS = {
-  run: ['I 포메이션, 풀백이 보인다', '타이트 엔드 둘, 헤비 세트', '러닝백이 쿼터백 바로 뒤에'],
-  pass: ['샷건, 리시버 넷이 넓게', '트립스 오른쪽', '엠티 백필드, 리시버 다섯', '쿼터백이 세이프티를 오래 본다'],
-};
 // 내 포지션 → 필드에서 조작할 선수
 const CONTROL = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', OL: 'OL', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' };
+// 수비 작전 그림에서 내 배정을 표시할 자리
+const MINE_KEY = { CB: 'CBR', S: 'FS', LB: 'mike', EDGE: 'DL3', DT: 'DL1' };
+// 스냅 전 공격 포메이션 기본값 (내 자리가 있는 포메이션)
+const FORM0 = { TE: 'gun_trips' };
 // 스냅 직후 필드 위에 잠깐 뜨는 조작 안내 (왼쪽 스틱 이동, 오른쪽 버튼 스킬)
 const HINT = {
-  QB: '리시버를 탭하면 패스 · 스틱: 스크램블 · 펌프 페이크로 수비를 속이기',
-  RB: '스틱: 달리기 · 스핀·페이크로 태클 피하기 · 터보로 질주',
-  WR: '스틱: 루트 달리기 · 페이크로 수비 떼기 · 패스 콜 · 공이 오면 점프 캐치',
-  TE: '스틱: 루트 달리기 · 페이크로 수비 떼기 · 패스 콜 · 공이 오면 점프 캐치',
+  QB: '리시버를 탭하면 패스 · 오른쪽 버튼으로 패스 종류(터치·불릿·로브) · 펌프 페이크로 수비를 얼리기',
+  RB: '스틱: 달리기 · 스핀·페이크·스티프 암으로 태클 피하기 · 터보로 질주',
+  WR: '스틱: 루트 달리기 · 공이 오면 하이포인트·안전·RAC 캐치 중 하나',
+  TE: '스틱: 루트 달리기 · 공이 오면 하이포인트·안전·RAC 캐치 중 하나',
   OL: '스틱: 빨간 화살표 러셔 앞을 막기 · 붙으면 펀치·버티기',
   DL: '스틱: 쿼터백에게 · 블로커에 걸리면 스핀 무브·스윔',
-  LB: '스틱: 볼 캐리어 쫓기 · 다이브로 태클 · 공이 뜨면 점프',
-  CB: '스틱: 마크맨 따라가기 · 잼으로 출발 방해 · 공이 뜨면 점프',
-  S: '스틱: 깊은 곳 지키기 · 공이 뜨면 점프 · 다이브로 태클',
+  LB: '스틱: 내 배정(노란 표시)대로 · 다이브 태클 · 공이 오면 가로채기·쳐내기',
+  CB: '스틱: 내 배정(노란 표시)대로 · 잼으로 출발 방해 · 공이 오면 가로채기·쳐내기',
+  S: '스틱: 깊은 곳 지키기 · 공이 오면 가로채기·쳐내기 · 다이브 태클',
 };
 const SNAP_MSG = {
-  QB: '스냅! 열린 리시버 쪽을 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 노란 선이 내 루트예요.', TE: '스냅! 노란 선이 내 루트예요.',
-  OL: '스냅! 빨간 표시 러셔를 막으세요.', DL: '스냅! 쿼터백을 향해!', LB: '상대가 스냅한다. 볼 캐리어를 쫓으세요.', CB: '상대가 스냅한다. 마크맨에게 붙으세요.', S: '상대가 스냅한다. 깊은 패스를 노리세요.',
+  QB: '스냅! 열린 리시버를 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 노란 선이 내 루트예요.', TE: '스냅! 노란 선이 내 루트예요.',
+  OL: '스냅! 빨간 표시 러셔를 막으세요.', DL: '스냅! 쿼터백을 향해!', LB: '상대가 스냅한다!', CB: '상대가 스냅한다!', S: '상대가 스냅한다!',
 };
+const RUN_KO = { zone: '존 런', power: '파워 런', counter: '카운터', toss: '토스 스윕', draw: '드로', sneak: 'QB 스닉', read: '존 리드', keep: 'QB 킵', qbdraw: 'QB 드로', jet: '젯 스윕', reverse: '엔드 어라운드' };
 const ORD = ['', '1ST', '2ND', '3RD', '4TH'];
 const R = Math.random;
-const pick = a => a[Math.floor(R() * a.length)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
 
 export function openClutch(root, ctx) {
@@ -47,6 +49,7 @@ class Clutch {
     this.drive = 0;
     this.me = { colors: c.colors };
     this.oppColors = c.oppColors;
+    this.lastForm = FORM0[this.pos] || 'gun_dbl'; this.lastDefForm = 'd43';
     // 미니게임 밖에서 쌓이는 양 팀 점수 (쿼터별로 나눠 전광판에 반영)
     const myStr = g.myStr ?? 60, oppStr = g.oppStr ?? 60;
     const td = x => Math.max(0, Math.round(x)) * 7;
@@ -89,33 +92,66 @@ class Clutch {
   banner() { const d = this.d; return `${ORD[d.down]} & ${d.goal ? 'GOAL' : d.toGo}`; }
   pop(text, color, burst = false) { this.view?.pop(text, color, burst); }
   clearView() { this.view?.destroy(); this.view = null; }
+  sit() { const d = this.d; return { down: d.down, toGo: d.goal ? 100 - d.ball : d.toGo, ball: d.ball, twoPt: !!d.twoPt }; }
 
   // ───────── 실시간 필드 ─────────
-  liveCfg() {
+  liveCfg(extra = {}) {
     const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
     const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
     return {
       ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, control: this.control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
-      me: { attrs: this.p.attrs, ovr: this.p.ovr }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
+      me: { attrs: this.p.attrs, ovr: this.p.ovr, number: this.p.number }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
       offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
       endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
       away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
-      banner: this.banner(),
+      banner: this.banner(), ...extra,
     };
   }
-  // 스냅 전 포메이션을 바로 보여 줍니다.
-  preview() { this.clearView(); this.view = new LivePlay(this.$('cl-live'), this.liveCfg()); this.view.setInset(this.$('cl-panel').hidden ? 0 : this.$('cl-panel').offsetHeight); }
+  // 스냅 전 양 팀 정렬을 바로 보여 줍니다.
+  preview(extra) { this.clearView(); this.view = new LivePlay(this.$('cl-live'), this.liveCfg(extra)); this.view.setInset(this.$('cl-panel').hidden ? 0 : this.$('cl-panel').offsetHeight); }
   snapLive(opts) {
     this.actions('');
     this.snapCount = (this.snapCount || 0) + 1;
-    // 처음 몇 번은 조작법, 그 뒤로는 짧은 한마디
     this.view.tip(this.snapCount <= 3 ? HINT[this.control] : SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4 : 2);
     return this.view.snap(opts);
   }
-  showConcepts(cb) {
-    const list = conceptsFor(this.pos);
-    this.actions(`<div class="cl-calls">${list.map((x, i) => `<button class="cl-call" data-cc="${i}"><b>${esc(x.name)}</b><small>${esc(x.note)}</small></button>`).join('')}</div>`);
-    this.root.querySelectorAll('[data-cc]').forEach(b => b.onclick = () => cb(list[+b.dataset.cc]));
+  boxCount() { const d = this.d; return this.view.P.filter(p => p.team === 'D' && Math.abs(p.home.x - CX) < 6.5 && p.home.y < d.ball + 7).length; }
+  // 플레이북: 탭(추천·분류) + 작전 그림 카드
+  showBook({ kind, list, rec, cats, advice, onPick }) {
+    const tabs = [['rec', '추천'], ...cats.filter(([k]) => list.some(p => p.cat === k))];
+    const recSet = new Set(rec.map(p => p.id));
+    const card = p => {
+      const art = kind === 'off' ? playArt(p) : defArt(p, MINE_KEY[this.pos]);
+      const sub = kind === 'off' ? FORMATIONS[p.form].name : DEF_FORMS[p.form].name;
+      const why = recSet.has(p.id) ? (kind === 'off' ? whyOff(p) : whyDef(p)) : '';
+      return `<button class="pb-card${recSet.has(p.id) ? ' rec' : ''}" data-pid="${p.id}"><img src="${art}" alt="" width="110" height="66"><b>${esc(p.name)}</b><small>${esc(sub)}${why ? ` · ${esc(why)}` : ''}</small></button>`;
+    };
+    const render = tab => {
+      const items = tab === 'rec' ? rec : list.filter(p => p.cat === tab);
+      this.$('pb-cards').innerHTML = items.map(card).join('');
+      this.$('pb-cards').scrollLeft = 0;
+      this.root.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+      this.$('pb-advice').hidden = tab !== 'rec';
+      this.root.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => onPick(list.find(p => p.id === b.dataset.pid)));
+    };
+    this.actions(`<div class="pb"><div class="pb-tabs">${tabs.map(([k, n]) => `<button data-tab="${k}">${esc(n)}${k === 'rec' ? '' : ` <i>${list.filter(p => p.cat === k).length}</i>`}</button>`).join('')}</div>
+      <p class="pb-advice" id="pb-advice">코치: ${esc(advice)}</p><div class="pb-cards" id="pb-cards"></div></div>`);
+    this.root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => render(b.dataset.tab));
+    render('rec');
+    this.view?.setInset(this.$('cl-panel').offsetHeight);
+  }
+  // 플레이 결과를 한 줄로: 캐치 분류(숏·미디엄·롱 + 캐치 종류), 패스 종류, 런 종류, 상대 작전
+  describe(o, offense) {
+    const parts = [];
+    if (o.catch) { const k = o.catch; parts.push(`${CATCH_KIND_KO[k.kind]} ${o.gain}야드 (공중 ${k.air} + 캐치 후 ${k.yac})`); if (CATCH_TYPE_KO[k.type]) parts.push(CATCH_TYPE_KO[k.type]); if (o.pass) parts.push(PASS_TYPE_KO[o.pass]); }
+    else if (o.turnover === 'INT') parts.push(`인터셉트${o.pass ? ` (${PASS_TYPE_KO[o.pass]})` : ''}`);
+    else if (o.incomplete) parts.push(o.pass ? `${PASS_TYPE_KO[o.pass]} 인컴플리트` : '패스 인컴플리트');
+    else if (o.sack) parts.push(`색 ${-o.gain}야드 손실`);
+    else if (o.run) parts.push(`${RUN_KO[o.run.type] || '런'} ${o.gain >= 0 ? `${o.gain}야드` : `${-o.gain}야드 손실`}`);
+    else parts.push(o.gain >= 0 ? `${o.gain}야드 전진` : `${-o.gain}야드 손실`);
+    if (offense && o.def) parts.push(`상대 수비: ${o.def.cov} (${o.def.form})`);
+    if (!offense && o.play) parts.push(`상대 작전: ${o.play.form} ${o.play.name}`);
+    return parts.join(' · ');
   }
 
   // ───────── 드라이브 ─────────
@@ -144,13 +180,15 @@ class Clutch {
   offensePick(note = '') {
     const d = this.d, intro = this.storyLine || ''; this.storyLine = '';
     this.board(this.dd());
-    this.preview();
+    this.aiDef = aiDefPlay({ ...this.sit(), offForm: this.lastForm }); // 상대 수비 작전 (정렬이 필드에 그대로 보임)
+    this.preview({ defPlay: this.aiDef.id, offForm: this.lastForm });
+    const lead = `${intro}${note ? esc(note) + '<br>' : ''}`;
     if (d.down === 4) {
       const dist = 100 - d.ball + 17;
       const opts = [`<button class="choice" data-go="go"><strong>고! 4번째 다운 승부</strong><div class="hint">${d.toGo}야드를 가야 한다</div></button>`];
       if (dist <= 57) opts.push(`<button class="choice" data-go="fg"><strong>필드골 시도 (${dist}야드)</strong><div class="hint">팀 키커에게 맡긴다</div></button>`);
       opts.push(`<button class="choice" data-go="punt"><strong>펀트</strong><div class="hint">필드 포지션을 지킨다</div></button>`);
-      this.msg(`${intro}${note ? esc(note) + ' ' : ''}<b>4th & ${d.toGo}</b> · 감독이 나를 본다. 어떻게 할까?`);
+      this.msg(`${lead}<b>4th & ${d.toGo}</b> · 감독이 나를 본다. 어떻게 할까?`);
       this.actions(opts.join(''));
       this.root.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
         const v = b.dataset.go;
@@ -160,55 +198,60 @@ class Clutch {
       });
       return;
     }
-    this.msg(`${intro}${note ? esc(note) + ' ' : ''}${intro ? '우리 공격. ' : ''}작전을 고르면 바로 스냅합니다.`);
+    this.msg(`${lead}${intro ? '우리 공격. ' : ''}작전 카드를 고르면 바로 스냅합니다.`);
     this.callPlay();
   }
-  callPlay() { this.showConcepts(c => this.snapLive({ concept: c }).then(o => this.resolveLive(o))); }
+  callPlay(twoPt = false) {
+    const sit = { ...this.sit(), shell: this.view.shellShown, box: this.boxCount() };
+    let list = playsFor(this.pos);
+    if (twoPt) list = list.filter(p => ['short', 'run', 'pa'].includes(p.cat) || p.form === 'goal');
+    this.showBook({ kind: 'off', list, rec: suggestOff(list, sit), cats: OFF_CATS, advice: offAdvice(sit), onPick: p => { this.lastForm = p.form; this.snapLive({ play: p.id }).then(o => twoPt ? this.resolveTwo(o) : this.resolveLive(o)); } });
+  }
   resolveLive(o) {
     const d = this.d;
     this.mergeStats(o.stats);
     let zone = o.td || o.gain >= 15 ? 'perfect' : (!o.incomplete && !o.turnover && !o.sack && (o.gain >= Math.min(d.toGo, 5))) ? 'good' : 'miss';
     if (this.pos === 'OL') zone = o.stats?.sa ? 'miss' : o.stats?.pan || o.td ? 'perfect' : o.turnover ? 'miss' : 'good';
     this.snap(zone, !!o.td, !!o.turnover);
-    if (o.turnover) { this.pop(o.turnover === 'INT' ? 'INTERCEPTED' : 'FUMBLE', '#E85A5A'); return this.endDrive(o.turnover === 'INT' ? '인터셉트! 공격권을 잃었다.' : '펌블! 공격권을 잃었다.'); }
-    if (o.td) { this.pf += 6; return this.afterTD(); }
+    const text = this.describe(o, true);
+    if (o.turnover) { this.pop(o.turnover === 'INT' ? 'INTERCEPTED' : 'FUMBLE', '#E85A5A'); return this.endDrive(`${o.turnover === 'INT' ? '공격권을 잃었다' : '펌블! 공격권을 잃었다'} · ${text}`); }
+    if (o.td) { this.pf += 6; this.tdText = text; return this.afterTD(); }
     if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
     d.snaps++;
-    const text = o.incomplete ? '패스 인컴플리트.' : o.sack ? `색. ${-o.gain}야드 손실.` : o.gain >= 0 ? `${o.gain}야드 전진.` : `${-o.gain}야드 손실.`;
     if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
     else { d.down++; d.toGo = d.first - d.ball; }
-    if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive('4번째 다운 실패, 공격권 넘김'); }
+    if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive(`4번째 다운 실패, 공격권 넘김 · ${text}`); }
     if (d.snaps >= 9) { const dist = 100 - d.ball + 17; if (dist <= 50 && R() < .8) { this.pf += 3; this.pop('FG GOOD', '#F2C230'); return this.endDrive(`시간에 쫓겨 ${dist}야드 필드골`); } return this.endDrive('시간이 다 됐다'); }
     this.offensePick(text);
   }
   afterTD() {
     this.board(this.dd());
-    this.msg('<b>터치다운!</b> 추가 득점은?');
+    this.msg(`<b>터치다운!</b> ${esc(this.tdText || '')}<br>추가 득점은?`);
     this.actions(`<button class="choice" data-x="pat"><strong>PAT (1점)</strong><div class="hint">거의 확실하다</div></button><button class="choice" data-x="two"><strong>2점 컨버전</strong><div class="hint">2야드에서 한 번 더 승부</div></button>`);
     this.root.querySelector('[data-x="pat"]').onclick = () => { const ok = R() < .95; if (ok) this.pf += 1; this.pop(ok ? 'PAT GOOD' : 'PAT MISS', ok ? '#F2C230' : '#E85A5A'); this.endDrive(ok ? '터치다운 + PAT' : '터치다운, PAT 실패'); };
     this.root.querySelector('[data-x="two"]').onclick = () => {
-      const save = this.d; this.d = { ...save, ball: 98, down: 1, toGo: 2, first: 100, goal: true };
-      this.preview();
-      this.msg('2점 컨버전! 작전을 고르세요.');
-      this.showConcepts(c => this.snapLive({ concept: c }).then(o => {
-        this.d = save; const ok = !!o.td; this.mergeStats(o.stats); if (ok) this.pf += 2; this.snap(ok ? 'perfect' : 'miss', ok, false);
-        this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
-      }));
+      this.saveD = this.d; this.d = { ...this.d, ball: 98, down: 1, toGo: 2, first: 100, goal: true, twoPt: true };
+      this.aiDef = aiDefPlay(this.sit());
+      this.preview({ defPlay: this.aiDef.id, offForm: this.lastForm });
+      this.msg('2점 컨버전! 골라인 작전을 고르세요.');
+      this.callPlay(true);
     };
+  }
+  resolveTwo(o) {
+    this.d = this.saveD; const ok = !!o.td; this.mergeStats(o.stats); if (ok) this.pf += 2; this.snap(ok ? 'perfect' : 'miss', ok, false);
+    this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
   }
   // ───────── 수비 ─────────
   defensePick(note = '') {
-    const d = this.d, toGoal = 100 - d.ball, intro = this.storyLine || ''; this.storyLine = '';
-    const pool = CONCEPTS.filter(c => !(toGoal < 20 && c.id === 'verts'));
-    const runBias = d.toGo <= 2 ? .6 : d.toGo >= 8 ? .2 : .4;
-    const runs = pool.filter(c => c.run), passes = pool.filter(c => !c.run);
-    const concept = R() < runBias ? pick(runs) : pick(passes);
-    const tellRun = R() < .7 ? !!concept.run : !concept.run;
+    const d = this.d, intro = this.storyLine || ''; this.storyLine = '';
+    const sit = this.sit();
+    this.aiOff = aiOffPlay(sit); // 상대 공격 작전 (포메이션이 필드에 그대로 보임)
+    sit.offForm = this.aiOff.form;
     this.board(this.dd());
-    this.preview();
-    this.msg(`${intro}${note ? esc(note) + ' ' : ''}상대 포메이션: <b>${esc(pick(tellRun ? TELLS.run : TELLS.pass))}</b>. 수비 콜을 고르면 스냅.`);
-    this.actions(`<div class="cl-calls three">${DEF_CALLS.map((x, i) => `<button class="cl-call" data-dc="${i}"><b>${esc(x.name)}</b><small>${esc(x.note)}</small></button>`).join('')}</div>`);
-    this.root.querySelectorAll('[data-dc]').forEach(b => b.onclick = () => this.snapLive({ concept, defCall: DEF_CALLS[+b.dataset.dc].id }).then(o => this.resolveLiveDefense(o)));
+    this.preview({ offPlay: this.aiOff.id, defForm: this.lastDefForm });
+    this.msg(`${intro}${note ? esc(note) + '<br>' : ''}상대 포메이션: <b>${esc(FORMATIONS[this.aiOff.form].name)}</b>. 수비 작전을 고르면 스냅.`);
+    const list = defPlaysFor(this.pos);
+    this.showBook({ kind: 'def', list, rec: suggestDef(list, sit), cats: DEF_CATS, advice: defAdvice(sit), onPick: p => { this.lastDefForm = p.form; this.snapLive({ defPlay: p.id }).then(o => this.resolveLiveDefense(o)); } });
   }
   resolveLiveDefense(o) {
     const d = this.d;
@@ -216,17 +259,17 @@ class Clutch {
     const mine = o.stats || {}, big = mine.sack || mine.dint || mine.tfl || mine.ff;
     const zone = big || o.turnover ? 'perfect' : (o.incomplete || o.gain <= 3) ? 'good' : 'miss';
     this.snap(zone, !!big, !!o.td, !!o.turnover);
-    if (o.turnover) { if (o.pickSix) this.pf += 7; this.pop(o.pickSix ? 'PICK SIX!' : 'TAKEAWAY!', '#F2C230', true); return this.endDrive(o.turnover === 'INT' ? (o.pickSix ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '펌블을 유도해 공격권을 빼앗았다'); }
-    if (o.td) { this.pa += 7; return this.endDrive('터치다운을 허용했다'); }
+    const text = this.describe(o, false);
+    if (o.turnover) { if (o.pickSix) this.pf += 7; this.pop(o.pickSix ? 'PICK SIX!' : 'TAKEAWAY!', '#F2C230', true); return this.endDrive(`${o.turnover === 'INT' ? (o.pickSix ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '펌블을 유도해 공격권을 빼앗았다'} · ${text}`); }
+    if (o.td) { this.pa += 7; return this.endDrive(`터치다운을 허용했다 · ${text}`); }
     if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
     d.snaps++;
     if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
     else { d.down++; d.toGo = d.first - d.ball; }
-    const text = o.incomplete ? '패스 인컴플리트!' : o.gain <= 0 ? '막아 냈다!' : `${o.gain}야드를 내줬다.`;
     if (d.down === 4 || d.snaps >= 8) {
       const dist = 100 - d.ball + 17;
       if (dist <= 52) { const ok = R() < clamp(.95 - (dist - 20) * .012, .4, .95); if (ok) this.pa += 3; this.pop(ok ? 'FG GOOD' : 'FG MISS', ok ? '#E85A5A' : '#F2C230'); return this.endDrive(ok ? `상대 ${dist}야드 필드골` : `상대 ${dist}야드 필드골 실패`); }
-      if (d.toGo <= 2 && d.ball >= 45 && R() < .5) return this.defensePick(`${text} 상대가 4번째 다운에 승부를 건다!`);
+      if (d.toGo <= 2 && d.ball >= 45 && R() < .5) return this.defensePick(`${text} · 상대가 4번째 다운에 승부를 건다!`);
       this.pop('STOP!', '#F2C230', true); return this.endDrive('수비 성공, 상대 펀트');
     }
     this.defensePick(text);

@@ -340,7 +340,8 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .cl-panel { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding: 26px 10px 8px; background: linear-gradient(rgba(16, 24, 20, 0), rgba(16, 24, 20, .88) 24px, rgba(16, 24, 20, .95)); }
 .cl-msg { margin: 0 2px 8px; font-size: 14px; line-height: 1.45; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
 .cl-msg:empty { display: none; }
-.cl-actions { display: grid; gap: 8px; }
+.cl-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.pb { min-width: 0; }
 .cl-auto { display: block; margin: 6px auto 0; border: 0; background: transparent; color: inherit; opacity: .6; font-size: 12.5px; font-weight: 700; padding: 6px 10px; }
 .clutch .choice { margin-top: 0; background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .16); color: inherit; padding: 11px 14px; }
 .clutch .choice:hover { background: rgba(255, 255, 255, .14); border-color: var(--board-flag); }
@@ -368,10 +369,6 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 /* 실시간 플레이 */
 .cl-live-tag { display: inline-block; padding: 1px 6px; border-radius: 6px; background: #E85A5A; color: #fff; font-size: 11px; font-weight: 900; letter-spacing: .03em; animation: livePulse 1.6s ease-in-out infinite; }
 @keyframes livePulse { 50% { opacity: .55; } }
-.cl-calls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.cl-call { border: 1.5px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .1); color: inherit; border-radius: 12px; padding: 8px 7px; text-align: left; display: grid; gap: 1px; touch-action: manipulation; }
-.cl-call b { font-size: 14px; font-weight: 800; line-height: 1.25; } .cl-call small { font-size: 11px; opacity: .72; line-height: 1.3; }
-.cl-call:hover, .cl-call:active { border-color: var(--board-flag); background: rgba(255, 255, 255, .18); }
 /* 필드 위 조작: 왼쪽 아날로그 스틱, 오른쪽 스킬 버튼 */
 .lp-tip { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 3; width: max-content; max-width: calc(100% - 24px); background: rgba(0, 0, 0, .62); border-radius: 10px; padding: 6px 11px; font-size: 12.5px; font-weight: 700; text-align: center; pointer-events: none; animation: fade .2s; }
 .lp-ctrl { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
@@ -386,5 +383,21 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .lp-btn.b0 { right: 0; bottom: 0; width: 74px; height: 74px; background: #D9483B; font-size: 14px; }
 .lp-btn.b1 { right: 82px; bottom: 6px; width: 60px; height: 60px; background: #2F6FD6; }
 .lp-btn.b2 { right: 8px; bottom: 82px; width: 60px; height: 60px; background: #1F9A5C; }
+.lp-btn.b3 { right: 84px; bottom: 82px; width: 54px; height: 54px; background: #7A54C7; font-size: 12px; }
 .lp-btn.off { filter: saturate(.35) brightness(.75); }
+/* 플레이북: 분류 탭 + 작전 그림 카드 (가로로 넘기기) */
+.pb-tabs { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px 6px; padding: 0 2px; }
+.pb-tabs::-webkit-scrollbar { display: none; }
+.pb-tabs button { flex: none; border: 1.5px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .08); color: inherit; border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 800; touch-action: manipulation; }
+.pb-tabs button i { font-style: normal; opacity: .6; font-size: 11px; margin-left: 2px; }
+.pb-tabs button.on { background: var(--board-flag); color: var(--board); border-color: var(--board-flag); }
+.pb-tabs button.on i { opacity: .75; }
+.pb-advice { margin: 0 2px 6px; font-size: 12px; opacity: .85; line-height: 1.4; }
+.pb-cards { display: flex; gap: 7px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: thin; }
+.pb-card { flex: none; width: 118px; scroll-snap-align: start; border: 1.5px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .07); color: inherit; border-radius: 12px; padding: 4px 4px 7px; text-align: left; display: grid; gap: 2px; touch-action: manipulation; }
+.pb-card img { display: block; width: 110px; height: 66px; border-radius: 8px; }
+.pb-card b { font-size: 13px; font-weight: 800; line-height: 1.25; padding: 2px 3px 0; }
+.pb-card small { font-size: 10.5px; opacity: .7; line-height: 1.3; padding: 0 3px; }
+.pb-card.rec { border-color: rgba(242, 194, 48, .7); }
+.pb-card:hover, .pb-card:active { border-color: var(--board-flag); background: rgba(255, 255, 255, .15); }
 .lp-btn.press { transform: scale(.9); }
