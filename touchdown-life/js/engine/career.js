@@ -10,6 +10,7 @@ import { seasonScore, nflAwards, collegeAwards, hsAwards, cflAwards, careerScore
 import { drawCard, resolveCard } from './events.js';
 import { socialSeason, ensureSocial } from './social.js';
 import { refreshStock, staffFees, growthBonus, declineFactor, agentBoost, expireStaff } from './shop.js';
+import { DIFFICULTY, DIFF_DEFAULT, diffOf } from './difficulty.js';
 import { applyProgram, interviewFor, runOlympics } from './extras.js';
 
 export const SAVE_VERSION = 1;
@@ -49,7 +50,8 @@ export function createCareer(cfg) {
   if (!Number.isInteger(number) || number < 0 || number > 99) throw Error('등번호는 0~99입니다.');
   if (!cfg.attrs || attrsOf(cfg.pos).some(k => typeof cfg.attrs[k] !== 'number')) throw Error('플레이 스타일 후보를 고르세요.');
   const seed = hash(cfg.seed ?? `${Date.now()}:${name}:${Math.random()}`);
-  const s = { v: SAVE_VERSION, id: `career-${seed}`, seed, rng: seed, createdAt: new Date().toISOString(), startYear: START_YEAR, year: START_YEAR, phase: 'ready', stage: 'hs', grade: 10, collegeYear: 0, redshirtUsed: false, redshirt: false, proSeasons: 0 };
+  const difficulty = DIFFICULTY[cfg.difficulty] ? cfg.difficulty : DIFF_DEFAULT;
+  const s = { v: SAVE_VERSION, id: `career-${seed}`, seed, rng: seed, difficulty, diffLow: difficulty, createdAt: new Date().toISOString(), startYear: START_YEAR, year: START_YEAR, phase: 'ready', stage: 'hs', grade: 10, collegeYear: 0, redshirtUsed: false, redshirt: false, proSeasons: 0 };
   const r = rng(s), school = SCHOOL_BY_ID[cfg.schoolId];
   const u = clamp(r(), .001, .999);
   const potential = clamp(Math.round(80 + 4.6 * Math.log(u / (1 - u))), 62, 97);
@@ -185,20 +187,20 @@ function grow(s, r, rec) {
   const env = s.stage === 'hs' ? .94 + SCHOOL_BY_ID[s.team.id].prestige * .0009 : s.stage === 'college' ? .93 + COLLEGE_BY_ID[s.team.id].prestige * .0011 : s.stage === 'nfl' ? 1.05 : .95;
   const plan = s.training === 'intense' ? 1.12 : s.training === 'recovery' ? .86 : 1;
   const pro = s.stage === 'nfl' || s.stage === 'cfl', wall = p.wall && pro ? .55 : 1;
-  const bonus = growthBonus(s);
+  const bonus = growthBonus(s), D = diffOf(s);
   const lateAge = p.lateBloomer && age >= 22 && age <= 27 ? 2.5 : 0;
   const gains = {};
   for (const k of keys) {
     const focus = p.focus.includes(k) ? 1.5 * (s.training === 'intense' ? 1.12 : 1) * bonus.focus : .85;
     const room = clamp((99 - p.attrs[k]) / 40, 0, 1);
-    const stall = r() < .22 ? .2 : 1;
-    let g = baseAt(Math.round(age - lateAge), k) * talentSpeed(p) * play * perf * env * plan * focus * room * wall * bonus.mult * stall * (.6 + r() * .8);
+    const stall = r() < D.stall ? .2 : 1;
+    let g = baseAt(Math.round(age - lateAge), k) * talentSpeed(p) * play * perf * env * plan * focus * room * wall * bonus.mult * stall * (.6 + r() * .8) * D.growth * (pro ? D.pro ?? 1 : 1);
     gains[k] = g;
   }
   // 급등: 시즌당 최대 하나.
   const breakoutP = s.stage === 'hs' ? .45 : s.stage === 'college' ? .3 : s.proSeasons <= 3 ? .18 : age < 29 ? (p.lateBloomer ? .14 : .05) : 0;
   let breakout = null;
-  if (r() < breakoutP * (p.wall && pro ? .5 : 1)) {
+  if (r() < breakoutP * (p.wall && pro ? .5 : 1) * D.breakout) {
     const k = weighted(r, keys.map(k => [k, (p.focus.includes(k) ? 2 : 1) * w[k] * clamp((99 - p.attrs[k]) / 40, 0, 1)]));
     if (k) { gains[k] += 3.5 + r() * 3.5; breakout = k; }
   }
@@ -207,7 +209,7 @@ function grow(s, r, rec) {
   if (yrs > 0) {
     const nut = declineFactor(s);
     for (const k of keys) {
-      const loss = (.9 + r() * 1.6) * Math.pow(yrs, .72) * p.agingRate * nut * (MENTAL.has(k) ? .35 : 1) * (['K', 'P'].includes(p.pos) ? .6 : 1);
+      const loss = (.9 + r() * 1.6) * Math.pow(yrs, .72) * p.agingRate * nut * (MENTAL.has(k) ? .35 : 1) * (['K', 'P'].includes(p.pos) ? .6 : 1) * D.decline;
       gains[k] -= loss;
     }
   }
@@ -298,7 +300,8 @@ export function seasonLabel(s) {
   if (s.stage === 'cfl') return 'CFL';
   return '';
 }
-function seasonIncome(s, rec) {
+function seasonIncome(s, rec) { const o = seasonIncomeBase(s, rec), k = diffOf(s).income; return k === 1 ? o : { ...o, gross: Math.round(o.gross * k), net: Math.round(o.net * k) }; }
+function seasonIncomeBase(s, rec) {
   if (s.stage === 'hs') return { kind: '용돈·아르바이트', gross: 300, net: 300 };
   if (s.stage === 'college') {
     const c = COLLEGE_BY_ID[s.team.id], stars = s.recruiting?.stars || 2;
@@ -348,7 +351,7 @@ export function chooseTurning(s, optionId, extra = {}) {
     const attrs = convertAttrs(p.attrs, t.to); p.twoWay = { pos: t.to, attrs, ovr: overall(t.to, attrs) };
     text = `${WA(POSITIONS[p.pos].ko)} ${POSITIONS[t.to].ko}${josa(POSITIONS[t.to].ko, '을', '를')} 오가는 투웨이 선수가 됐습니다.`; moment(s, 'turn', text);
   } else if (t.kind === 'potential' && optionId === 'accept') {
-    const ok = r() < .65; p.potential = clamp(p.potential + (ok ? 4 : 1), 60, 99); s.meters.body = clamp(s.meters.body + 1, 0, 10);
+    const ok = r() < .65 + diffOf(s).chance / 100; p.potential = clamp(p.potential + (ok ? 4 : 1), 60, 99); s.meters.body = clamp(s.meters.body + 1, 0, 10);
     text = ok ? '새 프로그램이 몸에 맞았습니다. 성장 속도가 눈에 띄게 빨라질 것 같습니다.' : '적응이 쉽지 않았지만 조금은 얻은 것이 있습니다. 몸이 무겁습니다.';
   } else if (t.kind === 'focus' && optionId === 'choose') {
     const keys = (extra.focus || []).filter(k => p.attrs[k] !== undefined).slice(0, 2);
@@ -369,7 +372,7 @@ export function recruitProfile(s) {
   const p = s.player, sc = SCHOOL_BY_ID[s.team.id];
   const best = Math.max(0, ...s.history.filter(h => h.stage === 'hs').map(h => h.score));
   const exposure = (sc.prestige - 75) * .08 + (s.flags.includes('campStar') ? 2.5 : 0) + (s.flags.includes('exposure') ? 1.2 : 0) + (s.meters.media - 50) * .03;
-  const v = p.ovr + (best - 70) * .18 + exposure + (p.pos === 'QB' ? .8 : 0) - (['K', 'P'].includes(p.pos) ? 6 : 0);
+  const v = p.ovr + (best - 70) * .18 + exposure + (p.pos === 'QB' ? .8 : 0) - (['K', 'P'].includes(p.pos) ? 6 : 0) + (diffOf(s).recruit ?? diffOf(s).scout);
   const stars = v >= 64 ? 5 : v >= 58 ? 4 : v >= 51 ? 3 : v >= 45 ? 2 : 1;
   const rank = stars === 5 ? clamp(Math.round(33 - (v - 64) * 6), 1, 32) : stars === 4 ? clamp(Math.round(360 - (v - 58) * 54), 33, 360) : stars === 3 ? clamp(Math.round(1500 - (v - 51) * 160), 361, 1500) : null;
   return { stars, rank, value: round1(v) };
@@ -445,7 +448,7 @@ export function draftProjection(s) {
   const col = s.history.filter(h => h.stage === 'college'), last = col.at(-1);
   const honor = col.reduce((n, h) => n + h.awards.reduce((m, a) => m + a.pts, 0), 0);
   const tierAdj = { P4: 0, G5: -1.5, FCS: -3, JUCO: -4 }[COLLEGE_BY_ID[s.team.id]?.tier] ?? 0;
-  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8 + (s.flags.includes('seniorBowl') ? 1.5 : 0) + (s.flags.includes('interviewAce') ? 1 : 0);
+  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8 + (s.flags.includes('seniorBowl') ? 1.5 : 0) + (s.flags.includes('interviewAce') ? 1 : 0) + diffOf(s).scout;
   const pickN = v >= 84 ? 1 + Math.round((88 - Math.min(88, v)) * 1.2) : v >= 63 ? Math.round(5 + Math.pow(84 - v, 1.9) * .9) : 999;
   const pk = clamp(pickN, 1, 999);
   const round = pk <= 257 ? Math.min(7, Math.ceil(pk / 32)) : null;
@@ -504,7 +507,7 @@ function offerOption(o, prefix = 'sign') {
 }
 function faOffers(s, r, { exclude = [] } = {}) {
   const teams = TEAMS.map(t => t.id).filter(id => !exclude.includes(id)).sort(() => r() - .5);
-  const p = s.player, interest = clamp((p.ovr - 66) / 20, .02, .85) * (p.age >= 34 ? .35 : p.age >= 31 ? .6 : 1);
+  const p = s.player, interest = clamp((p.ovr - 66 + diffOf(s).scout) / 20, .02, .85) * (p.age >= 34 ? .35 : p.age >= 31 ? .6 : 1);
   const out = [];
   for (const id of teams.slice(0, 16)) { if (out.length >= 5) break; if (r() < interest) { const o = nflOffer(s, r, id); if (o.role !== 'practice' && !(o.role === 'special' && p.age >= 30)) out.push(o); } }
   return out.sort((a, b) => b.aav - a.aav);
@@ -513,7 +516,7 @@ function nflPath(s, r, rec) {
   const p = s.player, c = s.contract, opts = [], mv = marketValue(s);
   const retireHint = p.age >= 36 || (p.ovr < 66 && p.age >= 30);
   // 방출 판정: 연습생·스페셜팀으로 시즌을 마쳤고 보장 금액이 없으면.
-  const cut = c && c.yearsLeft > 0 && c.type !== 'tag' && (['practice', 'special'].includes(rec.role) || (rec.role === 'backup' && p.age >= 29)) && (c.type !== 'rookie' || c.round >= 4 || !c.round) && r() < (p.age >= 29 ? .6 : p.age >= 26 ? .5 : .3);
+  const cut = c && c.yearsLeft > 0 && c.type !== 'tag' && (['practice', 'special'].includes(rec.role) || (rec.role === 'backup' && (p.age >= 29 || diffOf(s).cutBackup))) && (c.type !== 'rookie' || c.round >= 4 || !c.round) && r() < (p.age >= 29 ? .6 : p.age >= 26 ? .5 : .3) * diffOf(s).cut * (rec.role === 'backup' && p.age < 29 ? .6 : 1);
   if (cut) { moment(s, 'cut', `${s.team.name}에서 방출됐습니다.`); s.contract = null; return faPath(s, r, '방출 통보', `${I(s.team.name)} 로스터 정리 과정에서 방출을 알려 왔습니다.`); }
   if (s.flags.includes('enlist')) {
     s.flags = s.flags.filter(f => f !== 'enlist');
@@ -537,8 +540,8 @@ function faPath(s, r, title, desc) {
     if (p.ovr >= 85 && r() < .5) { const tag = { ...o, kind: 'tag', years: 1, aav: Math.round(POS_MARKET[p.pos] * .82), roleName: o.roleName }; tag.total = tag.aav; tag.guaranteed = tag.aav; opts.push(offerOption(tag, 'tag')); }
   }
   for (const o of faOffers(s, r, { exclude: prevTeam ? [prevTeam] : [] })) opts.push(offerOption(o));
-  if (opts.length < 2 && p.age <= 28) { const id = pick(r, TEAMS).id; opts.push({ id: `ps:${id}`, label: `${TEAM_BY_ID[id].ko} 연습생 계약`, sub: `프랙티스 스쿼드 · 주급 기준 시즌 약 ${usd(PS_SALARY)}`, desc: '53인 로스터 밖에서 기회를 노립니다. 부상자가 생기면 콜업될 수 있습니다.' }); }
-  if (opts.length < 3 && p.ovr >= 58 && p.age <= 36) opts.push({ id: 'cfl', label: 'CFL 계약', sub: `${pick(r, CFL_TEAMS).ko} · 연 ${usd(120e3 + Math.max(0, p.ovr - 60) * 18e3)}`, desc: '캐나다에서 경기를 뛰며 다시 기회를 엿봅니다.' });
+  if (opts.length < 2 && p.age <= 28 && p.ovr >= (diffOf(s).psMin || 0) && (s.psYears || 0) < (diffOf(s).psMax ?? 99)) { const id = pick(r, TEAMS).id; opts.push({ id: `ps:${id}`, label: `${TEAM_BY_ID[id].ko} 연습생 계약`, sub: `프랙티스 스쿼드 · 주급 기준 시즌 약 ${usd(PS_SALARY)}`, desc: '53인 로스터 밖에서 기회를 노립니다. 부상자가 생기면 콜업될 수 있습니다.' }); }
+  if (opts.length < 3 && p.ovr >= Math.max(58, diffOf(s).cflMin || 0) && p.age <= 36) opts.push({ id: 'cfl', label: 'CFL 계약', sub: `${pick(r, CFL_TEAMS).ko} · 연 ${usd(120e3 + Math.max(0, p.ovr - 60) * 18e3)}`, desc: '캐나다에서 경기를 뛰며 다시 기회를 엿봅니다.' });
   opts.push({ id: 'retire', label: '은퇴', sub: '여기서 마침표', desc: '커리어를 마무리하고 은퇴 기록을 남깁니다.' });
   return { kind: 'fa', title, desc, options: opts };
 }
@@ -596,24 +599,24 @@ export function choosePath(s, optionId) {
       return text;
     }
   }
-  if (kind === 'ps') { const t = TEAM_BY_ID[arg]; text = `${t.ko} 연습생 계약.`; moment(s, 'contract', text); nextYear(s, () => joinNfl(s, arg, { type: 'ps', years: 1, yearsLeft: 1, aav: PS_SALARY, total: PS_SALARY, guaranteed: 0 })); }
+  if (kind === 'ps') { const t = TEAM_BY_ID[arg]; s.psYears = (s.psYears || 0) + 1; text = `${t.ko} 연습생 계약.`; moment(s, 'contract', text); nextYear(s, () => joinNfl(s, arg, { type: 'ps', years: 1, yearsLeft: 1, aav: PS_SALARY, total: PS_SALARY, guaranteed: 0 })); }
   if (kind === 'cfl') { const t = pick(r, CFL_TEAMS); text = `${WA(t.ko)} 계약. CFL에서 뜁니다.`; moment(s, 'move', text); nextYear(s, () => { s.stage = 'cfl'; s.team = { kind: 'cfl', id: t.id, name: t.ko, short: t.ko }; s.contract = { type: 'cfl', years: 2, yearsLeft: 2, aav: 120e3 + Math.max(0, p.ovr - 60) * 18e3, total: 0, guaranteed: 0 }; }); }
   if (kind === 'extend') {
-    const mv = marketValue(s) * agentBoost(s), ch = clamp(.45 + (s.meters.front - 50) * .012 + (s.history.at(-1).score - 78) * .02, .1, .92);
+    const mv = marketValue(s) * agentBoost(s), ch = clamp(.45 + (s.meters.front - 50) * .012 + (s.history.at(-1).score - 78) * .02 + diffOf(s).chance / 100, .1, .92);
     if (r() < ch) { const yrs = p.age <= 28 ? 4 : 2; s.contract = { ...s.contract, type: 'vet', aav: Math.round(mv * .96), years: yrs, yearsLeft: yrs, total: Math.round(mv * .96) * yrs, guaranteed: Math.round(mv * yrs * .55) }; text = `${WA(s.team.name)} ${yrs}년 연장 계약! 연 ${usd(s.contract.aav)}.`; moment(s, 'contract', text); s.meters.front = clamp(s.meters.front + 6, 0, 100); }
     else { text = '구단은 연장 계약을 서두르지 않겠다고 했습니다.'; s.meters.front = clamp(s.meters.front - 4, 0, 100); }
     s.path = { ...s.path, options: s.path.options.filter(o => o.id !== 'extend' && o.id !== 'holdout'), note: text };
     return text;
   }
   if (kind === 'holdout') {
-    const mv = marketValue(s), ch = clamp(.42 + (p.ovr - 82) * .03 + (s.meters.front - 50) * .006, .15, .85);
+    const mv = marketValue(s), ch = clamp(.42 + (p.ovr - 82) * .03 + (s.meters.front - 50) * .006 + diffOf(s).chance / 100, .15, .85);
     if (r() < ch) { const yrs = 4; s.contract = { ...s.contract, type: 'vet', aav: Math.round(mv * 1.02), years: yrs, yearsLeft: yrs, total: Math.round(mv * 1.02) * yrs, guaranteed: Math.round(mv * yrs * .6) }; text = `홀드아웃 끝에 연 ${usd(s.contract.aav)} 대형 계약을 따냈습니다.`; moment(s, 'contract', text); s.meters.locker = clamp(s.meters.locker - 4, 0, 100); }
     else { text = '구단이 물러서지 않았습니다. 벌금을 내고 캠프에 복귀합니다. 시즌 초반 출전이 줄어듭니다.'; s.money = Math.max(0, s.money - Math.round(s.contract.aav * .08)); s.meters.trust = clamp(s.meters.trust - 12, 0, 100); s.meters.media = clamp(s.meters.media - 6, 0, 100); s.flags.push('holdoutFail'); }
     s.path = { ...s.path, options: s.path.options.filter(o => o.id !== 'extend' && o.id !== 'holdout'), note: text };
     return text;
   }
   if (kind === 'trade') {
-    const ch = clamp(.4 + (s.meters.front - 50) * .01 + (p.ovr - 75) * .015, .1, .85);
+    const ch = clamp(.4 + (s.meters.front - 50) * .01 + (p.ovr - 75) * .015 + diffOf(s).chance / 100, .1, .85);
     if (r() < ch) {
       const targets = TEAMS.filter(t => t.id !== s.team.id).map(t => [t.id, expectedRole(s, t.id)]).filter(([, rl]) => ['key', 'starter'].includes(rl)).map(x => x[0]);
       const to = targets.length ? pick(r, targets) : pick(r, TEAMS.filter(t => t.id !== s.team.id)).id;
@@ -630,11 +633,13 @@ export function choosePath(s, optionId) {
 }
 function udfaPath(s, r) {
   const p = s.player, opts = [];
-  const teams = TEAMS.map(t => t.id).sort(() => r() - .5).slice(0, p.ovr >= 64 ? 3 : 2);
+  // 난이도: 하드에서는 평가가 낮으면 언드래프티 전화가 줄거나 아예 오지 않습니다
+  const D = diffOf(s), calls = D.udfaMin && p.ovr < D.udfaMin ? 0 : D.udfaMin && p.ovr < D.udfaMin + 4 ? 1 : p.ovr >= 64 ? 3 : 2;
+  const teams = TEAMS.map(t => t.id).sort(() => r() - .5).slice(0, calls);
   for (const id of teams) { const o = nflOffer(s, r, id, 'udfa'); o.aav = MIN_SALARY; o.years = 3; o.total = MIN_SALARY * 3; o.guaranteed = Math.round(10e3 + r() * 90e3); opts.push({ ...offerOption(o, 'udfa'), sub: `언드래프티 FA · 53인 로스터 경쟁 · 3년 최저 연봉`, desc: `사이닝 보너스 ${usd(o.guaranteed)} · 예상 역할 ${o.roleName}` }); }
-  opts.push({ id: 'cfl', label: 'CFL 계약', sub: '캐나다에서 프로 시작', desc: '경기 출전 기회는 확실합니다.' });
+  if (p.ovr >= (D.cflMin || 0)) opts.push({ id: 'cfl', label: 'CFL 계약', sub: '캐나다에서 프로 시작', desc: '경기 출전 기회는 확실합니다.' });
   opts.push({ id: 'retire', label: '풋볼을 내려놓는다', sub: '다른 인생', desc: '여기서 선수 생활을 마칩니다.' });
-  return { kind: 'udfa', title: '언드래프티 FA', desc: '드래프트가 끝나자마자 몇몇 구단에서 전화가 왔습니다.', options: opts };
+  return { kind: 'udfa', title: '언드래프티 FA', desc: calls ? '드래프트가 끝나자마자 몇몇 구단에서 전화가 왔습니다.' : opts.length > 1 ? '드래프트가 끝났지만 NFL 구단의 전화는 오지 않았습니다. 캐나다 리그가 손을 내밉니다.' : '드래프트가 끝났지만 전화는 오지 않았습니다. 프로의 문은 열리지 않았습니다.', options: opts };
 }
 function joinNfl(s, teamId, contract) {
   const t = TEAM_BY_ID[teamId];

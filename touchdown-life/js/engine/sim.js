@@ -1,4 +1,5 @@
 // 시즌 시뮬레이션: 팀 전력, 뎁스 차트 역할, 경기별 스탯 라인, 포스트시즌, 결승 중계 대본.
+import { diffOf } from './difficulty.js';
 import { clamp, gauss, pick, rng, round1, sum, POSITIONS, overall, LEVEL_AVG, superBowlName, hash01 } from './core.js';
 import { TEAMS, TEAM_BY_ID, CFL_TEAMS } from '../data/teams.js';
 import { COLLEGES, COLLEGE_BY_ID } from '../data/colleges.js';
@@ -27,7 +28,7 @@ function amateurDepth(s, r) {
 // 역할: 내 OVR(감독 신뢰 보정)과 경쟁자 비교. kickru식 '차이 → 역할'에 순위 개념을 더했습니다.
 export function computeRole(s, r, incumbents) {
   const p = s.player, n = STARTER_SLOTS[p.pos];
-  const eff = p.ovr + (s.meters.trust - 50) * .08 + (s.seasonMods?.playing || 0) * 20;
+  const eff = p.ovr + (s.meters.trust - 50) * .08 + (s.seasonMods?.playing || 0) * 20 + diffOf(s).role;
   const better = incumbents.filter(v => v > eff).length;
   if (s.redshirt) return 'redshirt';
   if (better === 0 && eff >= (incumbents[0] ?? 0) + 3 && p.ovr >= (s.stage === 'nfl' ? 84 : 0)) return 'key';
@@ -91,7 +92,7 @@ export function injuryChance(s, plan = s.training) {
   const facility = 1 - .1 * (s.shop?.facilities?.recovery || 0);
   const prone = s.player.injuryProne ? 1.35 : 1;
   const age = s.player.age >= 31 ? 1 + (s.player.age - 30) * .06 : 1;
-  return clamp(base * (1 + (s.meters.body || 0) * .08) * staff * facility * prone * age + (s.seasonMods?.injury || 0), .02, .6);
+  return clamp(base * (1 + (s.meters.body || 0) * .08) * staff * facility * prone * age * diffOf(s).injury + (s.seasonMods?.injury || 0), .02, .6);
 }
 
 export function startSeasonSim(s) {
@@ -245,7 +246,7 @@ export function playGame(s, r, g, round = null) {
   if (!out && ['backup', 'special', 'redshirt'].includes(z.role) && r() < .12) snap = Math.max(snap, .5);
   const oppAdj = (g.oppStr - 50) * .12;
   const levelAvg = (z.key === 'NFL' ? LEVEL_AVG.NFL : z.key === 'CFL' ? LEVEL_AVG.CFL : z.teamAvg) + oppAdj;
-  const form = gauss(r) * 2.2 + (s.seasonMods?.perf || 0) * 1.5 + (s.hot || 0) + (s.shop?.staff?.mental ? .6 : 0);
+  const form = gauss(r) * 2.2 + (s.seasonMods?.perf || 0) * 1.5 + (s.hot || 0) + (s.shop?.staff?.mental ? .6 : 0) + diffOf(s).form;
   const rr = p.ovr + form - levelAvg;
   let L = snap > 0 ? positionLine(s, r, rr, snap) : {};
   // 투웨이 선수: 반대쪽 포지션 라인도 함께.

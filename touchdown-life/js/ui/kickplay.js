@@ -3,10 +3,11 @@
 // 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
 // 컴퓨터(키보드)에서는 같은 조준선·파워 막대를 키로: A·D(←·→)로 방향, Space를 꾹 눌러 힘을 모았다가 떼면 킥.
 // cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
-//        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
+//        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint, diff(난이도의 kick 값, 없으면 노말) }
 import { pixelText, bigText, vivid, shade, lum, OUT } from './pixel.js';
 import { playerSprite, SKINS } from './sprites.js';
 import { isKeyMode, onInputMode, keyName, typing } from './input.js';
+import { DIFFICULTY } from '../engine/difficulty.js';
 const RES = 2; // 캔버스는 화면 논리 크기의 2배 해상도 (선수 도트를 더 촘촘하게)
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
@@ -19,6 +20,7 @@ const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); 
 export class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
+    this.dif = { ...DIFFICULTY.normal.kick, ...(cfg.diff || {}) }; // 난이도: 흔들림·러셔 시간·과한 힘 벌점
     host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div><div class="kp-keys" hidden><kbd class="kc">A</kbd><kbd class="kc">D</kbd> 방향 · <kbd class="kc">Space</kbd> 꾹 → 떼기</div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
@@ -48,7 +50,7 @@ export class KickPlay {
   }
   snap() {
     this.phase = 'pre'; this.t = -.9; this.msg = ''; this.msgT = 0;
-    this.rushT = this.fg ? 3.2 : 2.8;
+    this.rushT = (this.fg ? 3.2 : 2.8) + this.dif.rush;
     return new Promise(res => { this.done = res; });
   }
   pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
@@ -94,7 +96,7 @@ export class KickPlay {
     const over = Math.max(0, p - 1), pp = Math.min(1, p);
     const maxR = this.fg ? 47 + (kpow - 50) * .55 : 47 + (kpow - 50) * .45 + (pnt - 60) * .15;
     let err = this.fg ? clamp(1.75 - kacc * .013, .35, 1.6) : clamp(2.6 - pnt * .018, .6, 2.4);
-    err *= (1 + over * 7) * (1.12 - cons * .0025) * (c.last ? clamp(1.35 - poise * .005, .85, 1.3) : 1);
+    err *= (1 + over * 7 * this.dif.over) * (1.12 - cons * .0025) * (c.last ? clamp(1.35 - poise * .005, .85, 1.3) : 1) * this.dif.err;
     const ang = phi + gauss() * err * Math.PI / 180;
     const th = ((this.fg ? 34 : 55) - over * 14) * Math.PI / 180;
     const range = maxR * (.38 + .62 * pp) * (1 - over * .1);

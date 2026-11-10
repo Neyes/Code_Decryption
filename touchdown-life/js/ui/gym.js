@@ -6,6 +6,7 @@ import { bigText, pixelText, vivid, shade, lum, OUT } from './pixel.js';
 import { playerSprite, SKINS } from './sprites.js';
 import { ATTR } from '../engine/core.js';
 import { isKeyMode, onInputMode, keyName, typing } from './input.js';
+import { diffOf } from '../engine/difficulty.js';
 import { EXERCISES, GYM_TIERS, MAX_SETS, gymTier, gymState, gymDayLabel, exerciseAttr, exerciseName, canExercise, finishExercise, gradeOf } from '../engine/gym.js';
 
 const W = 240, H = 124, R = Math.random, clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -88,7 +89,8 @@ class Gym {
     const ex = EXERCISES.find(e => e.id === id), s = this.s, k = exerciseAttr(s, ex), a = s.player.attrs[k] ?? 60;
     if (!canExercise(s, ex).ok) return;
     const boost = 1 + (a - 60) * .004; // 능력치가 높을수록 조금 쉬워짐
-    const g = this.game = { ex, kind: ex.kind, t: 0, phase: 'ready', ready: 1.2, boost, score: 0, n: 0, dir: null };
+    const dw = diffOf(s).gymWin; // 난이도: 판정 구간·제한 시간 배율 (쉬움 1.2 · 노말 1 · 하드 0.85)
+    const g = this.game = { ex, kind: ex.kind, t: 0, phase: 'ready', ready: 1.2, boost, dw, score: 0, n: 0, dir: null };
     if (g.kind === 'mash') Object.assign(g, { dur: 5, meter: 0, reps: 0 });
     if (g.kind === 'timing') Object.assign(g, { total: 5, rep: 0, needle: 0, nt: 0, pause: 0, scores: [] });
     if (g.kind === 'alt') Object.assign(g, { dist: 0, lastFoot: null, cap: 9 });
@@ -97,10 +99,10 @@ class Gym {
     if (g.kind === 'targets') Object.assign(g, { total: 12, i: -1, cell: -1, left: 0, gap: .2, hits: 0 });
     const pads = {
       mash: `<button class="gym-pad big" data-pad="push">밀어!</button>`,
-      timing: `<div class="gym-gauge"><div class="z green"></div><div class="z gold"></div><i id="gy-needle"></i></div><button class="gym-pad big" data-pad="tap">앉았다 일어나기!</button>`,
+      timing: `<div class="gym-gauge"><div class="z green" style="bottom:${(76 - 10 * dw).toFixed(1)}%;height:${(20 * dw).toFixed(1)}%"></div><div class="z gold" style="bottom:${(77 - 3 * dw).toFixed(1)}%;height:${(6 * dw).toFixed(1)}%"></div><i id="gy-needle"></i></div><button class="gym-pad big" data-pad="tap">앉았다 일어나기!</button>`,
       alt: `<div class="row"><button class="gym-pad" data-pad="L">왼발</button><button class="gym-pad" data-pad="R">오른발</button></div>`,
       arrows: `<p class="gym-prompt" id="gy-prompt">…</p><div class="gym-cross"><span></span><button class="gym-pad" data-pad="up">↑</button><span></span><button class="gym-pad" data-pad="left">←</button><span></span><button class="gym-pad" data-pad="right">→</button><span></span><button class="gym-pad" data-pad="down">↓</button><span></span></div>`,
-      charge: `<div class="gym-bar"><div class="z green"></div><div class="z gold"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
+      charge: `<div class="gym-bar"><div class="z green" style="left:${((.85 - .1 * dw) / 1.2 * 100).toFixed(1)}%;width:${((.1 * dw + .1 + (dw - 1) * .1) / 1.2 * 100).toFixed(1)}%"></div><div class="z gold" style="left:${((.85 - .03 * dw) / 1.2 * 100).toFixed(1)}%;width:${(.06 * dw / 1.2 * 100).toFixed(1)}%"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
       targets: `<div class="gym-grid">${Array.from({ length: 9 }, (_, i) => `<button class="gym-cell" data-pad="c${i}"></button>`).join('')}</div>`,
     }[g.kind];
     this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how" data-how="${ex.id}" data-pre="">${esc(howOf(ex))}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
@@ -133,20 +135,20 @@ class Gym {
     const g = this.game; if (!g || g.phase !== 'play') return;
     if (g.kind === 'charge' && pad === 'hold') { if (g.scores.length >= g.total) return; if (down && !g.holding && g.hop <= 0) { g.holding = true; g.charge = 0; } else if (!down && g.holding) this.releaseJump(); return; }
     if (!down) return;
-    if (g.kind === 'mash' && pad === 'push') g.meter += .18 * g.boost;
+    if (g.kind === 'mash' && pad === 'push') g.meter += .18 * g.boost * g.dw;
     if (g.kind === 'timing' && pad === 'tap' && g.pause <= 0) {
-      const v = g.needle, sc = v >= .74 && v <= .8 ? 1.25 : v >= .66 && v <= .86 ? .95 : v >= .58 && v <= .92 ? .5 : .15;
+      const v = g.needle, off = Math.abs(v - .77) / g.dw, sc = off <= .03 ? 1.25 : Math.abs(v - .76) / g.dw <= .1 ? .95 : Math.abs(v - .75) / g.dw <= .17 ? .5 : .15;
       g.scores.push(sc); g.pause = .5; g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .9 ? 'GOOD' : sc >= .5 ? 'OK' : 'MISS';
       if (g.scores.length >= g.total) this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}회 완벽`);
     }
-    if (g.kind === 'alt' && (pad === 'L' || pad === 'R')) { g.dist += (pad !== g.lastFoot ? 1.05 : .25) * g.boost; g.lastFoot = pad; g.step = .12; }
+    if (g.kind === 'alt' && (pad === 'L' || pad === 'R')) { g.dist += (pad !== g.lastFoot ? 1.05 : .25) * g.boost * g.dw; g.lastFoot = pad; g.step = .12; }
     if (g.kind === 'arrows' && DIRS[pad] && g.dir) { if (pad === g.dir) { g.hits++; g.score += 1 + .3 * (g.left / g.win); g.flash = 'GOOD'; } else g.flash = 'MISS'; g.dir = null; g.left = g.gap; }
     if (g.kind === 'targets' && pad.startsWith('c') && g.cell >= 0) { if (+pad.slice(1) === g.cell) { g.hits++; g.flash = 'HIT'; } else g.flash = 'MISS'; this.setCell(-1); g.left = g.gap; }
   }
   releaseJump() {
     const g = this.game, v = g.charge; g.holding = false;
-    const sc = v > .95 ? .2 : v >= .82 && v <= .88 ? 1.25 : v >= .75 ? 1 - Math.abs(v - .85) * 2 : v * .8;
-    g.scores.push(sc); g.hop = .7; g.hopH = clamp(v, 0, .95); g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .85 ? 'GOOD' : v > .95 ? 'OVER!' : 'LOW';
+    const over = .95 + (g.dw - 1) * .1, sc = v > over ? .2 : Math.abs(v - .85) <= .03 * g.dw ? 1.25 : v >= .85 - .1 * g.dw ? 1 - Math.abs(v - .85) * 2 : v * .8;
+    g.scores.push(sc); g.hop = .7; g.hopH = clamp(v, 0, over); g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .85 ? 'GOOD' : v > over ? 'OVER!' : 'LOW';
     if (g.scores.length >= g.total) setTimeout(() => this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}번 완벽`), 650);
   }
   setCell(i) { const g = this.game; g.cell = i; this.root.querySelectorAll('.gym-cell').forEach((b, j) => b.classList.toggle('on', j === i)); }
@@ -179,7 +181,7 @@ class Gym {
       if (g.left <= 0) {
         if (g.dir) { g.dir = null; g.flash = 'SLOW'; g.left = g.gap; }
         else if (g.i + 1 >= g.total) return this.end(g.score / g.total, `${g.hits}/${g.total} 성공`);
-        else { g.i++; g.dir = ['up', 'left', 'right', 'down'][Math.floor(R() * 4)]; g.win = g.left = (1.15 - g.i * .05) * (g.boost > 1 ? 1.05 : 1); }
+        else { g.i++; g.dir = ['up', 'left', 'right', 'down'][Math.floor(R() * 4)]; g.win = g.left = (1.15 - g.i * .05) * (g.boost > 1 ? 1.05 : 1) * g.dw; }
       }
       stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 성공 ${g.hits}`;
       const pr = this.$('gy-prompt'); if (pr) { const v = g.dir ? DIRS[g.dir] : '·'; if (pr.textContent !== v) { pr.textContent = v; pr.dataset.dir = g.dir || ''; } }
@@ -195,7 +197,7 @@ class Gym {
       if (g.left <= 0) {
         if (g.cell >= 0) { this.setCell(-1); g.flash = 'SLOW'; g.left = g.gap; }
         else if (g.i + 1 >= g.total) return this.end(g.hits / g.total * 1.15, `${g.hits}/${g.total} 명중`);
-        else { g.i++; let c; do c = Math.floor(R() * 9); while (c === g.prev); g.prev = c; this.setCell(c); g.left = (1 - g.i * .04) * (g.boost > 1 ? 1.05 : 1); }
+        else { g.i++; let c; do c = Math.floor(R() * 9); while (c === g.prev); g.prev = c; this.setCell(c); g.left = (1 - g.i * .04) * (g.boost > 1 ? 1.05 : 1) * g.dw; }
       }
       stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 명중 ${g.hits}`;
     }

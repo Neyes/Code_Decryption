@@ -3,6 +3,7 @@
 // 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js · playbook.js). 코치 추천과 상대 정렬 읽기도 있습니다.
 // 키커·펀터: 키커 뒤 시점에서 위로 쓸어 올려 찹니다 (kickplay.js). 4번째 다운·2점 컨버전도 직접 정합니다.
 import { POSITIONS, LEVEL_AVG, clamp } from '../engine/core.js';
+import { DIFFICULTY } from '../engine/difficulty.js';
 import { LivePlay } from './liveplay.js';
 import { KickPlay } from './kickplay.js';
 import { isKeyMode, onInputMode, keyName, typing } from './input.js';
@@ -55,6 +56,7 @@ export function openClutch(root, ctx) {
 class Clutch {
   constructor(root, c, done) {
     this.root = root; this.c = c; this.done = done;
+    this.D = c.diff || DIFFICULTY.normal; // 난이도 (main.js에서 커리어의 난이도를 넘깁니다)
     const p = c.player, g = c.game;
     this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.control = CONTROL[p.pos];
     this.mode = p.pos === 'K' ? 'kick' : p.pos === 'P' ? 'punt' : this.side === 'D' ? 'defense' : 'offense';
@@ -65,7 +67,7 @@ class Clutch {
     this.oppColors = c.oppColors;
     this.lastForm = FORM0[this.pos] || 'gun_dbl'; this.lastDefForm = 'd43';
     // 미니게임 밖에서 쌓이는 양 팀 점수 (쿼터별로 나눠 전광판에 반영)
-    const myStr = g.myStr ?? 60, oppStr = g.oppStr ?? 60;
+    const myStr = (g.myStr ?? 60) + this.D.live.edge, oppStr = g.oppStr ?? 60; // 직접 뛰지 않는 장면의 전력: 난이도 보정
     const td = x => Math.max(0, Math.round(x)) * 7;
     this.restFor = this.mode === 'offense' ? td(.5 + (myStr - oppStr) * .02 + R() * 1.2) : this.mode === 'kick' ? td(1.6 + (myStr - oppStr) * .03 + R() * 1.4) : td(1.8 + (myStr - oppStr) * .03 + R() * 1.6);
     this.restAgainst = this.mode === 'defense' ? td(.5 + (oppStr - myStr) * .02 + R() * 1.2) : td(1.6 + (oppStr - myStr) * .03 + R() * 1.6);
@@ -102,7 +104,7 @@ class Clutch {
     const c = this.c;
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
       <div class="cl-top"><div class="cl-team"><b id="cl-pf">0</b><small>${esc(c.myName)}</small></div>
-        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
+        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span><span class="diff-badge" style="--dc:${this.D.color}">${this.D.tag}</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
         <div class="cl-team opp"><b id="cl-pa">0</b><small>${esc(c.oppName)}</small></div></div>
       <div class="cl-stage"><div id="cl-live" class="cl-live"></div>
         <div id="cl-panel" class="cl-panel"><p id="cl-msg" class="cl-msg"></p><div id="cl-actions" class="cl-actions"></div><button class="cl-auto" data-cl="auto">자동으로 마무리</button></div></div></div>`;
@@ -135,14 +137,14 @@ class Clutch {
   // ───────── 실시간 필드 ─────────
   liveCfg(extra = {}) {
     const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
-    const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
+    const lvl = c.levelAvg, L = this.D.live, myR = lvl + ((g.myStr ?? 60) - 60) * .12 + L.mate, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12 + L.opp; // 우리 팀·상대 AI 수준: 난이도 보정
     return {
       ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, control: this.control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
       me: { attrs: this.p.attrs, ovr: this.p.ovr, number: this.p.number }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
       offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
       endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
       away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
-      banner: this.banner(), ...extra,
+      banner: this.banner(), diff: L, ...extra,
     };
   }
   // 스냅 전 양 팀 정렬을 바로 보여 줍니다.
@@ -319,11 +321,11 @@ class Clutch {
   kickSetup(story, last) {
     const dists = this.final ? [36, 44, 49, 53] : [33, 42, 48];
     const dist = dists[this.drive] ?? 45;
-    const wind = Math.round((R() - .5) * 24);
+    const wind = Math.round((R() - .5) * 24 * this.D.kick.wind);
     this.d = { ball: 100 - (dist - 17), down: 4, toGo: 3, first: 103, goal: false };
     this.board(`${dist}야드 필드골`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, diff: this.D.kick });
     this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
@@ -339,11 +341,11 @@ class Clutch {
   }
   // ───────── 펀터 ─────────
   puntSetup(story) {
-    const start = 22 + Math.floor(R() * 18), wind = Math.round((R() - .5) * 20);
+    const start = 22 + Math.floor(R() * 18), wind = Math.round((R() - .5) * 20 * this.D.kick.wind);
     this.d = { ball: start, down: 4, toGo: 6, first: start + 6, goal: false };
     this.board(`4th & 6 · ${this.spot(start)}`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, diff: this.D.kick });
     this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {

@@ -511,6 +511,14 @@ kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { displa
 .gym-ex strong kbd.gk { margin-right: 6px; vertical-align: 2px; }
 .gym-x kbd.gk, .gym-result .primary kbd.gk { margin-left: 6px; vertical-align: 1px; }
 
+/* ───────── 난이도 ───────── */
+.diff-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font: 800 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; color: #fff; background: var(--dc, #2F6FD6); vertical-align: 1px; }
+.diff-list { display: grid; gap: 8px; margin-top: 10px; }
+.diff-opt { text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 11px 13px; display: grid; gap: 3px; }
+.diff-opt strong { font-size: 15px; }
+.diff-opt .sub { font-size: 12.5px; color: var(--muted); }
+.diff-opt.on { border-color: var(--dc); box-shadow: inset 0 0 0 1px var(--dc); background: color-mix(in srgb, var(--dc) 9%, var(--surface)); }
+
 </style>
   <script>try{var t=localStorage.getItem('tdlife.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
   
@@ -1048,8 +1056,73 @@ function addPlayerToTeam(league, teamId, row) { league.teams[teamId].p.push(row)
 
 return { START_YEAR, ROSTER_NEED, STARTER_SLOTS, randomName, displayName, buildLeague, depth, rosterRating, teamPower, contenderLabel, leagueTop, evolveLeague, seasonInjuries, addPlayerToTeam };
 });
+__def("js/engine/difficulty.js", function () {
+// 난이도: 쉬움 · 노말 · 하드(리얼리스틱). 커리어마다 s.difficulty에 저장하고 설정에서 바꿀 수 있습니다.
+// 노말은 기준 밸런스(값이 없는 예전 저장도 노말)입니다. 쉬움은 성장·확률·판정을 넉넉하게,
+// 하드는 성장 속도·드래프트 확률·직접 플레이를 현실에 가깝게 맞춥니다 (tools/simulate.mjs로 맞춘 값).
+//
+// 커리어(엔진)
+//   growth 성장량 배율 · pro 프로(NFL·CFL)에서의 성장량 추가 배율 · stall 한 능력치가 정체할 확률 · breakout 급성장 확률 배율 · decline 노쇠 배율
+//   scout 드래프트·FA 평가 보정(점) · recruit 고교 리크루팅 평가 보정(점, 없으면 scout) · chance 선택 카드 성공 확률 보정(%p) · injury 부상 확률 배율
+//   role 주전 경쟁에서 내 평가 보정(OVR점) · form 경기력 보정(OVR점) · income 수입 배율 · gym 헬스장 상승량 배율
+//   cut 방출 확률 배율 · cutBackup 젊은 백업도 방출될 수 있음 · udfaMin 언드래프티 전화가 오는 최소 OVR · psMin 연습생 제안 최소 OVR · psMax 연습생으로 버틸 수 있는 시즌 수 · cflMin CFL 제안 최소 OVR (0 = 제한 없음)
+// 직접 플레이(live: 실시간 필드)
+//   mate·opp 우리 팀·상대 AI 능력치 보정 · edge 직접 뛰지 않는 장면의 전력 보정
+//   reach 내 캐치 범위 보너스(야드) · catchP 내 캐치 확률 보정 · throwErr 내 패스 오차 배율
+//   pocket 포켓 시간 보정(초, 내 쪽에 유리한 방향) · skill 기술(스핀·페이크·잼·펌프 등) 성공 확률 보정
+//   cd 기술 재사용 대기 배율 · breakP 태클 대결 보정(내가 뚫을 때 +, 내가 태클할 때 상대에게 −)
+//   myTackle 내 태클 범위 보정(야드) · aiDive 상대 다이브 태클 빈도 배율 · aiInt 상대의 인터셉트·팁 확률 배율
+//   myInt 내 인터셉트 확률 보정 · fumble 내 펌블 확률 배율 · assist 손을 뗐을 때 AI가 대신 뛰어 주는 정도 배율
+//   callWait 패스 콜 뒤 쿼터백이 던지기까지 배율 · disguise 상대가 커버리지를 숨길 확률 · openHint 리시버 열림 색 표시
+//   coverSpd 상대 커버 속도 배율 · coverLag 맨 커버가 늦게 따라오는 정도 배율 · react 뜬 공에 반응하는 지연 배율 · pursue 볼 캐리어 추격 속도 배율
+// 킥(kick): err 흔들림 배율 · rush 러셔 도착 시간 보정(초) · over 너무 세게 찼을 때 벌점 배율 · wind 바람 배율
+// 헬스장 미니게임(gymWin): 판정 구간·제한 시간 배율
+const DIFFICULTY = {
+  easy: {
+    id: 'easy', name: '쉬움', tag: 'EASY', color: '#3BB273',
+    blurb: '성장이 빠르고 선택지 확률이 높아요. 직접 플레이는 판정이 넉넉하고 상대가 약해요.',
+    growth: 1.1, pro: 1, stall: .17, breakout: 1.2, decline: .9, scout: 1.5, recruit: 1.5, chance: 8, injury: .7, role: 1.5, form: .7, income: 1.2, gym: 1.3, cut: .7, cutBackup: false, udfaMin: 0, psMin: 0, psMax: 99, cflMin: 0,
+    live: { mate: 2, opp: -3, edge: 6, reach: .5, catchP: .07, throwErr: .7, pocket: .6, skill: .15, cd: .8, breakP: .08, myTackle: .3, aiDive: .75, aiInt: .55, myInt: .12, fumble: .5, assist: 1.3, callWait: .7, disguise: .08, openHint: true, coverSpd: .96, coverLag: 1.35, react: 1.3, pursue: .98 },
+    kick: { err: .7, rush: .8, over: .6, wind: .5 },
+    gymWin: 1.2,
+  },
+  normal: {
+    id: 'normal', name: '노말', tag: 'NORMAL', color: '#2F6FD6',
+    blurb: '기준 밸런스예요. 쉬움보다 빡빡하지만 잘 키우면 프로에서 스타가 될 수 있어요.',
+    growth: 1, pro: 1, stall: .22, breakout: 1, decline: 1, scout: 0, recruit: 0, chance: 0, injury: 1, role: 0, form: 0, income: 1, gym: 1, cut: 1, cutBackup: false, udfaMin: 0, psMin: 0, psMax: 99, cflMin: 0,
+    live: { mate: 0, opp: 0, edge: 0, reach: .25, catchP: 0, throwErr: 1, pocket: 0, skill: 0, cd: 1, breakP: 0, myTackle: 0, aiDive: 1, aiInt: 1, myInt: 0, fumble: 1, assist: 1, callWait: 1, disguise: .22, openHint: true, coverSpd: 1, coverLag: 1, react: 1, pursue: 1 },
+    kick: { err: 1, rush: 0, over: 1, wind: 1 },
+    gymWin: 1,
+  },
+  hard: {
+    id: 'hard', name: '하드 (리얼리스틱)', tag: 'REAL', color: '#D9483B',
+    blurb: '성장 속도·NFL 드래프트 확률·직접 플레이가 현실에 가까워요. 대부분은 프로에 가지 못해요.',
+    growth: .72, pro: .6, stall: .3, breakout: .45, decline: 1.15, scout: -9, recruit: -3, chance: -8, injury: 1.3, role: -4, form: -2.5, income: .85, gym: .7, cut: 2, cutBackup: true, udfaMin: 65, psMin: 66, psMax: 1, cflMin: 56,
+    live: { mate: 0, opp: 4, edge: -4, reach: 0, catchP: -.04, throwErr: 1.35, pocket: -.5, skill: -.08, cd: 1.2, breakP: -.05, myTackle: -.1, aiDive: 1.3, aiInt: 1.2, myInt: -.08, fumble: 1.25, assist: .6, callWait: 1.35, disguise: .38, openHint: false, coverSpd: 1.05, coverLag: .5, react: .65, pursue: 1.05 },
+    kick: { err: 1.3, rush: -.45, over: 1.4, wind: 1.35 },
+    gymWin: .85,
+  },
+};
+const DIFF_ORDER = ['easy', 'normal', 'hard'];
+const DIFF_DEFAULT = 'normal';
+const diffId = s => (DIFFICULTY[s?.difficulty] ? s.difficulty : DIFF_DEFAULT);
+const diffOf = s => DIFFICULTY[diffId(s)];
+// 커리어 도중 난이도를 바꾸면, 기록에는 그동안 쓴 가장 쉬운 난이도가 남습니다.
+function setDifficulty(s, id) {
+  if (!DIFFICULTY[id]) throw Error('없는 난이도입니다.');
+  const before = diffId(s);
+  s.difficulty = id;
+  const low = DIFF_ORDER[Math.min(DIFF_ORDER.indexOf(s.diffLow ?? before), DIFF_ORDER.indexOf(id))];
+  s.diffLow = low;
+  return s;
+}
+const diffLowest = s => DIFFICULTY[s?.diffLow] ? s.diffLow : diffId(s);
+
+return { DIFFICULTY, DIFF_ORDER, DIFF_DEFAULT, diffId, diffOf, diffLowest, setDifficulty };
+});
 __def("js/engine/sim.js", function () {
 // 시즌 시뮬레이션: 팀 전력, 뎁스 차트 역할, 경기별 스탯 라인, 포스트시즌, 결승 중계 대본.
+const { diffOf } = __req("js/engine/difficulty.js");
 const { clamp, gauss, pick, rng, round1, sum, POSITIONS, overall, LEVEL_AVG, superBowlName, hash01 } = __req("js/engine/core.js");
 const { TEAMS, TEAM_BY_ID, CFL_TEAMS } = __req("js/data/teams.js");
 const { COLLEGES, COLLEGE_BY_ID } = __req("js/data/colleges.js");
@@ -1078,7 +1151,7 @@ function amateurDepth(s, r) {
 // 역할: 내 OVR(감독 신뢰 보정)과 경쟁자 비교. kickru식 '차이 → 역할'에 순위 개념을 더했습니다.
 function computeRole(s, r, incumbents) {
   const p = s.player, n = STARTER_SLOTS[p.pos];
-  const eff = p.ovr + (s.meters.trust - 50) * .08 + (s.seasonMods?.playing || 0) * 20;
+  const eff = p.ovr + (s.meters.trust - 50) * .08 + (s.seasonMods?.playing || 0) * 20 + diffOf(s).role;
   const better = incumbents.filter(v => v > eff).length;
   if (s.redshirt) return 'redshirt';
   if (better === 0 && eff >= (incumbents[0] ?? 0) + 3 && p.ovr >= (s.stage === 'nfl' ? 84 : 0)) return 'key';
@@ -1142,7 +1215,7 @@ function injuryChance(s, plan = s.training) {
   const facility = 1 - .1 * (s.shop?.facilities?.recovery || 0);
   const prone = s.player.injuryProne ? 1.35 : 1;
   const age = s.player.age >= 31 ? 1 + (s.player.age - 30) * .06 : 1;
-  return clamp(base * (1 + (s.meters.body || 0) * .08) * staff * facility * prone * age + (s.seasonMods?.injury || 0), .02, .6);
+  return clamp(base * (1 + (s.meters.body || 0) * .08) * staff * facility * prone * age * diffOf(s).injury + (s.seasonMods?.injury || 0), .02, .6);
 }
 
 function startSeasonSim(s) {
@@ -1296,7 +1369,7 @@ function playGame(s, r, g, round = null) {
   if (!out && ['backup', 'special', 'redshirt'].includes(z.role) && r() < .12) snap = Math.max(snap, .5);
   const oppAdj = (g.oppStr - 50) * .12;
   const levelAvg = (z.key === 'NFL' ? LEVEL_AVG.NFL : z.key === 'CFL' ? LEVEL_AVG.CFL : z.teamAvg) + oppAdj;
-  const form = gauss(r) * 2.2 + (s.seasonMods?.perf || 0) * 1.5 + (s.hot || 0) + (s.shop?.staff?.mental ? .6 : 0);
+  const form = gauss(r) * 2.2 + (s.seasonMods?.perf || 0) * 1.5 + (s.hot || 0) + (s.shop?.staff?.mental ? .6 : 0) + diffOf(s).form;
   const rr = p.ovr + form - levelAvg;
   let L = snap > 0 ? positionLine(s, r, rr, snap) : {};
   // 투웨이 선수: 반대쪽 포지션 라인도 함께.
@@ -1678,6 +1751,7 @@ __def("js/engine/events.js", function () {
 // 시즌 중 선택 카드. 선택지마다 성공 확률이 보이고, 그 확률 그대로 굴립니다.
 // when: stage, pos(포지션 목록) / side(O·D·ST), ageMin/ageMax, roleIn(역할 목록), seg(구간), nat, flagsAll/flagsNone, minOvr, form, first(첫 시즌)
 // 효과 fx: meters{trust,locker,media,front,body}, attrs{키:증감 | main/phys/mental}, season{playing,perf,injury}, money, followers(배수), flags/unflags
+const { diffOf } = __req("js/engine/difficulty.js");
 const { clamp, pick, POSITIONS, attrsOf, overall, ATTR, usd } = __req("js/engine/core.js");
 
 const METERS = { trust: '감독 신뢰', locker: '라커룸', media: '팬·언론', front: '구단 관계', body: '누적 피로' };
@@ -2086,7 +2160,7 @@ function matches(s, c, seg) {
 }
 function chanceOf(s, ch) {
   const m = ch.meter ? (s.meters[ch.meter] ?? 50) - (ch.meter === 'body' ? 0 : 50) : 0;
-  return clamp(Math.round(ch.base + m * (ch.per || 0)), 5, 95);
+  return clamp(Math.round(ch.base + m * (ch.per || 0) + diffOf(s).chance), 5, 95);
 }
 function drawCard(s, r, seg) {
   const seen = new Set(s.cardsSeen || []);
@@ -2509,6 +2583,7 @@ const { seasonScore, nflAwards, collegeAwards, hsAwards, cflAwards, careerScore,
 const { drawCard, resolveCard } = __req("js/engine/events.js");
 const { socialSeason, ensureSocial } = __req("js/engine/social.js");
 const { refreshStock, staffFees, growthBonus, declineFactor, agentBoost, expireStaff } = __req("js/engine/shop.js");
+const { DIFFICULTY, DIFF_DEFAULT, diffOf } = __req("js/engine/difficulty.js");
 const { applyProgram, interviewFor, runOlympics } = __req("js/engine/extras.js");
 
 const SAVE_VERSION = 1;
@@ -2548,7 +2623,8 @@ function createCareer(cfg) {
   if (!Number.isInteger(number) || number < 0 || number > 99) throw Error('등번호는 0~99입니다.');
   if (!cfg.attrs || attrsOf(cfg.pos).some(k => typeof cfg.attrs[k] !== 'number')) throw Error('플레이 스타일 후보를 고르세요.');
   const seed = hash(cfg.seed ?? `${Date.now()}:${name}:${Math.random()}`);
-  const s = { v: SAVE_VERSION, id: `career-${seed}`, seed, rng: seed, createdAt: new Date().toISOString(), startYear: START_YEAR, year: START_YEAR, phase: 'ready', stage: 'hs', grade: 10, collegeYear: 0, redshirtUsed: false, redshirt: false, proSeasons: 0 };
+  const difficulty = DIFFICULTY[cfg.difficulty] ? cfg.difficulty : DIFF_DEFAULT;
+  const s = { v: SAVE_VERSION, id: `career-${seed}`, seed, rng: seed, difficulty, diffLow: difficulty, createdAt: new Date().toISOString(), startYear: START_YEAR, year: START_YEAR, phase: 'ready', stage: 'hs', grade: 10, collegeYear: 0, redshirtUsed: false, redshirt: false, proSeasons: 0 };
   const r = rng(s), school = SCHOOL_BY_ID[cfg.schoolId];
   const u = clamp(r(), .001, .999);
   const potential = clamp(Math.round(80 + 4.6 * Math.log(u / (1 - u))), 62, 97);
@@ -2684,20 +2760,20 @@ function grow(s, r, rec) {
   const env = s.stage === 'hs' ? .94 + SCHOOL_BY_ID[s.team.id].prestige * .0009 : s.stage === 'college' ? .93 + COLLEGE_BY_ID[s.team.id].prestige * .0011 : s.stage === 'nfl' ? 1.05 : .95;
   const plan = s.training === 'intense' ? 1.12 : s.training === 'recovery' ? .86 : 1;
   const pro = s.stage === 'nfl' || s.stage === 'cfl', wall = p.wall && pro ? .55 : 1;
-  const bonus = growthBonus(s);
+  const bonus = growthBonus(s), D = diffOf(s);
   const lateAge = p.lateBloomer && age >= 22 && age <= 27 ? 2.5 : 0;
   const gains = {};
   for (const k of keys) {
     const focus = p.focus.includes(k) ? 1.5 * (s.training === 'intense' ? 1.12 : 1) * bonus.focus : .85;
     const room = clamp((99 - p.attrs[k]) / 40, 0, 1);
-    const stall = r() < .22 ? .2 : 1;
-    let g = baseAt(Math.round(age - lateAge), k) * talentSpeed(p) * play * perf * env * plan * focus * room * wall * bonus.mult * stall * (.6 + r() * .8);
+    const stall = r() < D.stall ? .2 : 1;
+    let g = baseAt(Math.round(age - lateAge), k) * talentSpeed(p) * play * perf * env * plan * focus * room * wall * bonus.mult * stall * (.6 + r() * .8) * D.growth * (pro ? D.pro ?? 1 : 1);
     gains[k] = g;
   }
   // 급등: 시즌당 최대 하나.
   const breakoutP = s.stage === 'hs' ? .45 : s.stage === 'college' ? .3 : s.proSeasons <= 3 ? .18 : age < 29 ? (p.lateBloomer ? .14 : .05) : 0;
   let breakout = null;
-  if (r() < breakoutP * (p.wall && pro ? .5 : 1)) {
+  if (r() < breakoutP * (p.wall && pro ? .5 : 1) * D.breakout) {
     const k = weighted(r, keys.map(k => [k, (p.focus.includes(k) ? 2 : 1) * w[k] * clamp((99 - p.attrs[k]) / 40, 0, 1)]));
     if (k) { gains[k] += 3.5 + r() * 3.5; breakout = k; }
   }
@@ -2706,7 +2782,7 @@ function grow(s, r, rec) {
   if (yrs > 0) {
     const nut = declineFactor(s);
     for (const k of keys) {
-      const loss = (.9 + r() * 1.6) * Math.pow(yrs, .72) * p.agingRate * nut * (MENTAL.has(k) ? .35 : 1) * (['K', 'P'].includes(p.pos) ? .6 : 1);
+      const loss = (.9 + r() * 1.6) * Math.pow(yrs, .72) * p.agingRate * nut * (MENTAL.has(k) ? .35 : 1) * (['K', 'P'].includes(p.pos) ? .6 : 1) * D.decline;
       gains[k] -= loss;
     }
   }
@@ -2797,7 +2873,8 @@ function seasonLabel(s) {
   if (s.stage === 'cfl') return 'CFL';
   return '';
 }
-function seasonIncome(s, rec) {
+function seasonIncome(s, rec) { const o = seasonIncomeBase(s, rec), k = diffOf(s).income; return k === 1 ? o : { ...o, gross: Math.round(o.gross * k), net: Math.round(o.net * k) }; }
+function seasonIncomeBase(s, rec) {
   if (s.stage === 'hs') return { kind: '용돈·아르바이트', gross: 300, net: 300 };
   if (s.stage === 'college') {
     const c = COLLEGE_BY_ID[s.team.id], stars = s.recruiting?.stars || 2;
@@ -2847,7 +2924,7 @@ function chooseTurning(s, optionId, extra = {}) {
     const attrs = convertAttrs(p.attrs, t.to); p.twoWay = { pos: t.to, attrs, ovr: overall(t.to, attrs) };
     text = `${WA(POSITIONS[p.pos].ko)} ${POSITIONS[t.to].ko}${josa(POSITIONS[t.to].ko, '을', '를')} 오가는 투웨이 선수가 됐습니다.`; moment(s, 'turn', text);
   } else if (t.kind === 'potential' && optionId === 'accept') {
-    const ok = r() < .65; p.potential = clamp(p.potential + (ok ? 4 : 1), 60, 99); s.meters.body = clamp(s.meters.body + 1, 0, 10);
+    const ok = r() < .65 + diffOf(s).chance / 100; p.potential = clamp(p.potential + (ok ? 4 : 1), 60, 99); s.meters.body = clamp(s.meters.body + 1, 0, 10);
     text = ok ? '새 프로그램이 몸에 맞았습니다. 성장 속도가 눈에 띄게 빨라질 것 같습니다.' : '적응이 쉽지 않았지만 조금은 얻은 것이 있습니다. 몸이 무겁습니다.';
   } else if (t.kind === 'focus' && optionId === 'choose') {
     const keys = (extra.focus || []).filter(k => p.attrs[k] !== undefined).slice(0, 2);
@@ -2868,7 +2945,7 @@ function recruitProfile(s) {
   const p = s.player, sc = SCHOOL_BY_ID[s.team.id];
   const best = Math.max(0, ...s.history.filter(h => h.stage === 'hs').map(h => h.score));
   const exposure = (sc.prestige - 75) * .08 + (s.flags.includes('campStar') ? 2.5 : 0) + (s.flags.includes('exposure') ? 1.2 : 0) + (s.meters.media - 50) * .03;
-  const v = p.ovr + (best - 70) * .18 + exposure + (p.pos === 'QB' ? .8 : 0) - (['K', 'P'].includes(p.pos) ? 6 : 0);
+  const v = p.ovr + (best - 70) * .18 + exposure + (p.pos === 'QB' ? .8 : 0) - (['K', 'P'].includes(p.pos) ? 6 : 0) + (diffOf(s).recruit ?? diffOf(s).scout);
   const stars = v >= 64 ? 5 : v >= 58 ? 4 : v >= 51 ? 3 : v >= 45 ? 2 : 1;
   const rank = stars === 5 ? clamp(Math.round(33 - (v - 64) * 6), 1, 32) : stars === 4 ? clamp(Math.round(360 - (v - 58) * 54), 33, 360) : stars === 3 ? clamp(Math.round(1500 - (v - 51) * 160), 361, 1500) : null;
   return { stars, rank, value: round1(v) };
@@ -2944,7 +3021,7 @@ function draftProjection(s) {
   const col = s.history.filter(h => h.stage === 'college'), last = col.at(-1);
   const honor = col.reduce((n, h) => n + h.awards.reduce((m, a) => m + a.pts, 0), 0);
   const tierAdj = { P4: 0, G5: -1.5, FCS: -3, JUCO: -4 }[COLLEGE_BY_ID[s.team.id]?.tier] ?? 0;
-  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8 + (s.flags.includes('seniorBowl') ? 1.5 : 0) + (s.flags.includes('interviewAce') ? 1 : 0);
+  const v = p.ovr + posAdj + Math.min(4, honor * .12) + ((last?.score || 65) - 72) * .12 + tierAdj - Math.max(0, p.age - 22) * .8 + (s.flags.includes('seniorBowl') ? 1.5 : 0) + (s.flags.includes('interviewAce') ? 1 : 0) + diffOf(s).scout;
   const pickN = v >= 84 ? 1 + Math.round((88 - Math.min(88, v)) * 1.2) : v >= 63 ? Math.round(5 + Math.pow(84 - v, 1.9) * .9) : 999;
   const pk = clamp(pickN, 1, 999);
   const round = pk <= 257 ? Math.min(7, Math.ceil(pk / 32)) : null;
@@ -3003,7 +3080,7 @@ function offerOption(o, prefix = 'sign') {
 }
 function faOffers(s, r, { exclude = [] } = {}) {
   const teams = TEAMS.map(t => t.id).filter(id => !exclude.includes(id)).sort(() => r() - .5);
-  const p = s.player, interest = clamp((p.ovr - 66) / 20, .02, .85) * (p.age >= 34 ? .35 : p.age >= 31 ? .6 : 1);
+  const p = s.player, interest = clamp((p.ovr - 66 + diffOf(s).scout) / 20, .02, .85) * (p.age >= 34 ? .35 : p.age >= 31 ? .6 : 1);
   const out = [];
   for (const id of teams.slice(0, 16)) { if (out.length >= 5) break; if (r() < interest) { const o = nflOffer(s, r, id); if (o.role !== 'practice' && !(o.role === 'special' && p.age >= 30)) out.push(o); } }
   return out.sort((a, b) => b.aav - a.aav);
@@ -3012,7 +3089,7 @@ function nflPath(s, r, rec) {
   const p = s.player, c = s.contract, opts = [], mv = marketValue(s);
   const retireHint = p.age >= 36 || (p.ovr < 66 && p.age >= 30);
   // 방출 판정: 연습생·스페셜팀으로 시즌을 마쳤고 보장 금액이 없으면.
-  const cut = c && c.yearsLeft > 0 && c.type !== 'tag' && (['practice', 'special'].includes(rec.role) || (rec.role === 'backup' && p.age >= 29)) && (c.type !== 'rookie' || c.round >= 4 || !c.round) && r() < (p.age >= 29 ? .6 : p.age >= 26 ? .5 : .3);
+  const cut = c && c.yearsLeft > 0 && c.type !== 'tag' && (['practice', 'special'].includes(rec.role) || (rec.role === 'backup' && (p.age >= 29 || diffOf(s).cutBackup))) && (c.type !== 'rookie' || c.round >= 4 || !c.round) && r() < (p.age >= 29 ? .6 : p.age >= 26 ? .5 : .3) * diffOf(s).cut * (rec.role === 'backup' && p.age < 29 ? .6 : 1);
   if (cut) { moment(s, 'cut', `${s.team.name}에서 방출됐습니다.`); s.contract = null; return faPath(s, r, '방출 통보', `${I(s.team.name)} 로스터 정리 과정에서 방출을 알려 왔습니다.`); }
   if (s.flags.includes('enlist')) {
     s.flags = s.flags.filter(f => f !== 'enlist');
@@ -3036,8 +3113,8 @@ function faPath(s, r, title, desc) {
     if (p.ovr >= 85 && r() < .5) { const tag = { ...o, kind: 'tag', years: 1, aav: Math.round(POS_MARKET[p.pos] * .82), roleName: o.roleName }; tag.total = tag.aav; tag.guaranteed = tag.aav; opts.push(offerOption(tag, 'tag')); }
   }
   for (const o of faOffers(s, r, { exclude: prevTeam ? [prevTeam] : [] })) opts.push(offerOption(o));
-  if (opts.length < 2 && p.age <= 28) { const id = pick(r, TEAMS).id; opts.push({ id: `ps:${id}`, label: `${TEAM_BY_ID[id].ko} 연습생 계약`, sub: `프랙티스 스쿼드 · 주급 기준 시즌 약 ${usd(PS_SALARY)}`, desc: '53인 로스터 밖에서 기회를 노립니다. 부상자가 생기면 콜업될 수 있습니다.' }); }
-  if (opts.length < 3 && p.ovr >= 58 && p.age <= 36) opts.push({ id: 'cfl', label: 'CFL 계약', sub: `${pick(r, CFL_TEAMS).ko} · 연 ${usd(120e3 + Math.max(0, p.ovr - 60) * 18e3)}`, desc: '캐나다에서 경기를 뛰며 다시 기회를 엿봅니다.' });
+  if (opts.length < 2 && p.age <= 28 && p.ovr >= (diffOf(s).psMin || 0) && (s.psYears || 0) < (diffOf(s).psMax ?? 99)) { const id = pick(r, TEAMS).id; opts.push({ id: `ps:${id}`, label: `${TEAM_BY_ID[id].ko} 연습생 계약`, sub: `프랙티스 스쿼드 · 주급 기준 시즌 약 ${usd(PS_SALARY)}`, desc: '53인 로스터 밖에서 기회를 노립니다. 부상자가 생기면 콜업될 수 있습니다.' }); }
+  if (opts.length < 3 && p.ovr >= Math.max(58, diffOf(s).cflMin || 0) && p.age <= 36) opts.push({ id: 'cfl', label: 'CFL 계약', sub: `${pick(r, CFL_TEAMS).ko} · 연 ${usd(120e3 + Math.max(0, p.ovr - 60) * 18e3)}`, desc: '캐나다에서 경기를 뛰며 다시 기회를 엿봅니다.' });
   opts.push({ id: 'retire', label: '은퇴', sub: '여기서 마침표', desc: '커리어를 마무리하고 은퇴 기록을 남깁니다.' });
   return { kind: 'fa', title, desc, options: opts };
 }
@@ -3095,24 +3172,24 @@ function choosePath(s, optionId) {
       return text;
     }
   }
-  if (kind === 'ps') { const t = TEAM_BY_ID[arg]; text = `${t.ko} 연습생 계약.`; moment(s, 'contract', text); nextYear(s, () => joinNfl(s, arg, { type: 'ps', years: 1, yearsLeft: 1, aav: PS_SALARY, total: PS_SALARY, guaranteed: 0 })); }
+  if (kind === 'ps') { const t = TEAM_BY_ID[arg]; s.psYears = (s.psYears || 0) + 1; text = `${t.ko} 연습생 계약.`; moment(s, 'contract', text); nextYear(s, () => joinNfl(s, arg, { type: 'ps', years: 1, yearsLeft: 1, aav: PS_SALARY, total: PS_SALARY, guaranteed: 0 })); }
   if (kind === 'cfl') { const t = pick(r, CFL_TEAMS); text = `${WA(t.ko)} 계약. CFL에서 뜁니다.`; moment(s, 'move', text); nextYear(s, () => { s.stage = 'cfl'; s.team = { kind: 'cfl', id: t.id, name: t.ko, short: t.ko }; s.contract = { type: 'cfl', years: 2, yearsLeft: 2, aav: 120e3 + Math.max(0, p.ovr - 60) * 18e3, total: 0, guaranteed: 0 }; }); }
   if (kind === 'extend') {
-    const mv = marketValue(s) * agentBoost(s), ch = clamp(.45 + (s.meters.front - 50) * .012 + (s.history.at(-1).score - 78) * .02, .1, .92);
+    const mv = marketValue(s) * agentBoost(s), ch = clamp(.45 + (s.meters.front - 50) * .012 + (s.history.at(-1).score - 78) * .02 + diffOf(s).chance / 100, .1, .92);
     if (r() < ch) { const yrs = p.age <= 28 ? 4 : 2; s.contract = { ...s.contract, type: 'vet', aav: Math.round(mv * .96), years: yrs, yearsLeft: yrs, total: Math.round(mv * .96) * yrs, guaranteed: Math.round(mv * yrs * .55) }; text = `${WA(s.team.name)} ${yrs}년 연장 계약! 연 ${usd(s.contract.aav)}.`; moment(s, 'contract', text); s.meters.front = clamp(s.meters.front + 6, 0, 100); }
     else { text = '구단은 연장 계약을 서두르지 않겠다고 했습니다.'; s.meters.front = clamp(s.meters.front - 4, 0, 100); }
     s.path = { ...s.path, options: s.path.options.filter(o => o.id !== 'extend' && o.id !== 'holdout'), note: text };
     return text;
   }
   if (kind === 'holdout') {
-    const mv = marketValue(s), ch = clamp(.42 + (p.ovr - 82) * .03 + (s.meters.front - 50) * .006, .15, .85);
+    const mv = marketValue(s), ch = clamp(.42 + (p.ovr - 82) * .03 + (s.meters.front - 50) * .006 + diffOf(s).chance / 100, .15, .85);
     if (r() < ch) { const yrs = 4; s.contract = { ...s.contract, type: 'vet', aav: Math.round(mv * 1.02), years: yrs, yearsLeft: yrs, total: Math.round(mv * 1.02) * yrs, guaranteed: Math.round(mv * yrs * .6) }; text = `홀드아웃 끝에 연 ${usd(s.contract.aav)} 대형 계약을 따냈습니다.`; moment(s, 'contract', text); s.meters.locker = clamp(s.meters.locker - 4, 0, 100); }
     else { text = '구단이 물러서지 않았습니다. 벌금을 내고 캠프에 복귀합니다. 시즌 초반 출전이 줄어듭니다.'; s.money = Math.max(0, s.money - Math.round(s.contract.aav * .08)); s.meters.trust = clamp(s.meters.trust - 12, 0, 100); s.meters.media = clamp(s.meters.media - 6, 0, 100); s.flags.push('holdoutFail'); }
     s.path = { ...s.path, options: s.path.options.filter(o => o.id !== 'extend' && o.id !== 'holdout'), note: text };
     return text;
   }
   if (kind === 'trade') {
-    const ch = clamp(.4 + (s.meters.front - 50) * .01 + (p.ovr - 75) * .015, .1, .85);
+    const ch = clamp(.4 + (s.meters.front - 50) * .01 + (p.ovr - 75) * .015 + diffOf(s).chance / 100, .1, .85);
     if (r() < ch) {
       const targets = TEAMS.filter(t => t.id !== s.team.id).map(t => [t.id, expectedRole(s, t.id)]).filter(([, rl]) => ['key', 'starter'].includes(rl)).map(x => x[0]);
       const to = targets.length ? pick(r, targets) : pick(r, TEAMS.filter(t => t.id !== s.team.id)).id;
@@ -3129,11 +3206,13 @@ function choosePath(s, optionId) {
 }
 function udfaPath(s, r) {
   const p = s.player, opts = [];
-  const teams = TEAMS.map(t => t.id).sort(() => r() - .5).slice(0, p.ovr >= 64 ? 3 : 2);
+  // 난이도: 하드에서는 평가가 낮으면 언드래프티 전화가 줄거나 아예 오지 않습니다
+  const D = diffOf(s), calls = D.udfaMin && p.ovr < D.udfaMin ? 0 : D.udfaMin && p.ovr < D.udfaMin + 4 ? 1 : p.ovr >= 64 ? 3 : 2;
+  const teams = TEAMS.map(t => t.id).sort(() => r() - .5).slice(0, calls);
   for (const id of teams) { const o = nflOffer(s, r, id, 'udfa'); o.aav = MIN_SALARY; o.years = 3; o.total = MIN_SALARY * 3; o.guaranteed = Math.round(10e3 + r() * 90e3); opts.push({ ...offerOption(o, 'udfa'), sub: `언드래프티 FA · 53인 로스터 경쟁 · 3년 최저 연봉`, desc: `사이닝 보너스 ${usd(o.guaranteed)} · 예상 역할 ${o.roleName}` }); }
-  opts.push({ id: 'cfl', label: 'CFL 계약', sub: '캐나다에서 프로 시작', desc: '경기 출전 기회는 확실합니다.' });
+  if (p.ovr >= (D.cflMin || 0)) opts.push({ id: 'cfl', label: 'CFL 계약', sub: '캐나다에서 프로 시작', desc: '경기 출전 기회는 확실합니다.' });
   opts.push({ id: 'retire', label: '풋볼을 내려놓는다', sub: '다른 인생', desc: '여기서 선수 생활을 마칩니다.' });
-  return { kind: 'udfa', title: '언드래프티 FA', desc: '드래프트가 끝나자마자 몇몇 구단에서 전화가 왔습니다.', options: opts };
+  return { kind: 'udfa', title: '언드래프티 FA', desc: calls ? '드래프트가 끝나자마자 몇몇 구단에서 전화가 왔습니다.' : opts.length > 1 ? '드래프트가 끝났지만 NFL 구단의 전화는 오지 않았습니다. 캐나다 리그가 손을 내밉니다.' : '드래프트가 끝났지만 전화는 오지 않았습니다. 프로의 문은 열리지 않았습니다.', options: opts };
 }
 function joinNfl(s, teamId, contract) {
   const t = TEAM_BY_ID[teamId];
@@ -4459,7 +4538,8 @@ __def("js/ui/liveplay.js", function () {
 // 작전은 playbook.js(포메이션·루트·커버리지)를 따릅니다: 공격 리시버는 루트를, 쿼터백 AI는 읽는 순서를,
 // 수비는 맨·존(딥/훅/컬/플랫)·블리츠·스파이 배정을 그대로 수행합니다.
 // cfg: ball, toGo, control(QB|RB|WR|TE|OL|DL|LB|CB|S), edge, side('O'|'D'), me{attrs, ovr, number}, teamRating, oppRating,
-//      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용)
+//      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용),
+//      diff(난이도의 live 값: 캐치 범위·확률, 패스 오차, 포켓 시간, 기술 성공률·대기, 태클·인터셉트, AI 도움·힌트. 없으면 노말)
 // 조작은 입력 방식(input.js)에 따라 바뀌고 화면 요소는 같습니다.
 //  · 모바일(터치): 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개), 쿼터백은 리시버나 위쪽 리시버 칩을 탭하면 패스.
 //  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
@@ -4467,6 +4547,7 @@ __def("js/ui/liveplay.js", function () {
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
 const { bigText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
 const { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } = __req("js/ui/input.js");
+const { DIFFICULTY } = __req("js/engine/difficulty.js");
 const { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } = __req("js/ui/sprites.js");
 const { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } = __req("js/ui/playbook.js");
 
@@ -4481,7 +4562,6 @@ const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
 const SLOT_KEYS = ['space', 'j', 'k', 'l'], LEGACY_KEYS = { z: 0, x: 1, c: 2, v: 3 }; // 버튼 1~4 키 (Z·X·C·V는 예전 키)
 const OPEN_COLOR = { open: '#3BB273', mid: '#F2C230', tight: '#E85A5A', pre: '#E9EEF3' };
-const ME_REACH = .25; // 내가 조종하는 리시버의 추가 캐치 범위(야드)
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
 function runLivePlay(host, cfg) {
@@ -4492,6 +4572,7 @@ function runLivePlay(host, cfg) {
 class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
+    this.dif = { ...DIFFICULTY.normal.live, ...(cfg.diff || {}) }; // 난이도 (engine/difficulty.js)
     host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
       <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
       <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
@@ -4611,7 +4692,7 @@ class LivePlay {
       take(p, s);
     }
   }
-  shownShell(dp) { return R() < .22 && dp.shell !== 0 ? 3 - dp.shell : dp.shell; } // 가끔 셸을 숨깁니다(디스가이즈)
+  shownShell(dp) { return R() < this.dif.disguise && dp.shell !== 0 ? 3 - dp.shell : dp.shell; } // 가끔 셸을 숨깁니다(디스가이즈)
   formDefense(formId, shell, instant) {
     this.defForm = formId;
     const recvs = this.P.filter(p => p.skill).map(p => ({ slot: p.slot, kind: p.role, x: p.home.x, y: p.home.y }));
@@ -4681,7 +4762,7 @@ class LivePlay {
       [...free].forEach((o, i) => { o.runTarget = lbs[i] || lbs[0] || null; o.climb = true; });
     }
     const blitzers = D.filter(p => p.blitz).length;
-    this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15, 1.9, 4.3);
+    this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15 + (c.side === 'O' ? 1 : -1) * this.dif.pocket, 1.7, 4.9);
     this.qbDeadline = 2.5 + R() * 1.4; this.heatRoll = null; this.rushWon = false; // 공을 오래 끄는 날도 있습니다 (색이 나올 수 있게)
     this.qbFrozen = R() < clamp(.16 - (c.teamRating - 60) * .004, .05, .2) ? 1.6 : 0; // 가끔은 아무도 못 보고 공을 오래 끕니다
     // 쿼터백이 고를 리시버 번호: 루트를 뛰는 선수를 정렬 위치 왼쪽부터 1~5
@@ -4766,7 +4847,7 @@ class LivePlay {
       this.tgKey = key;
       el.innerHTML = this.tnum.map((p, i) => `<button class="lp-tg" data-tn="${i + 1}" aria-label="${i + 1}번 ${p.role} ${p.num}에게 패스"><b>${i + 1}</b><span>${p.role} ${p.num}</span></button>`).join('');
     }
-    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.openLevel(p); if (b.dataset.o !== o) b.dataset.o = o; });
+    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.dif.openHint ? this.openLevel(p) : 'pre'; if (b.dataset.o !== o) b.dataset.o = o; });
   }
   tap(f) {
     if (this.phase !== 'live') return;
@@ -4812,7 +4893,7 @@ class LivePlay {
     const list = this.skills(), def = list.find(x => x.id === id); if (!def || !def.ready) return;
     if (fromKey) { const b = this.btns.children[list.indexOf(def)]; if (b) { b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); } }
     const sk = this.sk, a = this.cfg.me.attrs, A = k => a[k] ?? this.cfg.me.ovr;
-    sk.cd[id] = def.cd;
+    sk.cd[id] = def.cd * this.dif.cd;
     if (id === 'pass') return this.autoThrow();
     if (id === 'ptype') { this.passType = PASS_TYPES[(PASS_TYPES.indexOf(this.passType) + 1) % 3]; this.float(m, { touch: 'TOUCH', bullet: 'BULLET', lob: 'LOB' }[this.passType], '#FFFFFF'); }
     else if (id === 'spin') { sk.spinT = .5; this.ghost(m); this.float(m, 'SPIN', '#FFFFFF'); }
@@ -4820,14 +4901,14 @@ class LivePlay {
       const near = this.nearestD(m, 5), dir = Math.abs(this.stick.x) > .2 ? Math.sign(this.stick.x) : near ? (Math.sign(m.x - near.x) || 1) : (R() < .5 ? -1 : 1);
       this.ghost(m); m.vx = dir * m.spd * 1.05; m.vy *= .55; this.juke = .45;
       let bit = 0;
-      for (const d of this.P.filter(d => d.team !== m.team && !(d.stun > 0) && dist(d, m) < 4.5)) if (R() < clamp(.38 + (A('agi') - d.rating) * .015, .15, .8)) { d.stun = .55; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); bit++; }
+      for (const d of this.P.filter(d => d.team !== m.team && !(d.stun > 0) && dist(d, m) < 4.5)) if (R() < clamp(.38 + this.dif.skill + (A('agi') - d.rating) * .015, .15, .8)) { d.stun = .55; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); bit++; }
       this.float(m, bit ? 'JUKE!' : 'JUKE', bit ? '#FFD84A' : '#FFFFFF');
     }
     else if (id === 'turbo') { sk.turboT = 1.3; this.float(m, 'TURBO', '#FFD84A'); }
     else if (id === 'stiff') { sk.stiffT = .8; this.float(m, 'STIFF ARM', '#FFFFFF'); }
     else if (id === 'fake') {
       const d = this.nearestD(m, 3.8); this.ghost(m); m.vx += (R() < .5 ? -1 : 1) * 3;
-      if (d && R() < clamp(.42 + (A('route') - d.rating) * .016, .15, .85)) { d.stun = .6; d.vx = 0; d.vy = 0; this.float(d, '?', '#FFD84A'); this.float(m, 'FAKED OUT!', '#FFD84A'); }
+      if (d && R() < clamp(.42 + this.dif.skill + (A('route') - d.rating) * .016, .15, .85)) { d.stun = .6; d.vx = 0; d.vy = 0; this.float(d, '?', '#FFD84A'); this.float(m, 'FAKED OUT!', '#FFD84A'); }
       else this.float(m, 'FAKE', '#FFFFFF');
     }
     else if (id === 'call') { sk.callT = 3; sk.callWait = null; sk.callPose = .55; this.float(m, 'HERE!', '#FFD84A'); }
@@ -4836,7 +4917,7 @@ class LivePlay {
     else if (id === 'pump') {
       sk.pumps++; this.float(m, 'PUMP!', '#FFFFFF'); m.throwT = .25;
       const read = (A('vis') + A('poise')) / 2;
-      for (const d of this.P.filter(d => d.team === 'D' && ['CB', 'S', 'LB'].includes(d.role) && dist(d, m) < 26)) if (R() < clamp(.45 + (read - d.rating) * .012, .2, .8)) { d.stun = .4; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); }
+      for (const d of this.P.filter(d => d.team === 'D' && ['CB', 'S', 'LB'].includes(d.role) && dist(d, m) < 26)) if (R() < clamp(.45 + this.dif.skill + (read - d.rating) * .012, .2, .8)) { d.stun = .4; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); }
     }
     else if (id === 'dive') {
       const t = this.carrier; let dx = t.x + t.vx * .2 - m.x, dy = t.y + t.vy * .2 - m.y; const n = Math.hypot(dx, dy) || 1;
@@ -4844,17 +4925,17 @@ class LivePlay {
     }
     else if (id === 'jam') {
       const o = this.nearestD(m, 1.9);
-      if (o && R() < clamp(.45 + ((A('str') + A('cov')) / 2 - o.rating) * .012, .2, .85)) { o.stun = .6; o.vx *= .2; o.vy *= .2; this.float(o, 'JAM!', '#FFD84A'); this.spark(o); }
+      if (o && R() < clamp(.45 + this.dif.skill + ((A('str') + A('cov')) / 2 - o.rating) * .012, .2, .85)) { o.stun = .6; o.vx *= .2; o.vy *= .2; this.float(o, 'JAM!', '#FFD84A'); this.spark(o); }
       else this.float(m, 'MISS', '#FFFFFF');
     }
     else if (id === 'spinmove' || id === 'swim') {
       const b = this.myBlocker, move = id === 'spinmove' ? (A('agi') + A('rush')) / 2 : (A('hand') + A('rush')) / 2;
-      if (b && R() < clamp(.42 + (move - b.rating) * .013, .18, .85)) { m.shed = 0; m.stunFree = .8; b.stun = .45; if (id === 'spinmove') sk.spinT = .4; this.ghost(m); this.float(m, id === 'spinmove' ? 'SPIN!' : 'SWIM!', '#FFD84A'); }
+      if (b && R() < clamp(.42 + this.dif.skill + (move - b.rating) * .013, .18, .85)) { m.shed = 0; m.stunFree = .8; b.stun = .45; if (id === 'spinmove') sk.spinT = .4; this.ghost(m); this.float(m, id === 'spinmove' ? 'SPIN!' : 'SWIM!', '#FFD84A'); }
       else { m.stun = .25; this.float(m, 'STUCK', '#FFFFFF'); }
     }
     else if (id === 'punch') {
       const d = this.myMan, qb = this.qb;
-      if (d && R() < clamp(.5 + (A('str') - d.rating) * .012, .2, .88)) { d.stun = .6; d.shed = 0; const n = dist(d, qb) || 1; d.x += (d.x - qb.x) / n * .9; d.y += (d.y - qb.y) / n * .9; this.float(d, 'POW!', '#FFD84A'); this.spark(d); }
+      if (d && R() < clamp(.5 + this.dif.skill + (A('str') - d.rating) * .012, .2, .88)) { d.stun = .6; d.shed = 0; const n = dist(d, qb) || 1; d.x += (d.x - qb.x) / n * .9; d.y += (d.y - qb.y) / n * .9; this.float(d, 'POW!', '#FFD84A'); this.spark(d); }
       else this.float(m, 'MISS', '#FFFFFF');
     }
     else if (id === 'anchor') { sk.anchorT = 1.4; this.float(m, 'ANCHOR', '#FFD84A'); }
@@ -4913,7 +4994,7 @@ class LivePlay {
   throwTo(tx, ty, qb, type = 'touch', want = null) {
     const c = this.cfg, acc = qb.me ? (c.me.attrs.acc ?? c.me.ovr) : c.teamRating;
     const d = Math.hypot(tx - qb.x, ty - qb.y), pressure = this.P.some(p => p.team === 'D' && dist(p, qb) < 2.4) ? 1.7 : 1;
-    const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
+    const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15) * (qb.me ? this.dif.throwErr : 1), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
     const lx = clamp(tx + Math.cos(a) * e, -1, FW + 1), ly = ty + Math.sin(a) * e;
     const T = .3 + d / this.passSpeed(qb, type), peak = type === 'bullet' ? 1.6 + d * .05 : type === 'lob' ? 5 + d * .25 : 2.8 + d * .13;
     this.ball = { sx: qb.x, sy: qb.y, x: lx, y: ly, t: 0, T, peak, type, from: qb, tipped: new Set() };
@@ -4997,7 +5078,7 @@ class LivePlay {
     const passing = !ru || this.fleaPhase === 2;
     const calling = sk.callT > 0 && me && me.team === 'O' && me !== qb && !qb.me && this.eligible().includes(me) && !this.ball && this.carrier === qb && !this.qbRunning && qb.y < this.los + .5 && (passing || rpoCall) && (!play.flea || this.fleaPhase === 2);
     if (calling) {
-      sk.callWait = (sk.callWait ?? clamp(.42 - (c.teamRating - 60) * .006, .2, .55)) - dt;
+      sk.callWait = (sk.callWait ?? clamp(.42 - (c.teamRating - 60) * .006, .2, .55) * this.dif.callWait) - dt;
       if (sk.callWait <= 0 && this.t > .3) { sk.callT = 0; sk.callWait = null; this.float(qb, 'GOT IT!', '#FFFFFF'); this.throwAt(qb, me, this.aiPassType(qb, me)); }
     }
     // AI 쿼터백 패스
@@ -5053,7 +5134,7 @@ class LivePlay {
         if (h < 2.6) for (const d of P) {
           if (d.team !== 'D' || d.stun > 0 || b.tipped.has(d) || Math.hypot(d.x - gx, d.y - gy) > .8) continue;
           b.tipped.add(d);
-          if (R() < (d.me ? (sk.defBall ? .6 : .4) : .2) * (b.type === 'bullet' ? 1 : .7)) return this.tipBall(d);
+          if (R() < (d.me ? (sk.defBall ? .6 : .4) : .2 * (c.side === 'O' ? this.dif.aiInt : 1)) * (b.type === 'bullet' ? 1 : .7)) return this.tipBall(d);
         }
       }
       if (b.t >= b.T) return this.resolveCatch();
@@ -5064,16 +5145,16 @@ class LivePlay {
       if (carrier.y >= 100) return this.endPlay({ gain: 100 - this.los, td: true, text: '터치다운!' });
       for (const d of P.filter(x => x.team === 'D' && !(x.stun > 0) && !x.engaged)) {
         const diving = (d.me && sk.diveT > 0) || d.diveT > 0;
-        if (dist(d, carrier) < (carrier.y > this.los + 3 ? 1.15 : .8) + (diving ? .85 : 0)) {
+        if (dist(d, carrier) < (carrier.y > this.los + 3 ? 1.15 : .8) + (diving ? .85 : 0) + (d.me ? this.dif.myTackle : 0)) {
           if (d.me) sk.diving = false;
           d.diveT = 0;
           const sackish = carrier === qb && carrier.y < this.los + .3 && !this.thrown && !this.qbRunning;
           const elusive = carrier.me ? ((carrier.attrs?.agi ?? carrier.rating) + (carrier.attrs?.str ?? carrier.rating)) / 2 : carrier.rating;
           const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.rating, spinning = carrier.me && sk.spinT > 0, stiff = carrier.me && sk.stiffT > 0;
-          const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0), .03, spinning || stiff ? .85 : .55);
+          const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0) + (carrier.me ? this.dif.breakP : 0) - (d.me ? this.dif.breakP : 0), .03, spinning || stiff ? .85 : .55);
           if (R() < pBreak) { d.stun = spinning || stiff ? .9 : .55; if (stiff) { d.prone = .8; sk.stiffT = 0; } this.pop(spinning ? 'SPIN MOVE!' : stiff ? 'STIFF ARM!' : 'BROKEN TACKLE', spinning || stiff ? '#FFD84A' : '#FFFFFF'); continue; }
           if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, sacker: d, text: '색!' }); }
-          const fumble = R() < clamp(.016 - ((carrier.attrs?.carry ?? 60) - 60) * .0004, .005, .03) * (sackish ? 2 : 1);
+          const fumble = R() < clamp(.016 - ((carrier.attrs?.carry ?? 60) - 60) * .0004, .005, .03) * (sackish ? 2 : 1) * (carrier.me ? this.dif.fumble : 1);
           if (d.me) { this.inc('tkl'); if (carrier.y < this.los) this.inc('tfl'); if (fumble) this.inc('ff'); }
           d.prone = .6; carrier.prone = .6;
           if (fumble) return this.endPlay({ gain: carrier.y - this.los, turnover: 'FUMBLE', text: '펌블!' });
@@ -5093,7 +5174,8 @@ class LivePlay {
     if (mag > .14) { const sp = .3 + .7 * clamp((mag - .14) / .6, 0, 1); return this.seek(p, p.x + sx / mag * 6, p.y + sy / mag * 6, dt, sp * (this.carrier === p ? .97 : 1) * boost, 22); }
     if (this.carrier === p && p !== this.qb) return this.seek(p, p.x + p.vx * .2, p.y + 6, dt, .9 * boost, 10);
     if (p === this.qb && this.carrier === p) return this.seek(p, p.x, p.y, dt, 1, 14);
-    p.team === 'O' ? this.aiO(p, dt, this.cfg.assist ?? (p.role === 'OL' ? .3 : .6)) : this.aiD(p, dt, this.cfg.assist ?? .6);
+    const help = this.cfg.assist ?? Math.min(1, (p.team === 'O' && p.role === 'OL' ? .3 : .6) * this.dif.assist); // 손을 떼면 AI가 이만큼 대신 뜁니다
+    p.team === 'O' ? this.aiO(p, dt, help) : this.aiD(p, dt, help);
   }
   // ───────── 공격 AI ─────────
   aiO(p, dt, k = 1) {
@@ -5175,9 +5257,11 @@ class LivePlay {
   aiD(p, dt, k = 1) {
     const car = this.carrier, ball = this.ball, qb = this.qb, a = p.asg || { t: 'rush' }, ru = this.run, play = this.play;
     const runLike = !!ru || (play.flea && this.fleaPhase === 1);
+    // 난이도: 내가 공격일 때 상대 수비 AI의 커버 속도·맨 반응 지연·공 반응·추격 속도
+    const hd = this.cfg.side === 'O' ? this.dif : null, cs = hd ? hd.coverSpd : 1, cl = hd ? hd.coverLag : 1, rc = hd ? hd.react : 1, pu = hd ? hd.pursue : 1;
     if (ball) {
       const deep = a.t === 'zone' && isDeepZone(a.z), r = a.t === 'zone' ? (deep ? 17 : 12) : a.t === 'man' ? 7 : 3.5;
-      if (Math.hypot(ball.x - p.x, ball.y - p.y) < r && ball.t > (a.t === 'man' ? .45 : .3)) return this.seek(p, ball.x, ball.y, dt, .97 * k, 14);
+      if (Math.hypot(ball.x - p.x, ball.y - p.y) < r && ball.t > (a.t === 'man' ? .45 : .3) * rc) return this.seek(p, ball.x, ball.y, dt, .97 * k * cs, 14);
     }
     if (runLike && this.t < .9 && p.role !== 'DL' && !p.blitz) return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k); // 런인지 읽는 시간
     if (play.pa && !p.blitz && this.t < .7 - (p.rating - 60) * .01 && (p.role === 'LB' || (p.role === 'S' && !(a.t === 'zone' && isDeepZone(a.z))))) return this.seek(p, p.x, Math.max(this.los + 1.5, p.y - 3), dt, .7 * k); // 페이크에 끌려 나옴
@@ -5192,9 +5276,9 @@ class LivePlay {
       if (p.diveT > 0) return; // 몸을 날린 중에는 그대로
       const dd = dist(p, car);
       // 가까이 붙으면 다이브 태클 (빗나가면 잠시 넘어져 있음)
-      if (dd < 1.9 && dd > 1.15 && !(p.prone > 0) && !p.engaged && R() < dt * 3) { p.vx = (car.x + car.vx * .15 - p.x) / dd * p.spd * 1.45; p.vy = (car.y + car.vy * .15 - p.y) / dd * p.spd * 1.45; p.diveT = .35; return; }
+      if (dd < 1.9 && dd > 1.15 && !(p.prone > 0) && !p.engaged && R() < dt * 3 * (this.cfg.side === 'O' ? this.dif.aiDive : 1)) { p.vx = (car.x + car.vx * .15 - p.x) / dd * p.spd * 1.45; p.vy = (car.y + car.vy * .15 - p.y) / dd * p.spd * 1.45; p.diveT = .35; return; }
       const lead = Math.min(.9, dd / 9);
-      return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, (dd < 4 ? 1.06 : 1) * k);
+      return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, (dd < 4 ? 1.06 : 1) * k * pu);
     }
     if (a.t === 'rush') {
       // 막는 사람이 없는 블리처는 포켓 시계를 기다리지 않고 곧장 들어갑니다
@@ -5209,13 +5293,13 @@ class LivePlay {
       if (o && o.routeName === 'block' && this.t > .9) { p.asg = R() < .5 ? { t: 'rush', blitz: true } : { t: 'zone', z: 'hookM' }; return this.seek(p, p.x, p.y, dt, k); }
       // 맨: 마크맨의 x를 따라가며 위쪽 쿠션을 지킵니다 (스크리미지 라인 뒤로 쫓아 들어가지 않음)
       if (o) {
-        const deep = o.y > this.los + 11, lag = (deep ? .08 : .15) + Math.max(0, o.rating - p.rating) * .004;
+        const deep = o.y > this.los + 11, lag = ((deep ? .08 : .15) + Math.max(0, o.rating - p.rating) * .004) * cl;
         let ty = Math.max(o.y - o.vy * lag + (deep ? 1 : .6), this.los + 1);
         if (o.y < p.y && o.vy > 1) ty = Math.max(ty, p.y); // 리시버가 올라오는 동안은 물러서기만
-        return this.seek(p, o.x - o.vx * lag, ty, dt, k, 16);
+        return this.seek(p, o.x - o.vx * lag, ty, dt, k * cs, 16);
       }
     }
-    if (a.t === 'zone') return this.zoneMove(p, a.z, dt, k);
+    if (a.t === 'zone') return this.zoneMove(p, a.z, dt, k * cs);
     return this.seek(p, p.x, p.y, dt, k);
   }
   // 존: 지점으로 물러나 내 구역에 들어온 리시버를 따라 움직입니다 (딥은 가장 깊은 리시버 위, 언더는 앞을 막음)
@@ -5239,7 +5323,7 @@ class LivePlay {
   // ───────── 공 결과 ─────────
   tipBall(d) {
     const b = this.ball, qbMe = b.from.me; this.ball = null;
-    if (R() < (d.me ? .3 : .15)) {
+    if (R() < (d.me ? .3 + this.dif.myInt : .15 * (this.cfg.side === 'O' ? this.dif.aiInt : 1))) {
       if (qbMe) this.inc('pint'); if (d.me) { this.inc('dint'); this.inc('pd'); }
       this.pop('TIPPED · INT!', '#E85A5A');
       return this.endPlay({ gain: 0, turnover: 'INT', text: '공이 튀어 인터셉트!' });
@@ -5253,8 +5337,8 @@ class LivePlay {
     const b = this.ball, spot = { x: b.x, y: b.y }, c = this.cfg, sk = this.sk;
     this.ball = null;
     const near = this.P.filter(p => !(p.stun > 0)).map(p => ({ p, d: dist(p, spot) })).sort((a, b2) => a.d - b2.d);
-    // 내가 직접 잡는 리시버면 팔이 0.25야드 더 닿는 것처럼 계산합니다 (잡는 범위·수비와의 거리 비교 모두)
-    const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - ME_REACH) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
+    // 내가 직접 잡는 리시버면 팔이 조금 더 닿는 것처럼 계산합니다 (난이도 reach: 쉬움 0.5 · 노말 0.25 · 하드 0야드, 잡는 범위·수비와의 거리 비교 모두)
+    const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - this.dif.reach) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
     const ct = off ? (off.p.me ? sk.catchType || 'norm' : this.aiCatchType(off.p, def)) : 'norm';
     const REACH = { high: .7, poss: -.1, rac: -.25, norm: 0 }, CONTEST = { high: .08, poss: .18, rac: .32, norm: .25 };
     const hands = off ? (off.p.me ? c.me.attrs.hands ?? c.me.ovr : off.p.rating) : 0;
@@ -5265,7 +5349,7 @@ class LivePlay {
     this.dbg = { offD: off && +off.d.toFixed(2), defD: def && +def.d.toFixed(2), reachO: +reachO.toFixed(2), who: off?.p.slot, T: +b.T.toFixed(2), type: b.type, ct };
     if (def && def.d < reachD && (!off || def.d < off.d - .2 || (dMode && def.d < off.d + .3))) {
       const skill = def.p.me ? (c.me.attrs.ball ?? c.me.attrs.cov ?? c.me.ovr) : def.p.rating;
-      const pInt = dMode === 'swat' ? 0 : clamp(.1 + (skill - 60) * .005 + (def.p.me ? .22 : 0) + (dMode === 'int' ? .15 : 0) + (b.type === 'lob' ? .05 : 0), .05, .8);
+      const pInt = dMode === 'swat' ? 0 : clamp((.1 + (skill - 60) * .005 + (def.p.me ? .22 + this.dif.myInt : 0) + (dMode === 'int' ? .15 : 0) + (b.type === 'lob' ? .05 : 0)) * (!def.p.me && c.side === 'O' ? this.dif.aiInt : 1), .03, .8);
       if (R() < pInt) {
         if (qbMe) this.inc('pint');
         if (def.p.me) { this.inc('dint'); this.inc('pd'); }
@@ -5280,7 +5364,7 @@ class LivePlay {
     if (off && off.d < reachO + .9) {
       const contested = def && def.d < 1.3, diving = off.d >= reachO;
       const swat = def?.p.me && dMode === 'swat' && def.d < 1.6 ? .3 : 0;
-      if (R() < clamp(.84 + (hands - 60) * .005 + (ct === 'poss' ? .08 : 0) - (contested ? CONTEST[ct] : 0) - swat, .3, .97) * (diving ? .45 : 1)) {
+      if (R() < clamp(.84 + (hands - 60) * .005 + (ct === 'poss' ? .08 : 0) - (contested ? CONTEST[ct] : 0) - swat + (off.p.me ? this.dif.catchP : 0), .3, .97) * (diving ? .45 : 1)) {
         const rc = off.p, air = Math.round(rc.y - this.los), toe = rc.x < 1.3 || rc.x > FW - 1.3;
         const type = diving ? 'dive' : toe ? 'toe' : ct;
         this.catchInfo = { air, kind: catchKind(air), type, y: rc.y };
@@ -5390,7 +5474,7 @@ class LivePlay {
       if (!pre && !el.includes(p)) return;
       const x = Math.round(p.x * PPY), y = Math.round(this.sy(p.y)) - 31 - (Math.floor(now / 260 + i) % 2);
       ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = OPEN_COLOR[pre ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = OPEN_COLOR[pre || !this.dif.openHint ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
       bigText(ctx, String(i + 1), x, y, '#FFFFFF', 1);
     });
   }
@@ -5460,10 +5544,11 @@ __def("js/ui/kickplay.js", function () {
 // 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
 // 컴퓨터(키보드)에서는 같은 조준선·파워 막대를 키로: A·D(←·→)로 방향, Space를 꾹 눌러 힘을 모았다가 떼면 킥.
 // cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
-//        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
+//        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint, diff(난이도의 kick 값, 없으면 노말) }
 const { pixelText, bigText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
 const { playerSprite, SKINS } = __req("js/ui/sprites.js");
 const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
+const { DIFFICULTY } = __req("js/engine/difficulty.js");
 const RES = 2; // 캔버스는 화면 논리 크기의 2배 해상도 (선수 도트를 더 촘촘하게)
 
 const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
@@ -5476,6 +5561,7 @@ const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); 
 class KickPlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = cfg;
+    this.dif = { ...DIFFICULTY.normal.kick, ...(cfg.diff || {}) }; // 난이도: 흔들림·러셔 시간·과한 힘 벌점
     host.innerHTML = `<canvas class="lp-canvas" width="${CW * RES}" height="${CH * RES}" aria-label="킥 화면"></canvas><div class="lp-tip" hidden></div><div class="kp-keys" hidden><kbd class="kc">A</kbd><kbd class="kc">D</kbd> 방향 · <kbd class="kc">Space</kbd> 꾹 → 떼기</div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.tipEl = host.querySelector('.lp-tip'); this.scale = 2.4; this.ch = CH; this.hor = HOR; this.fit();
@@ -5505,7 +5591,7 @@ class KickPlay {
   }
   snap() {
     this.phase = 'pre'; this.t = -.9; this.msg = ''; this.msgT = 0;
-    this.rushT = this.fg ? 3.2 : 2.8;
+    this.rushT = (this.fg ? 3.2 : 2.8) + this.dif.rush;
     return new Promise(res => { this.done = res; });
   }
   pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
@@ -5551,7 +5637,7 @@ class KickPlay {
     const over = Math.max(0, p - 1), pp = Math.min(1, p);
     const maxR = this.fg ? 47 + (kpow - 50) * .55 : 47 + (kpow - 50) * .45 + (pnt - 60) * .15;
     let err = this.fg ? clamp(1.75 - kacc * .013, .35, 1.6) : clamp(2.6 - pnt * .018, .6, 2.4);
-    err *= (1 + over * 7) * (1.12 - cons * .0025) * (c.last ? clamp(1.35 - poise * .005, .85, 1.3) : 1);
+    err *= (1 + over * 7 * this.dif.over) * (1.12 - cons * .0025) * (c.last ? clamp(1.35 - poise * .005, .85, 1.3) : 1) * this.dif.err;
     const ang = phi + gauss() * err * Math.PI / 180;
     const th = ((this.fg ? 34 : 55) - over * 14) * Math.PI / 180;
     const range = maxR * (.38 + .62 * pp) * (1 - over * .1);
@@ -5781,6 +5867,7 @@ __def("js/ui/clutch.js", function () {
 // 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js · playbook.js). 코치 추천과 상대 정렬 읽기도 있습니다.
 // 키커·펀터: 키커 뒤 시점에서 위로 쓸어 올려 찹니다 (kickplay.js). 4번째 다운·2점 컨버전도 직접 정합니다.
 const { POSITIONS, LEVEL_AVG, clamp } = __req("js/engine/core.js");
+const { DIFFICULTY } = __req("js/engine/difficulty.js");
 const { LivePlay } = __req("js/ui/liveplay.js");
 const { KickPlay } = __req("js/ui/kickplay.js");
 const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
@@ -5833,6 +5920,7 @@ function openClutch(root, ctx) {
 class Clutch {
   constructor(root, c, done) {
     this.root = root; this.c = c; this.done = done;
+    this.D = c.diff || DIFFICULTY.normal; // 난이도 (main.js에서 커리어의 난이도를 넘깁니다)
     const p = c.player, g = c.game;
     this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.control = CONTROL[p.pos];
     this.mode = p.pos === 'K' ? 'kick' : p.pos === 'P' ? 'punt' : this.side === 'D' ? 'defense' : 'offense';
@@ -5843,7 +5931,7 @@ class Clutch {
     this.oppColors = c.oppColors;
     this.lastForm = FORM0[this.pos] || 'gun_dbl'; this.lastDefForm = 'd43';
     // 미니게임 밖에서 쌓이는 양 팀 점수 (쿼터별로 나눠 전광판에 반영)
-    const myStr = g.myStr ?? 60, oppStr = g.oppStr ?? 60;
+    const myStr = (g.myStr ?? 60) + this.D.live.edge, oppStr = g.oppStr ?? 60; // 직접 뛰지 않는 장면의 전력: 난이도 보정
     const td = x => Math.max(0, Math.round(x)) * 7;
     this.restFor = this.mode === 'offense' ? td(.5 + (myStr - oppStr) * .02 + R() * 1.2) : this.mode === 'kick' ? td(1.6 + (myStr - oppStr) * .03 + R() * 1.4) : td(1.8 + (myStr - oppStr) * .03 + R() * 1.6);
     this.restAgainst = this.mode === 'defense' ? td(.5 + (oppStr - myStr) * .02 + R() * 1.2) : td(1.6 + (oppStr - myStr) * .03 + R() * 1.6);
@@ -5880,7 +5968,7 @@ class Clutch {
     const c = this.c;
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
       <div class="cl-top"><div class="cl-team"><b id="cl-pf">0</b><small>${esc(c.myName)}</small></div>
-        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
+        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span><span class="diff-badge" style="--dc:${this.D.color}">${this.D.tag}</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
         <div class="cl-team opp"><b id="cl-pa">0</b><small>${esc(c.oppName)}</small></div></div>
       <div class="cl-stage"><div id="cl-live" class="cl-live"></div>
         <div id="cl-panel" class="cl-panel"><p id="cl-msg" class="cl-msg"></p><div id="cl-actions" class="cl-actions"></div><button class="cl-auto" data-cl="auto">자동으로 마무리</button></div></div></div>`;
@@ -5913,14 +6001,14 @@ class Clutch {
   // ───────── 실시간 필드 ─────────
   liveCfg(extra = {}) {
     const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
-    const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
+    const lvl = c.levelAvg, L = this.D.live, myR = lvl + ((g.myStr ?? 60) - 60) * .12 + L.mate, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12 + L.opp; // 우리 팀·상대 AI 수준: 난이도 보정
     return {
       ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, control: this.control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
       me: { attrs: this.p.attrs, ovr: this.p.ovr, number: this.p.number }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
       offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
       endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
       away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
-      banner: this.banner(), ...extra,
+      banner: this.banner(), diff: L, ...extra,
     };
   }
   // 스냅 전 양 팀 정렬을 바로 보여 줍니다.
@@ -6097,11 +6185,11 @@ class Clutch {
   kickSetup(story, last) {
     const dists = this.final ? [36, 44, 49, 53] : [33, 42, 48];
     const dist = dists[this.drive] ?? 45;
-    const wind = Math.round((R() - .5) * 24);
+    const wind = Math.round((R() - .5) * 24 * this.D.kick.wind);
     this.d = { ball: 100 - (dist - 17), down: 4, toGo: 3, first: 103, goal: false };
     this.board(`${dist}야드 필드골`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, diff: this.D.kick });
     this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
@@ -6117,11 +6205,11 @@ class Clutch {
   }
   // ───────── 펀터 ─────────
   puntSetup(story) {
-    const start = 22 + Math.floor(R() * 18), wind = Math.round((R() - .5) * 20);
+    const start = 22 + Math.floor(R() * 18), wind = Math.round((R() - .5) * 20 * this.D.kick.wind);
     this.d = { ball: start, down: 4, toGo: 6, first: start + 6, goal: false };
     this.board(`4th & 6 · ${this.spot(start)}`);
     this.clearView();
-    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, });
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, diff: this.D.kick });
     this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
     this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
     this.root.querySelector('[data-cl="snap"]').onclick = () => {
@@ -6179,6 +6267,7 @@ __def("js/engine/gym.js", function () {
 // 게임 속 '하루'(시즌 진행 한 단계, 오프시즌·시즌 준비도 각각 하루)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지라
 // 한 번에 많이 올릴 수는 없습니다. 소수점 진행도가 1이 되면 능력치가 1 오릅니다.
 const { clamp, ATTR, attrsOf, overall } = __req("js/engine/core.js");
+const { diffOf } = __req("js/engine/difficulty.js");
 
 // 단계: 1 동네 헬스장 · 2 퍼포먼스 센터 · 3 엘리트 트레이닝 랩
 const GYM_TIERS = [
@@ -6252,7 +6341,7 @@ function finishExercise(s, exId, perf, detail = '') {
   const ageF = p.age <= 21 ? 1.1 : p.age <= 25 ? 1 : p.age <= 29 ? .8 : .6;
   const room = clamp((99 - p.attrs[k]) / 40, .15, 1);
   const talent = Math.sqrt(Math.exp(.034 * (p.potential - 80)));
-  const gain = Math.round(.24 * perf * tier.mult * ageF * room * talent * 100) / 100;
+  const gain = Math.round(.24 * perf * tier.mult * ageF * room * talent * diffOf(s).gym * 100) / 100;
   g.prog[k] = (g.prog[k] || 0) + gain;
   let ups = 0;
   while (g.prog[k] >= 1 && p.attrs[k] < 99) { g.prog[k] -= 1; p.attrs[k] += 1; ups++; }
@@ -6280,6 +6369,7 @@ const { bigText, pixelText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
 const { playerSprite, SKINS } = __req("js/ui/sprites.js");
 const { ATTR } = __req("js/engine/core.js");
 const { isKeyMode, onInputMode, keyName, typing } = __req("js/ui/input.js");
+const { diffOf } = __req("js/engine/difficulty.js");
 const { EXERCISES, GYM_TIERS, MAX_SETS, gymTier, gymState, gymDayLabel, exerciseAttr, exerciseName, canExercise, finishExercise, gradeOf } = __req("js/engine/gym.js");
 
 const W = 240, H = 124, R = Math.random, clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -6362,7 +6452,8 @@ class Gym {
     const ex = EXERCISES.find(e => e.id === id), s = this.s, k = exerciseAttr(s, ex), a = s.player.attrs[k] ?? 60;
     if (!canExercise(s, ex).ok) return;
     const boost = 1 + (a - 60) * .004; // 능력치가 높을수록 조금 쉬워짐
-    const g = this.game = { ex, kind: ex.kind, t: 0, phase: 'ready', ready: 1.2, boost, score: 0, n: 0, dir: null };
+    const dw = diffOf(s).gymWin; // 난이도: 판정 구간·제한 시간 배율 (쉬움 1.2 · 노말 1 · 하드 0.85)
+    const g = this.game = { ex, kind: ex.kind, t: 0, phase: 'ready', ready: 1.2, boost, dw, score: 0, n: 0, dir: null };
     if (g.kind === 'mash') Object.assign(g, { dur: 5, meter: 0, reps: 0 });
     if (g.kind === 'timing') Object.assign(g, { total: 5, rep: 0, needle: 0, nt: 0, pause: 0, scores: [] });
     if (g.kind === 'alt') Object.assign(g, { dist: 0, lastFoot: null, cap: 9 });
@@ -6371,10 +6462,10 @@ class Gym {
     if (g.kind === 'targets') Object.assign(g, { total: 12, i: -1, cell: -1, left: 0, gap: .2, hits: 0 });
     const pads = {
       mash: `<button class="gym-pad big" data-pad="push">밀어!</button>`,
-      timing: `<div class="gym-gauge"><div class="z green"></div><div class="z gold"></div><i id="gy-needle"></i></div><button class="gym-pad big" data-pad="tap">앉았다 일어나기!</button>`,
+      timing: `<div class="gym-gauge"><div class="z green" style="bottom:${(76 - 10 * dw).toFixed(1)}%;height:${(20 * dw).toFixed(1)}%"></div><div class="z gold" style="bottom:${(77 - 3 * dw).toFixed(1)}%;height:${(6 * dw).toFixed(1)}%"></div><i id="gy-needle"></i></div><button class="gym-pad big" data-pad="tap">앉았다 일어나기!</button>`,
       alt: `<div class="row"><button class="gym-pad" data-pad="L">왼발</button><button class="gym-pad" data-pad="R">오른발</button></div>`,
       arrows: `<p class="gym-prompt" id="gy-prompt">…</p><div class="gym-cross"><span></span><button class="gym-pad" data-pad="up">↑</button><span></span><button class="gym-pad" data-pad="left">←</button><span></span><button class="gym-pad" data-pad="right">→</button><span></span><button class="gym-pad" data-pad="down">↓</button><span></span></div>`,
-      charge: `<div class="gym-bar"><div class="z green"></div><div class="z gold"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
+      charge: `<div class="gym-bar"><div class="z green" style="left:${((.85 - .1 * dw) / 1.2 * 100).toFixed(1)}%;width:${((.1 * dw + .1 + (dw - 1) * .1) / 1.2 * 100).toFixed(1)}%"></div><div class="z gold" style="left:${((.85 - .03 * dw) / 1.2 * 100).toFixed(1)}%;width:${(.06 * dw / 1.2 * 100).toFixed(1)}%"></div><i id="gy-charge"></i></div><button class="gym-pad big" data-pad="hold">꾹 눌렀다 떼기</button>`,
       targets: `<div class="gym-grid">${Array.from({ length: 9 }, (_, i) => `<button class="gym-cell" data-pad="c${i}"></button>`).join('')}</div>`,
     }[g.kind];
     this.$('gy-body').innerHTML = `<div class="gym-game"><div class="row between"><strong>${esc(exerciseName(s, ex))}</strong><span class="pill">${esc(ATTR[k][0])}</span></div><p class="gym-how" data-how="${ex.id}" data-pre="">${esc(howOf(ex))}</p><p class="gym-stat" id="gy-stat">준비…</p>${pads}</div>`;
@@ -6407,20 +6498,20 @@ class Gym {
     const g = this.game; if (!g || g.phase !== 'play') return;
     if (g.kind === 'charge' && pad === 'hold') { if (g.scores.length >= g.total) return; if (down && !g.holding && g.hop <= 0) { g.holding = true; g.charge = 0; } else if (!down && g.holding) this.releaseJump(); return; }
     if (!down) return;
-    if (g.kind === 'mash' && pad === 'push') g.meter += .18 * g.boost;
+    if (g.kind === 'mash' && pad === 'push') g.meter += .18 * g.boost * g.dw;
     if (g.kind === 'timing' && pad === 'tap' && g.pause <= 0) {
-      const v = g.needle, sc = v >= .74 && v <= .8 ? 1.25 : v >= .66 && v <= .86 ? .95 : v >= .58 && v <= .92 ? .5 : .15;
+      const v = g.needle, off = Math.abs(v - .77) / g.dw, sc = off <= .03 ? 1.25 : Math.abs(v - .76) / g.dw <= .1 ? .95 : Math.abs(v - .75) / g.dw <= .17 ? .5 : .15;
       g.scores.push(sc); g.pause = .5; g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .9 ? 'GOOD' : sc >= .5 ? 'OK' : 'MISS';
       if (g.scores.length >= g.total) this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}회 완벽`);
     }
-    if (g.kind === 'alt' && (pad === 'L' || pad === 'R')) { g.dist += (pad !== g.lastFoot ? 1.05 : .25) * g.boost; g.lastFoot = pad; g.step = .12; }
+    if (g.kind === 'alt' && (pad === 'L' || pad === 'R')) { g.dist += (pad !== g.lastFoot ? 1.05 : .25) * g.boost * g.dw; g.lastFoot = pad; g.step = .12; }
     if (g.kind === 'arrows' && DIRS[pad] && g.dir) { if (pad === g.dir) { g.hits++; g.score += 1 + .3 * (g.left / g.win); g.flash = 'GOOD'; } else g.flash = 'MISS'; g.dir = null; g.left = g.gap; }
     if (g.kind === 'targets' && pad.startsWith('c') && g.cell >= 0) { if (+pad.slice(1) === g.cell) { g.hits++; g.flash = 'HIT'; } else g.flash = 'MISS'; this.setCell(-1); g.left = g.gap; }
   }
   releaseJump() {
     const g = this.game, v = g.charge; g.holding = false;
-    const sc = v > .95 ? .2 : v >= .82 && v <= .88 ? 1.25 : v >= .75 ? 1 - Math.abs(v - .85) * 2 : v * .8;
-    g.scores.push(sc); g.hop = .7; g.hopH = clamp(v, 0, .95); g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .85 ? 'GOOD' : v > .95 ? 'OVER!' : 'LOW';
+    const over = .95 + (g.dw - 1) * .1, sc = v > over ? .2 : Math.abs(v - .85) <= .03 * g.dw ? 1.25 : v >= .85 - .1 * g.dw ? 1 - Math.abs(v - .85) * 2 : v * .8;
+    g.scores.push(sc); g.hop = .7; g.hopH = clamp(v, 0, over); g.flash = sc >= 1.2 ? 'PERFECT' : sc >= .85 ? 'GOOD' : v > over ? 'OVER!' : 'LOW';
     if (g.scores.length >= g.total) setTimeout(() => this.end(g.scores.reduce((a, b) => a + b, 0) / g.total, `${g.scores.filter(x => x >= 1.2).length}번 완벽`), 650);
   }
   setCell(i) { const g = this.game; g.cell = i; this.root.querySelectorAll('.gym-cell').forEach((b, j) => b.classList.toggle('on', j === i)); }
@@ -6453,7 +6544,7 @@ class Gym {
       if (g.left <= 0) {
         if (g.dir) { g.dir = null; g.flash = 'SLOW'; g.left = g.gap; }
         else if (g.i + 1 >= g.total) return this.end(g.score / g.total, `${g.hits}/${g.total} 성공`);
-        else { g.i++; g.dir = ['up', 'left', 'right', 'down'][Math.floor(R() * 4)]; g.win = g.left = (1.15 - g.i * .05) * (g.boost > 1 ? 1.05 : 1); }
+        else { g.i++; g.dir = ['up', 'left', 'right', 'down'][Math.floor(R() * 4)]; g.win = g.left = (1.15 - g.i * .05) * (g.boost > 1 ? 1.05 : 1) * g.dw; }
       }
       stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 성공 ${g.hits}`;
       const pr = this.$('gy-prompt'); if (pr) { const v = g.dir ? DIRS[g.dir] : '·'; if (pr.textContent !== v) { pr.textContent = v; pr.dataset.dir = g.dir || ''; } }
@@ -6469,7 +6560,7 @@ class Gym {
       if (g.left <= 0) {
         if (g.cell >= 0) { this.setCell(-1); g.flash = 'SLOW'; g.left = g.gap; }
         else if (g.i + 1 >= g.total) return this.end(g.hits / g.total * 1.15, `${g.hits}/${g.total} 명중`);
-        else { g.i++; let c; do c = Math.floor(R() * 9); while (c === g.prev); g.prev = c; this.setCell(c); g.left = (1 - g.i * .04) * (g.boost > 1 ? 1.05 : 1); }
+        else { g.i++; let c; do c = Math.floor(R() * 9); while (c === g.prev); g.prev = c; this.setCell(c); g.left = (1 - g.i * .04) * (g.boost > 1 ? 1.05 : 1) * g.dw; }
       }
       stat.textContent = `${Math.max(0, g.i + 1)}/${g.total} · 명중 ${g.hits}`;
     }
@@ -6746,10 +6837,11 @@ const { teamPower, leagueTop, displayName } = __req("js/engine/league.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
 const { GYM_TIERS, gymTier, gymState } = __req("js/engine/gym.js");
-const PATCH = { id: '2026-11-12', title: '컴퓨터 키보드 조작 · 리시버 지정 패스', items: [['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+const PATCH = { id: '2026-11-13', title: '난이도: 쉬움 · 노말 · 하드', items: [['난이도 3단계', '새 커리어를 만들 때 쉬움·노말·하드(리얼리스틱)를 골라요. 지금 커리어는 노말이고, 설정에서 바꿀 수 있어요.'], ['쉬움', '성장이 빠르고 선택지 확률이 높아요. 직접 플레이는 캐치 범위가 넓고 상대 AI가 느려요.'], ['하드 (리얼리스틱)', '성장 속도와 NFL 드래프트 확률이 현실에 가까워요(자동 진행 기준 지명 약 13%). 직접 플레이는 판정 보정이 없고 상대 커버·패스 러시가 빨라요. 리시버 열림 색도 안 보여요.'], ['같이 바뀌는 것', '성장·급성장·노쇠, 리크루팅·드래프트 평가, 선택 카드 확률, 부상, 주전 경쟁, 방출, 헬스장, 그리고 직접 플레이의 캐치·패스 오차·포켓 시간·기술 성공률·태클·인터셉트·킥 흔들림까지.'], ['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
 const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
 const { INPUT_PREFS, inputPref, inputMode } = __req("js/ui/input.js");
+const { DIFFICULTY, DIFF_ORDER, diffId, diffOf, diffLowest } = __req("js/engine/difficulty.js");
 const { COLLEGES } = __req("js/data/colleges.js");
 
 const TABS = [['home', '홈', 'home'], ['season', '시즌', 'season'], ['player', '선수', 'player'], ['records', '기록', 'records'], ['social', '반응', 'social']];
@@ -6817,12 +6909,23 @@ function stageText(s) {
   if (s.stage === 'fa') return 'FA (무소속)';
   return '';
 }
+// 난이도 표시 (작은 배지)
+const diffBadge = id => { const d = DIFFICULTY[id] || DIFFICULTY.normal; return `<span class="diff-badge" style="--dc:${d.color}">${d.tag}</span>`; };
+// 난이도 고르기 (커리어 만들 때·설정)
+function diffPicker(current, action) {
+  return `<div class="diff-list">${DIFF_ORDER.map(id => { const d = DIFFICULTY[id]; return `<button class="diff-opt ${current === id ? 'on' : ''}" data-action="${action}" data-v="${id}" style="--dc:${d.color}"><div class="row between"><strong>${esc(d.name)}</strong>${diffBadge(id)}</div><div class="sub">${esc(d.blurb)}</div><div class="tiny faint">${esc(DIFF_FACTS[id])}</div></button>`; }).join('')}</div>`;
+}
+const DIFF_FACTS = {
+  easy: '성장 +10% · 선택지 확률 +8%p · 부상 −30% · 캐치 범위 넓음 · 상대 AI 느림',
+  normal: '기준 성장·확률 · 드래프트 지명 약 80%(자동 진행 기준) · 직접 플레이 기본 판정',
+  hard: '성장 −28% · 선택지 확률 −8%p · 부상 +30% · 드래프트 지명 약 13% · 판정 보정 없음 · 상대 AI 빠름',
+};
 function profileCard(s, compact = false) {
   const p = s.player, last = s.history.at(-1), delta = last ? last.ovrAfter - last.ovrBefore : 0;
   return `<section class="card"><div class="hero">${portrait(s, 64)}
     <div class="grow"><div class="name">${nameTag(p.name)} <span class="muted small">#${p.number}</span></div>
     <div class="small muted">${esc(s.team?.name || '')} · ${POSITIONS[p.pos].ko}${p.twoWay ? `·${POSITIONS[p.twoWay.pos].ko}` : ''} · ${p.age}세</div>
-    <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'}</div></div>
+    <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'} ${diffBadge(diffId(s))}</div></div>
     <div class="ovr"><small>OVR</small><b>${p.ovr}</b><span class="tier">${tierOf(p.ovr)}</span>${last && !compact ? `<div class="tiny ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'faint'}">지난 시즌 ${delta > 0 ? '▲' : delta < 0 ? '▼' : ''}${Math.abs(delta) || '유지'}</div>` : ''}</div></div></section>`;
 }
 
@@ -6866,6 +6969,7 @@ function setupPage(st) {
     body = `<p class="eyebrow">${esc(c.label)} · OVR ${c.ovr}</p><h2>집중해서 키울 능력치를<br>골라 주세요</h2>
       <p class="muted small" style="margin-top:6px">최대 2개. 고른 능력치가 훨씬 빨리 자라고, 커리어 중 전환점에서 바꿀 수 있어요.</p>
       <div class="card flat">${attrsOf(st.pos).map(k => `<button class="option ${st.focus.includes(k) ? 'sel' : ''}" data-action="setup-focus" data-v="${k}" style="margin-top:8px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${c.attrs[k]}</b></div><div class="sub">${ATTR[k][1]} · OVR 비중 ${Math.round(POSITIONS[st.pos].w[k] * 100)}%</div></button>`).join('')}</div>
+      <h3 style="margin-top:18px">난이도</h3><p class="muted small" style="margin-top:4px">성장·드래프트·선택지 확률과 직접 플레이(상대 AI·판정)가 함께 바뀌어요. 설정에서 나중에 바꿀 수 있어요.</p>${diffPicker(st.difficulty || 'normal', 'setup-diff')}
       <div class="card"><div class="hero">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number), '선수 얼굴', 'portrait', 'width:56px;height:56px')}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
       <div class="dock"><button class="primary" data-action="setup-create" ${st.focus.length ? '' : 'disabled'}>10학년 시즌 시작 ${icon('arrow')}</button><button class="ghost" data-action="setup-back">이전 단계</button></div>`;
   }
@@ -7134,7 +7238,7 @@ function retiredPage(s) {
   const tcount = s.history.reduce((n, h) => n + (h.awards?.length || 0), 0);
   return `<section class="card" style="text-align:center">${sceneImg(s, 'trophy', 'cheer', { count: tcount, alt: '트로피 룸' })}<div style="display:flex;justify-content:center;margin-top:-34px">${portrait(s, 72)}</div>
     <p class="eyebrow" style="margin-top:10px">${s.startYear}–${s.retiredYear} · ${POSITIONS[p.pos].ko}</p><h2 style="font-size:24px">${nameTag(p.name)}의 풋볼 인생</h2>
-    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span></div>
+    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span>${diffBadge(diffLowest(s))}</div>
     <p class="small" style="margin-top:10px">${esc(honorsLine(s) || '수상 기록 없음')}</p></section>
     <section class="card"><h3>명예의 전당</h3><p style="margin-top:6px">${esc(hof.verdict)}</p>${(L.legend || []).map(x => `<p class="small" style="margin-top:6px"><span class="pill gold">${x.kind === 'number' ? '영구결번' : '링 오브 아너'}</span> ${esc(x.text)}</p>`).join('')}${L.oneClub ? '<p class="small" style="margin-top:6px"><span class="pill green">원클럽맨</span> 한 팀에서만 NFL 커리어를 보냈습니다.</p>' : ''}</section>
     ${cmp.length ? `<section class="card"><h3>역대 기록과 비교</h3>${cmp.map(([v, mine]) => `<div class="kv"><span>${esc(v.label)}<div class="tiny faint">역대 1위 ${esc(v.holder)} ${v.value.toLocaleString('ko-KR')}</div></span><b>${num(mine)} <span class="tiny muted">(${Math.round(mine / v.value * 100)}%)</span></b></div>`).join('')}</section>` : ''}
@@ -7226,6 +7330,7 @@ const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요.
 function settingsSheet(s, status = 'local') {
   return sheet(`<h2>설정</h2><p class="lead">${STORAGE_TEXT[status] || STORAGE_TEXT.local}</p>
     <div class="option"><strong>${icon('settings')} 조작 방식</strong><div class="sub">직접 플레이(빅게임·킥·헬스장) 조작이에요. 컴퓨터는 키보드(WASD 이동 · Space·J·K·L 기술 · 숫자 키로 리시버 지정), 모바일은 터치(스틱·버튼·리시버 탭). 지금: <b>${inputMode() === 'key' ? '키보드' : '터치'}</b>${inputPref() === 'auto' ? ' (자동)' : ''}</div><div class="seg" style="margin-top:8px">${INPUT_PREFS.map(([v, n]) => `<button class="${inputPref() === v ? 'on' : ''}" data-action="input-pref" data-v="${v}">${esc(n)}</button>`).join('')}</div></div>
+    ${s && s.phase !== 'retired' ? `<div class="option"><strong>${icon('settings')} 난이도</strong><div class="sub">지금: <b>${esc(diffOf(s).name)}</b>. 바꾸면 다음 진행부터 적용돼요. 은퇴 기록에는 이 커리어에서 쓴 가장 쉬운 난이도(${esc(DIFFICULTY[diffLowest(s)].name)})가 남아요.</div>${diffPicker(diffId(s), 'set-diff')}</div>` : ''}
     <button class="option" data-action="export"><strong>${icon('download')} 저장 파일 내보내기</strong><div class="sub">커리어와 은퇴 기록을 JSON 파일로 받아요.</div></button>
     <label class="option" style="cursor:pointer"><strong>${icon('upload')} 저장 파일 가져오기</strong><div class="sub">내보낸 파일로 커리어를 이어 가요.</div><input type="file" accept="application/json,.json" data-input="import" hidden></label>
     <div class="option"><strong>${icon('upload')} 저장 데이터 붙여넣기</strong><div class="sub">내보낸 글자를 붙여 넣어 불러와요.</div><textarea id="import-text" rows="3" placeholder='{"app":"touchdown-life",...}' style="width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);color:var(--ink);font-size:12px"></textarea><button class="secondary" data-action="import-text" style="margin-top:8px;padding:10px">불러오기</button></div>
@@ -7238,7 +7343,7 @@ function archiveSheet(list) {
   const best = {};
   for (const e of sorted) { const g = { DT: 'DL', EDGE: 'DL' }[e.pos] || e.pos; if (!best[g] || best[g].score < e.score) best[g] = e; }
   return sheet(`<h2>내 은퇴 기록</h2><p class="lead">MVP → 슈퍼볼 우승 → 최고 OVR → 수상 수 → 커리어 점수 순으로 비교해요.</p>
-    ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span></td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
+    ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span> ${diffBadge(e.diff || 'normal')}</td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
     <h3 style="margin-top:16px">나의 베스트 라인업</h3>${Object.entries(best).map(([g, e]) => `<div class="kv"><span>${g}</span><b>${nameTag(e.name)} · OVR ${e.peak}</b></div>`).join('')}` : '<p class="muted" style="margin-top:12px">아직 은퇴한 선수가 없어요.</p>'}`);
 }
 function interviewSheet(s, year) {
@@ -7270,7 +7375,7 @@ function confirmSheet(title, body, action, label = '확인') {
 }
 
 
-return { PATCH, TABS, portrait, colorsByName, teamColors, passerRating, setCardIndex, markRollFresh, setSocialPane, sceneImg, keyStats, profileCard, setupPage, appBar, tabBar, homePage, seasonPage, lineSummary, playerPage, trophyShelf, recordsPage, socialPage, retiredPage, sheet, reportSheet, pathSheet, turningSheet, draftSheet, broadcastSheet, shopSheet, settingsSheet, archiveSheet, interviewSheet, olympicsSheet, patchSheet, imageSheet, textSheet, confirmSheet, TEAMS, LEVEL_AVG, superBowlName, TIER_LABEL };
+return { PATCH, TABS, portrait, colorsByName, teamColors, passerRating, diffBadge, setCardIndex, markRollFresh, setSocialPane, sceneImg, keyStats, diffPicker, profileCard, setupPage, appBar, tabBar, homePage, seasonPage, lineSummary, playerPage, trophyShelf, recordsPage, socialPage, retiredPage, sheet, reportSheet, pathSheet, turningSheet, draftSheet, broadcastSheet, shopSheet, settingsSheet, archiveSheet, interviewSheet, olympicsSheet, patchSheet, imageSheet, textSheet, confirmSheet, TEAMS, LEVEL_AVG, superBowlName, TIER_LABEL };
 });
 __def("js/main.js", function () {
 // 앱 진입점: 상태 보관, 렌더링, 이벤트 위임, 저장.
@@ -7282,6 +7387,7 @@ const FX = __req("js/ui/fx.js");
 const { openClutch, clutchLevelAvg } = __req("js/ui/clutch.js");
 const { openGym } = __req("js/ui/gym.js");
 const { setInputPref, inputMode } = __req("js/ui/input.js");
+const { DIFFICULTY, diffOf, diffId, setDifficulty, diffLowest } = __req("js/engine/difficulty.js");
 const { sceneUrl, iconUrl } = __req("js/ui/pixel.js");
 const { TEAM_BY_ID } = __req("js/data/teams.js");
 const { CARD_BY_ID } = __req("js/engine/events.js");
@@ -7295,7 +7401,7 @@ const { spriteUrl, portraitUrl } = __req("js/ui/pixel.js");
 const $ = sel => document.querySelector(sel);
 let state = loadCareer();
 let tab = 'home', sheetView = null, pathSel = null, focusDraft = [], bcTimer = null;
-const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [] };
+const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [], difficulty: 'normal' };
 let busy = false;
 V.setCardIndex(CARD_BY_ID);
 if (state && !state.player) state = null;
@@ -7338,7 +7444,7 @@ function playBroadcast(year) {
 function archiveEntry(s) {
   const L = careerScore(s);
   return { id: s.id, name: s.player.name, pos: s.player.pos, years: `${s.startYear}–${s.retiredYear}`, peak: L.peak, score: L.score, grade: L.grade,
-    mvp: countAwards(s, 'mvp'), sb: countAwards(s, 'sbChamp'), awards: s.history.reduce((n, h) => n + (h.awards?.length || 0), 0), honors: honorsLine(s), hof: s.legacy?.hof?.chance ?? 0 };
+    mvp: countAwards(s, 'mvp'), sb: countAwards(s, 'sbChamp'), awards: s.history.reduce((n, h) => n + (h.awards?.length || 0), 0), honors: honorsLine(s), hof: s.legacy?.hof?.chance ?? 0, diff: diffLowest(s) };
 }
 function afterRetire() { archiveCareer(archiveEntry(state)); tab = 'home'; persist(); render(); window.scrollTo(0, 0); }
 async function retireShow() {
@@ -7410,7 +7516,7 @@ async function playBig(direct) {
   let res = null;
   if (direct && canPlayBig(state)) {
     busy = true;
-    res = await openClutch(document.getElementById('clutch-root'), { player: state.player, game: g, colors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), myName: state.team.short || state.team.name, oppName: g.oppName, levelAvg: clutchLevelAvg(state) });
+    res = await openClutch(document.getElementById('clutch-root'), { player: state.player, game: g, colors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), myName: state.team.short || state.team.name, oppName: g.oppName, levelAvg: clutchLevelAvg(state), diff: diffOf(state) });
     busy = false;
   }
   let played;
@@ -7474,6 +7580,8 @@ document.addEventListener('click', e => {
     case 'setup-av': setup.avatar[el.dataset.k] = +v; render(); break;
     case 'setup-pos': setup.pos = v; setup.cand = null; setup.focus = []; render(); break;
     case 'setup-nat': setup.nat = v; render(); break;
+    case 'setup-diff': if (DIFFICULTY[v]) { setup.difficulty = v; const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'set-diff': if (state && DIFFICULTY[v] && v !== diffId(state)) { setDifficulty(state, v); persist(); render(); openSheet({ kind: 'settings' }); toast(`난이도: ${DIFFICULTY[v].name}`); } break;
     case 'setup-next': setup.step = Math.min(3, setup.step + 1); if (setup.step === 3 && !setup.focus.length) { const c = makeCandidates(setup.pos, `${setup.name}:${setup.pos}:${setup.seedN}`)[setup.cand]; setup.focus = c.strong.filter(k => c.attrs[k] !== undefined).slice(0, 2); } render(); window.scrollTo(0, 0); break;
     case 'setup-back': setup.step = Math.max(0, setup.step - 1); render(); window.scrollTo(0, 0); break;
     case 'setup-cand': setup.cand = +v; setup.focus = []; render(); break;
@@ -7482,7 +7590,7 @@ document.addEventListener('click', e => {
     case 'setup-create': {
       const c = makeCandidates(setup.pos, `${setup.name}:${setup.pos}:${setup.seedN}`)[setup.cand];
       try {
-        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus });
+        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus, difficulty: setup.difficulty });
         persist(); tab = 'home'; render(); window.scrollTo(0, 0); toast('첫 시즌이 준비됐어요.');
       } catch (err) { toast(err.message); }
       break;

@@ -7,6 +7,7 @@ import * as FX from './ui/fx.js';
 import { openClutch, clutchLevelAvg } from './ui/clutch.js';
 import { openGym } from './ui/gym.js';
 import { setInputPref, inputMode } from './ui/input.js';
+import { DIFFICULTY, diffOf, diffId, setDifficulty, diffLowest } from './engine/difficulty.js';
 import { sceneUrl, iconUrl } from './ui/pixel.js';
 import { TEAM_BY_ID } from './data/teams.js';
 import { CARD_BY_ID } from './engine/events.js';
@@ -20,7 +21,7 @@ import { spriteUrl, portraitUrl } from './ui/pixel.js';
 const $ = sel => document.querySelector(sel);
 let state = loadCareer();
 let tab = 'home', sheetView = null, pathSel = null, focusDraft = [], bcTimer = null;
-const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [] };
+const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [], difficulty: 'normal' };
 let busy = false;
 V.setCardIndex(CARD_BY_ID);
 if (state && !state.player) state = null;
@@ -63,7 +64,7 @@ function playBroadcast(year) {
 function archiveEntry(s) {
   const L = careerScore(s);
   return { id: s.id, name: s.player.name, pos: s.player.pos, years: `${s.startYear}–${s.retiredYear}`, peak: L.peak, score: L.score, grade: L.grade,
-    mvp: countAwards(s, 'mvp'), sb: countAwards(s, 'sbChamp'), awards: s.history.reduce((n, h) => n + (h.awards?.length || 0), 0), honors: honorsLine(s), hof: s.legacy?.hof?.chance ?? 0 };
+    mvp: countAwards(s, 'mvp'), sb: countAwards(s, 'sbChamp'), awards: s.history.reduce((n, h) => n + (h.awards?.length || 0), 0), honors: honorsLine(s), hof: s.legacy?.hof?.chance ?? 0, diff: diffLowest(s) };
 }
 function afterRetire() { archiveCareer(archiveEntry(state)); tab = 'home'; persist(); render(); window.scrollTo(0, 0); }
 async function retireShow() {
@@ -135,7 +136,7 @@ async function playBig(direct) {
   let res = null;
   if (direct && canPlayBig(state)) {
     busy = true;
-    res = await openClutch(document.getElementById('clutch-root'), { player: state.player, game: g, colors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), myName: state.team.short || state.team.name, oppName: g.oppName, levelAvg: clutchLevelAvg(state) });
+    res = await openClutch(document.getElementById('clutch-root'), { player: state.player, game: g, colors: V.teamColors(state), oppColors: V.colorsByName(g.oppName), myName: state.team.short || state.team.name, oppName: g.oppName, levelAvg: clutchLevelAvg(state), diff: diffOf(state) });
     busy = false;
   }
   let played;
@@ -199,6 +200,8 @@ document.addEventListener('click', e => {
     case 'setup-av': setup.avatar[el.dataset.k] = +v; render(); break;
     case 'setup-pos': setup.pos = v; setup.cand = null; setup.focus = []; render(); break;
     case 'setup-nat': setup.nat = v; render(); break;
+    case 'setup-diff': if (DIFFICULTY[v]) { setup.difficulty = v; const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+    case 'set-diff': if (state && DIFFICULTY[v] && v !== diffId(state)) { setDifficulty(state, v); persist(); render(); openSheet({ kind: 'settings' }); toast(`난이도: ${DIFFICULTY[v].name}`); } break;
     case 'setup-next': setup.step = Math.min(3, setup.step + 1); if (setup.step === 3 && !setup.focus.length) { const c = makeCandidates(setup.pos, `${setup.name}:${setup.pos}:${setup.seedN}`)[setup.cand]; setup.focus = c.strong.filter(k => c.attrs[k] !== undefined).slice(0, 2); } render(); window.scrollTo(0, 0); break;
     case 'setup-back': setup.step = Math.max(0, setup.step - 1); render(); window.scrollTo(0, 0); break;
     case 'setup-cand': setup.cand = +v; setup.focus = []; render(); break;
@@ -207,7 +210,7 @@ document.addEventListener('click', e => {
     case 'setup-create': {
       const c = makeCandidates(setup.pos, `${setup.name}:${setup.pos}:${setup.seedN}`)[setup.cand];
       try {
-        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus });
+        state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus, difficulty: setup.difficulty });
         persist(); tab = 'home'; render(); window.scrollTo(0, 0); toast('첫 시즌이 준비됐어요.');
       } catch (err) { toast(err.message); }
       break;

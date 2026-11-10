@@ -5,5 +5,6 @@
   - `js/ui/input.js`의 `inputMode()`/`isKeyMode()`로 방식을 읽고 `onInputMode()`로 바뀔 때 다시 그립니다. 키는 `keyName(e)`(물리 키 위치, 한글 입력 상태에서도 동작)로 읽습니다.
   - 키보드 모드에서는 요소마다 누를 키를 표시합니다(`<kbd>`). 이동은 WASD·방향키, 주 동작은 Space, 보조 동작은 J·K·L, 선택지는 숫자 키, 확인은 Enter, 나가기는 Esc를 기본으로 씁니다.
   - 안내 문구도 방식별로 씁니다(예: clutch.js의 `HINT` / `HINT_KEY`).
+- 난이도(쉬움·노말·하드)는 `js/engine/difficulty.js` 한 곳에서 관리합니다. 확률·성장·판정·AI 수준을 새로 넣을 때는 숫자를 코드에 박지 말고 난이도 값을 거치게 하고(커리어는 `diffOf(s)`, 직접 플레이는 `cfg.diff`), 노말이 기준 밸런스로 그대로 남게 합니다. 바꾼 뒤에는 `DIFF=easy|normal|hard node tools/simulate.mjs 240`으로 세 난이도를 확인합니다.
 - 테스트는 Playwright로 데스크톱(키보드만)과 폰 에뮬레이션(터치) 둘 다 확인합니다.
 - 단일 파일은 `node tools/build-single.mjs`로 다시 만듭니다.

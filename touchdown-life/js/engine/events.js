@@ -1,6 +1,7 @@
 // 시즌 중 선택 카드. 선택지마다 성공 확률이 보이고, 그 확률 그대로 굴립니다.
 // when: stage, pos(포지션 목록) / side(O·D·ST), ageMin/ageMax, roleIn(역할 목록), seg(구간), nat, flagsAll/flagsNone, minOvr, form, first(첫 시즌)
 // 효과 fx: meters{trust,locker,media,front,body}, attrs{키:증감 | main/phys/mental}, season{playing,perf,injury}, money, followers(배수), flags/unflags
+import { diffOf } from './difficulty.js';
 import { clamp, pick, POSITIONS, attrsOf, overall, ATTR, usd } from './core.js';
 
 export const METERS = { trust: '감독 신뢰', locker: '라커룸', media: '팬·언론', front: '구단 관계', body: '누적 피로' };
@@ -409,7 +410,7 @@ function matches(s, c, seg) {
 }
 export function chanceOf(s, ch) {
   const m = ch.meter ? (s.meters[ch.meter] ?? 50) - (ch.meter === 'body' ? 0 : 50) : 0;
-  return clamp(Math.round(ch.base + m * (ch.per || 0)), 5, 95);
+  return clamp(Math.round(ch.base + m * (ch.per || 0) + diffOf(s).chance), 5, 95);
 }
 export function drawCard(s, r, seg) {
   const seen = new Set(s.cardsSeen || []);

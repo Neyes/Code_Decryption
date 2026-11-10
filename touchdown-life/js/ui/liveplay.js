@@ -3,7 +3,8 @@
 // 작전은 playbook.js(포메이션·루트·커버리지)를 따릅니다: 공격 리시버는 루트를, 쿼터백 AI는 읽는 순서를,
 // 수비는 맨·존(딥/훅/컬/플랫)·블리츠·스파이 배정을 그대로 수행합니다.
 // cfg: ball, toGo, control(QB|RB|WR|TE|OL|DL|LB|CB|S), edge, side('O'|'D'), me{attrs, ovr, number}, teamRating, oppRating,
-//      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용)
+//      offColors, defColors, endzone[2], away('O'|'D'), banner, offForm·offPlay(공격), defForm·defPlay(수비), speedup·assist·zoom(개발용),
+//      diff(난이도의 live 값: 캐치 범위·확률, 패스 오차, 포켓 시간, 기술 성공률·대기, 태클·인터셉트, AI 도움·힌트. 없으면 노말)
 // 조작은 입력 방식(input.js)에 따라 바뀌고 화면 요소는 같습니다.
 //  · 모바일(터치): 왼쪽 아래 아날로그 스틱, 오른쪽 아래 상황별 스킬 버튼(최대 4개), 쿼터백은 리시버나 위쪽 리시버 칩을 탭하면 패스.
 //  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
@@ -11,6 +12,7 @@
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
 import { bigText, vivid, shade, lum, OUT } from './pixel.js';
 import { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } from './input.js';
+import { DIFFICULTY } from '../engine/difficulty.js';
 import { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } from './sprites.js';
 import { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } from './playbook.js';
 
@@ -25,7 +27,6 @@ const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
 const SLOT_KEYS = ['space', 'j', 'k', 'l'], LEGACY_KEYS = { z: 0, x: 1, c: 2, v: 3 }; // 버튼 1~4 키 (Z·X·C·V는 예전 키)
 const OPEN_COLOR = { open: '#3BB273', mid: '#F2C230', tight: '#E85A5A', pre: '#E9EEF3' };
-const ME_REACH = .25; // 내가 조종하는 리시버의 추가 캐치 범위(야드)
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
 export function runLivePlay(host, cfg) {
@@ -36,6 +37,7 @@ export function runLivePlay(host, cfg) {
 export class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
+    this.dif = { ...DIFFICULTY.normal.live, ...(cfg.diff || {}) }; // 난이도 (engine/difficulty.js)
     host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
       <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
       <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
@@ -155,7 +157,7 @@ export class LivePlay {
       take(p, s);
     }
   }
-  shownShell(dp) { return R() < .22 && dp.shell !== 0 ? 3 - dp.shell : dp.shell; } // 가끔 셸을 숨깁니다(디스가이즈)
+  shownShell(dp) { return R() < this.dif.disguise && dp.shell !== 0 ? 3 - dp.shell : dp.shell; } // 가끔 셸을 숨깁니다(디스가이즈)
   formDefense(formId, shell, instant) {
     this.defForm = formId;
     const recvs = this.P.filter(p => p.skill).map(p => ({ slot: p.slot, kind: p.role, x: p.home.x, y: p.home.y }));
@@ -225,7 +227,7 @@ export class LivePlay {
       [...free].forEach((o, i) => { o.runTarget = lbs[i] || lbs[0] || null; o.climb = true; });
     }
     const blitzers = D.filter(p => p.blitz).length;
-    this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15, 1.9, 4.3);
+    this.pocket = clamp(2.75 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * 1.1 - blitzers * .15 + (c.side === 'O' ? 1 : -1) * this.dif.pocket, 1.7, 4.9);
     this.qbDeadline = 2.5 + R() * 1.4; this.heatRoll = null; this.rushWon = false; // 공을 오래 끄는 날도 있습니다 (색이 나올 수 있게)
     this.qbFrozen = R() < clamp(.16 - (c.teamRating - 60) * .004, .05, .2) ? 1.6 : 0; // 가끔은 아무도 못 보고 공을 오래 끕니다
     // 쿼터백이 고를 리시버 번호: 루트를 뛰는 선수를 정렬 위치 왼쪽부터 1~5
@@ -310,7 +312,7 @@ export class LivePlay {
       this.tgKey = key;
       el.innerHTML = this.tnum.map((p, i) => `<button class="lp-tg" data-tn="${i + 1}" aria-label="${i + 1}번 ${p.role} ${p.num}에게 패스"><b>${i + 1}</b><span>${p.role} ${p.num}</span></button>`).join('');
     }
-    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.openLevel(p); if (b.dataset.o !== o) b.dataset.o = o; });
+    this.tnum.forEach((p, i) => { const b = el.children[i]; if (!b) return; const o = this.phase === 'pre' ? 'pre' : !this.eligible().includes(p) ? 'gone' : this.dif.openHint ? this.openLevel(p) : 'pre'; if (b.dataset.o !== o) b.dataset.o = o; });
   }
   tap(f) {
     if (this.phase !== 'live') return;
@@ -356,7 +358,7 @@ export class LivePlay {
     const list = this.skills(), def = list.find(x => x.id === id); if (!def || !def.ready) return;
     if (fromKey) { const b = this.btns.children[list.indexOf(def)]; if (b) { b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); } }
     const sk = this.sk, a = this.cfg.me.attrs, A = k => a[k] ?? this.cfg.me.ovr;
-    sk.cd[id] = def.cd;
+    sk.cd[id] = def.cd * this.dif.cd;
     if (id === 'pass') return this.autoThrow();
     if (id === 'ptype') { this.passType = PASS_TYPES[(PASS_TYPES.indexOf(this.passType) + 1) % 3]; this.float(m, { touch: 'TOUCH', bullet: 'BULLET', lob: 'LOB' }[this.passType], '#FFFFFF'); }
     else if (id === 'spin') { sk.spinT = .5; this.ghost(m); this.float(m, 'SPIN', '#FFFFFF'); }
@@ -364,14 +366,14 @@ export class LivePlay {
       const near = this.nearestD(m, 5), dir = Math.abs(this.stick.x) > .2 ? Math.sign(this.stick.x) : near ? (Math.sign(m.x - near.x) || 1) : (R() < .5 ? -1 : 1);
       this.ghost(m); m.vx = dir * m.spd * 1.05; m.vy *= .55; this.juke = .45;
       let bit = 0;
-      for (const d of this.P.filter(d => d.team !== m.team && !(d.stun > 0) && dist(d, m) < 4.5)) if (R() < clamp(.38 + (A('agi') - d.rating) * .015, .15, .8)) { d.stun = .55; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); bit++; }
+      for (const d of this.P.filter(d => d.team !== m.team && !(d.stun > 0) && dist(d, m) < 4.5)) if (R() < clamp(.38 + this.dif.skill + (A('agi') - d.rating) * .015, .15, .8)) { d.stun = .55; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); bit++; }
       this.float(m, bit ? 'JUKE!' : 'JUKE', bit ? '#FFD84A' : '#FFFFFF');
     }
     else if (id === 'turbo') { sk.turboT = 1.3; this.float(m, 'TURBO', '#FFD84A'); }
     else if (id === 'stiff') { sk.stiffT = .8; this.float(m, 'STIFF ARM', '#FFFFFF'); }
     else if (id === 'fake') {
       const d = this.nearestD(m, 3.8); this.ghost(m); m.vx += (R() < .5 ? -1 : 1) * 3;
-      if (d && R() < clamp(.42 + (A('route') - d.rating) * .016, .15, .85)) { d.stun = .6; d.vx = 0; d.vy = 0; this.float(d, '?', '#FFD84A'); this.float(m, 'FAKED OUT!', '#FFD84A'); }
+      if (d && R() < clamp(.42 + this.dif.skill + (A('route') - d.rating) * .016, .15, .85)) { d.stun = .6; d.vx = 0; d.vy = 0; this.float(d, '?', '#FFD84A'); this.float(m, 'FAKED OUT!', '#FFD84A'); }
       else this.float(m, 'FAKE', '#FFFFFF');
     }
     else if (id === 'call') { sk.callT = 3; sk.callWait = null; sk.callPose = .55; this.float(m, 'HERE!', '#FFD84A'); }
@@ -380,7 +382,7 @@ export class LivePlay {
     else if (id === 'pump') {
       sk.pumps++; this.float(m, 'PUMP!', '#FFFFFF'); m.throwT = .25;
       const read = (A('vis') + A('poise')) / 2;
-      for (const d of this.P.filter(d => d.team === 'D' && ['CB', 'S', 'LB'].includes(d.role) && dist(d, m) < 26)) if (R() < clamp(.45 + (read - d.rating) * .012, .2, .8)) { d.stun = .4; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); }
+      for (const d of this.P.filter(d => d.team === 'D' && ['CB', 'S', 'LB'].includes(d.role) && dist(d, m) < 26)) if (R() < clamp(.45 + this.dif.skill + (read - d.rating) * .012, .2, .8)) { d.stun = .4; d.vx *= .2; d.vy *= .2; this.float(d, '?', '#FFD84A'); }
     }
     else if (id === 'dive') {
       const t = this.carrier; let dx = t.x + t.vx * .2 - m.x, dy = t.y + t.vy * .2 - m.y; const n = Math.hypot(dx, dy) || 1;
@@ -388,17 +390,17 @@ export class LivePlay {
     }
     else if (id === 'jam') {
       const o = this.nearestD(m, 1.9);
-      if (o && R() < clamp(.45 + ((A('str') + A('cov')) / 2 - o.rating) * .012, .2, .85)) { o.stun = .6; o.vx *= .2; o.vy *= .2; this.float(o, 'JAM!', '#FFD84A'); this.spark(o); }
+      if (o && R() < clamp(.45 + this.dif.skill + ((A('str') + A('cov')) / 2 - o.rating) * .012, .2, .85)) { o.stun = .6; o.vx *= .2; o.vy *= .2; this.float(o, 'JAM!', '#FFD84A'); this.spark(o); }
       else this.float(m, 'MISS', '#FFFFFF');
     }
     else if (id === 'spinmove' || id === 'swim') {
       const b = this.myBlocker, move = id === 'spinmove' ? (A('agi') + A('rush')) / 2 : (A('hand') + A('rush')) / 2;
-      if (b && R() < clamp(.42 + (move - b.rating) * .013, .18, .85)) { m.shed = 0; m.stunFree = .8; b.stun = .45; if (id === 'spinmove') sk.spinT = .4; this.ghost(m); this.float(m, id === 'spinmove' ? 'SPIN!' : 'SWIM!', '#FFD84A'); }
+      if (b && R() < clamp(.42 + this.dif.skill + (move - b.rating) * .013, .18, .85)) { m.shed = 0; m.stunFree = .8; b.stun = .45; if (id === 'spinmove') sk.spinT = .4; this.ghost(m); this.float(m, id === 'spinmove' ? 'SPIN!' : 'SWIM!', '#FFD84A'); }
       else { m.stun = .25; this.float(m, 'STUCK', '#FFFFFF'); }
     }
     else if (id === 'punch') {
       const d = this.myMan, qb = this.qb;
-      if (d && R() < clamp(.5 + (A('str') - d.rating) * .012, .2, .88)) { d.stun = .6; d.shed = 0; const n = dist(d, qb) || 1; d.x += (d.x - qb.x) / n * .9; d.y += (d.y - qb.y) / n * .9; this.float(d, 'POW!', '#FFD84A'); this.spark(d); }
+      if (d && R() < clamp(.5 + this.dif.skill + (A('str') - d.rating) * .012, .2, .88)) { d.stun = .6; d.shed = 0; const n = dist(d, qb) || 1; d.x += (d.x - qb.x) / n * .9; d.y += (d.y - qb.y) / n * .9; this.float(d, 'POW!', '#FFD84A'); this.spark(d); }
       else this.float(m, 'MISS', '#FFFFFF');
     }
     else if (id === 'anchor') { sk.anchorT = 1.4; this.float(m, 'ANCHOR', '#FFD84A'); }
@@ -457,7 +459,7 @@ export class LivePlay {
   throwTo(tx, ty, qb, type = 'touch', want = null) {
     const c = this.cfg, acc = qb.me ? (c.me.attrs.acc ?? c.me.ovr) : c.teamRating;
     const d = Math.hypot(tx - qb.x, ty - qb.y), pressure = this.P.some(p => p.team === 'D' && dist(p, qb) < 2.4) ? 1.7 : 1;
-    const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
+    const err = Math.max(.15, (1.7 - acc * .013) * pressure * (d / 18)) * (type === 'touch' ? 1 : 1.15) * (qb.me ? this.dif.throwErr : 1), a = R() * Math.PI * 2, e = Math.abs(gauss()) * err;
     const lx = clamp(tx + Math.cos(a) * e, -1, FW + 1), ly = ty + Math.sin(a) * e;
     const T = .3 + d / this.passSpeed(qb, type), peak = type === 'bullet' ? 1.6 + d * .05 : type === 'lob' ? 5 + d * .25 : 2.8 + d * .13;
     this.ball = { sx: qb.x, sy: qb.y, x: lx, y: ly, t: 0, T, peak, type, from: qb, tipped: new Set() };
@@ -541,7 +543,7 @@ export class LivePlay {
     const passing = !ru || this.fleaPhase === 2;
     const calling = sk.callT > 0 && me && me.team === 'O' && me !== qb && !qb.me && this.eligible().includes(me) && !this.ball && this.carrier === qb && !this.qbRunning && qb.y < this.los + .5 && (passing || rpoCall) && (!play.flea || this.fleaPhase === 2);
     if (calling) {
-      sk.callWait = (sk.callWait ?? clamp(.42 - (c.teamRating - 60) * .006, .2, .55)) - dt;
+      sk.callWait = (sk.callWait ?? clamp(.42 - (c.teamRating - 60) * .006, .2, .55) * this.dif.callWait) - dt;
       if (sk.callWait <= 0 && this.t > .3) { sk.callT = 0; sk.callWait = null; this.float(qb, 'GOT IT!', '#FFFFFF'); this.throwAt(qb, me, this.aiPassType(qb, me)); }
     }
     // AI 쿼터백 패스
@@ -597,7 +599,7 @@ export class LivePlay {
         if (h < 2.6) for (const d of P) {
           if (d.team !== 'D' || d.stun > 0 || b.tipped.has(d) || Math.hypot(d.x - gx, d.y - gy) > .8) continue;
           b.tipped.add(d);
-          if (R() < (d.me ? (sk.defBall ? .6 : .4) : .2) * (b.type === 'bullet' ? 1 : .7)) return this.tipBall(d);
+          if (R() < (d.me ? (sk.defBall ? .6 : .4) : .2 * (c.side === 'O' ? this.dif.aiInt : 1)) * (b.type === 'bullet' ? 1 : .7)) return this.tipBall(d);
         }
       }
       if (b.t >= b.T) return this.resolveCatch();
@@ -608,16 +610,16 @@ export class LivePlay {
       if (carrier.y >= 100) return this.endPlay({ gain: 100 - this.los, td: true, text: '터치다운!' });
       for (const d of P.filter(x => x.team === 'D' && !(x.stun > 0) && !x.engaged)) {
         const diving = (d.me && sk.diveT > 0) || d.diveT > 0;
-        if (dist(d, carrier) < (carrier.y > this.los + 3 ? 1.15 : .8) + (diving ? .85 : 0)) {
+        if (dist(d, carrier) < (carrier.y > this.los + 3 ? 1.15 : .8) + (diving ? .85 : 0) + (d.me ? this.dif.myTackle : 0)) {
           if (d.me) sk.diving = false;
           d.diveT = 0;
           const sackish = carrier === qb && carrier.y < this.los + .3 && !this.thrown && !this.qbRunning;
           const elusive = carrier.me ? ((carrier.attrs?.agi ?? carrier.rating) + (carrier.attrs?.str ?? carrier.rating)) / 2 : carrier.rating;
           const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.rating, spinning = carrier.me && sk.spinT > 0, stiff = carrier.me && sk.stiffT > 0;
-          const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0), .03, spinning || stiff ? .85 : .55);
+          const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0) + (carrier.me ? this.dif.breakP : 0) - (d.me ? this.dif.breakP : 0), .03, spinning || stiff ? .85 : .55);
           if (R() < pBreak) { d.stun = spinning || stiff ? .9 : .55; if (stiff) { d.prone = .8; sk.stiffT = 0; } this.pop(spinning ? 'SPIN MOVE!' : stiff ? 'STIFF ARM!' : 'BROKEN TACKLE', spinning || stiff ? '#FFD84A' : '#FFFFFF'); continue; }
           if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, sacker: d, text: '색!' }); }
-          const fumble = R() < clamp(.016 - ((carrier.attrs?.carry ?? 60) - 60) * .0004, .005, .03) * (sackish ? 2 : 1);
+          const fumble = R() < clamp(.016 - ((carrier.attrs?.carry ?? 60) - 60) * .0004, .005, .03) * (sackish ? 2 : 1) * (carrier.me ? this.dif.fumble : 1);
           if (d.me) { this.inc('tkl'); if (carrier.y < this.los) this.inc('tfl'); if (fumble) this.inc('ff'); }
           d.prone = .6; carrier.prone = .6;
           if (fumble) return this.endPlay({ gain: carrier.y - this.los, turnover: 'FUMBLE', text: '펌블!' });
@@ -637,7 +639,8 @@ export class LivePlay {
     if (mag > .14) { const sp = .3 + .7 * clamp((mag - .14) / .6, 0, 1); return this.seek(p, p.x + sx / mag * 6, p.y + sy / mag * 6, dt, sp * (this.carrier === p ? .97 : 1) * boost, 22); }
     if (this.carrier === p && p !== this.qb) return this.seek(p, p.x + p.vx * .2, p.y + 6, dt, .9 * boost, 10);
     if (p === this.qb && this.carrier === p) return this.seek(p, p.x, p.y, dt, 1, 14);
-    p.team === 'O' ? this.aiO(p, dt, this.cfg.assist ?? (p.role === 'OL' ? .3 : .6)) : this.aiD(p, dt, this.cfg.assist ?? .6);
+    const help = this.cfg.assist ?? Math.min(1, (p.team === 'O' && p.role === 'OL' ? .3 : .6) * this.dif.assist); // 손을 떼면 AI가 이만큼 대신 뜁니다
+    p.team === 'O' ? this.aiO(p, dt, help) : this.aiD(p, dt, help);
   }
   // ───────── 공격 AI ─────────
   aiO(p, dt, k = 1) {
@@ -719,9 +722,11 @@ export class LivePlay {
   aiD(p, dt, k = 1) {
     const car = this.carrier, ball = this.ball, qb = this.qb, a = p.asg || { t: 'rush' }, ru = this.run, play = this.play;
     const runLike = !!ru || (play.flea && this.fleaPhase === 1);
+    // 난이도: 내가 공격일 때 상대 수비 AI의 커버 속도·맨 반응 지연·공 반응·추격 속도
+    const hd = this.cfg.side === 'O' ? this.dif : null, cs = hd ? hd.coverSpd : 1, cl = hd ? hd.coverLag : 1, rc = hd ? hd.react : 1, pu = hd ? hd.pursue : 1;
     if (ball) {
       const deep = a.t === 'zone' && isDeepZone(a.z), r = a.t === 'zone' ? (deep ? 17 : 12) : a.t === 'man' ? 7 : 3.5;
-      if (Math.hypot(ball.x - p.x, ball.y - p.y) < r && ball.t > (a.t === 'man' ? .45 : .3)) return this.seek(p, ball.x, ball.y, dt, .97 * k, 14);
+      if (Math.hypot(ball.x - p.x, ball.y - p.y) < r && ball.t > (a.t === 'man' ? .45 : .3) * rc) return this.seek(p, ball.x, ball.y, dt, .97 * k * cs, 14);
     }
     if (runLike && this.t < .9 && p.role !== 'DL' && !p.blitz) return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k); // 런인지 읽는 시간
     if (play.pa && !p.blitz && this.t < .7 - (p.rating - 60) * .01 && (p.role === 'LB' || (p.role === 'S' && !(a.t === 'zone' && isDeepZone(a.z))))) return this.seek(p, p.x, Math.max(this.los + 1.5, p.y - 3), dt, .7 * k); // 페이크에 끌려 나옴
@@ -736,9 +741,9 @@ export class LivePlay {
       if (p.diveT > 0) return; // 몸을 날린 중에는 그대로
       const dd = dist(p, car);
       // 가까이 붙으면 다이브 태클 (빗나가면 잠시 넘어져 있음)
-      if (dd < 1.9 && dd > 1.15 && !(p.prone > 0) && !p.engaged && R() < dt * 3) { p.vx = (car.x + car.vx * .15 - p.x) / dd * p.spd * 1.45; p.vy = (car.y + car.vy * .15 - p.y) / dd * p.spd * 1.45; p.diveT = .35; return; }
+      if (dd < 1.9 && dd > 1.15 && !(p.prone > 0) && !p.engaged && R() < dt * 3 * (this.cfg.side === 'O' ? this.dif.aiDive : 1)) { p.vx = (car.x + car.vx * .15 - p.x) / dd * p.spd * 1.45; p.vy = (car.y + car.vy * .15 - p.y) / dd * p.spd * 1.45; p.diveT = .35; return; }
       const lead = Math.min(.9, dd / 9);
-      return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, (dd < 4 ? 1.06 : 1) * k);
+      return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, (dd < 4 ? 1.06 : 1) * k * pu);
     }
     if (a.t === 'rush') {
       // 막는 사람이 없는 블리처는 포켓 시계를 기다리지 않고 곧장 들어갑니다
@@ -753,13 +758,13 @@ export class LivePlay {
       if (o && o.routeName === 'block' && this.t > .9) { p.asg = R() < .5 ? { t: 'rush', blitz: true } : { t: 'zone', z: 'hookM' }; return this.seek(p, p.x, p.y, dt, k); }
       // 맨: 마크맨의 x를 따라가며 위쪽 쿠션을 지킵니다 (스크리미지 라인 뒤로 쫓아 들어가지 않음)
       if (o) {
-        const deep = o.y > this.los + 11, lag = (deep ? .08 : .15) + Math.max(0, o.rating - p.rating) * .004;
+        const deep = o.y > this.los + 11, lag = ((deep ? .08 : .15) + Math.max(0, o.rating - p.rating) * .004) * cl;
         let ty = Math.max(o.y - o.vy * lag + (deep ? 1 : .6), this.los + 1);
         if (o.y < p.y && o.vy > 1) ty = Math.max(ty, p.y); // 리시버가 올라오는 동안은 물러서기만
-        return this.seek(p, o.x - o.vx * lag, ty, dt, k, 16);
+        return this.seek(p, o.x - o.vx * lag, ty, dt, k * cs, 16);
       }
     }
-    if (a.t === 'zone') return this.zoneMove(p, a.z, dt, k);
+    if (a.t === 'zone') return this.zoneMove(p, a.z, dt, k * cs);
     return this.seek(p, p.x, p.y, dt, k);
   }
   // 존: 지점으로 물러나 내 구역에 들어온 리시버를 따라 움직입니다 (딥은 가장 깊은 리시버 위, 언더는 앞을 막음)
@@ -783,7 +788,7 @@ export class LivePlay {
   // ───────── 공 결과 ─────────
   tipBall(d) {
     const b = this.ball, qbMe = b.from.me; this.ball = null;
-    if (R() < (d.me ? .3 : .15)) {
+    if (R() < (d.me ? .3 + this.dif.myInt : .15 * (this.cfg.side === 'O' ? this.dif.aiInt : 1))) {
       if (qbMe) this.inc('pint'); if (d.me) { this.inc('dint'); this.inc('pd'); }
       this.pop('TIPPED · INT!', '#E85A5A');
       return this.endPlay({ gain: 0, turnover: 'INT', text: '공이 튀어 인터셉트!' });
@@ -797,8 +802,8 @@ export class LivePlay {
     const b = this.ball, spot = { x: b.x, y: b.y }, c = this.cfg, sk = this.sk;
     this.ball = null;
     const near = this.P.filter(p => !(p.stun > 0)).map(p => ({ p, d: dist(p, spot) })).sort((a, b2) => a.d - b2.d);
-    // 내가 직접 잡는 리시버면 팔이 0.25야드 더 닿는 것처럼 계산합니다 (잡는 범위·수비와의 거리 비교 모두)
-    const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - ME_REACH) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
+    // 내가 직접 잡는 리시버면 팔이 조금 더 닿는 것처럼 계산합니다 (난이도 reach: 쉬움 0.5 · 노말 0.25 · 하드 0야드, 잡는 범위·수비와의 거리 비교 모두)
+    const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - this.dif.reach) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
     const ct = off ? (off.p.me ? sk.catchType || 'norm' : this.aiCatchType(off.p, def)) : 'norm';
     const REACH = { high: .7, poss: -.1, rac: -.25, norm: 0 }, CONTEST = { high: .08, poss: .18, rac: .32, norm: .25 };
     const hands = off ? (off.p.me ? c.me.attrs.hands ?? c.me.ovr : off.p.rating) : 0;
@@ -809,7 +814,7 @@ export class LivePlay {
     this.dbg = { offD: off && +off.d.toFixed(2), defD: def && +def.d.toFixed(2), reachO: +reachO.toFixed(2), who: off?.p.slot, T: +b.T.toFixed(2), type: b.type, ct };
     if (def && def.d < reachD && (!off || def.d < off.d - .2 || (dMode && def.d < off.d + .3))) {
       const skill = def.p.me ? (c.me.attrs.ball ?? c.me.attrs.cov ?? c.me.ovr) : def.p.rating;
-      const pInt = dMode === 'swat' ? 0 : clamp(.1 + (skill - 60) * .005 + (def.p.me ? .22 : 0) + (dMode === 'int' ? .15 : 0) + (b.type === 'lob' ? .05 : 0), .05, .8);
+      const pInt = dMode === 'swat' ? 0 : clamp((.1 + (skill - 60) * .005 + (def.p.me ? .22 + this.dif.myInt : 0) + (dMode === 'int' ? .15 : 0) + (b.type === 'lob' ? .05 : 0)) * (!def.p.me && c.side === 'O' ? this.dif.aiInt : 1), .03, .8);
       if (R() < pInt) {
         if (qbMe) this.inc('pint');
         if (def.p.me) { this.inc('dint'); this.inc('pd'); }
@@ -824,7 +829,7 @@ export class LivePlay {
     if (off && off.d < reachO + .9) {
       const contested = def && def.d < 1.3, diving = off.d >= reachO;
       const swat = def?.p.me && dMode === 'swat' && def.d < 1.6 ? .3 : 0;
-      if (R() < clamp(.84 + (hands - 60) * .005 + (ct === 'poss' ? .08 : 0) - (contested ? CONTEST[ct] : 0) - swat, .3, .97) * (diving ? .45 : 1)) {
+      if (R() < clamp(.84 + (hands - 60) * .005 + (ct === 'poss' ? .08 : 0) - (contested ? CONTEST[ct] : 0) - swat + (off.p.me ? this.dif.catchP : 0), .3, .97) * (diving ? .45 : 1)) {
         const rc = off.p, air = Math.round(rc.y - this.los), toe = rc.x < 1.3 || rc.x > FW - 1.3;
         const type = diving ? 'dive' : toe ? 'toe' : ct;
         this.catchInfo = { air, kind: catchKind(air), type, y: rc.y };
@@ -934,7 +939,7 @@ export class LivePlay {
       if (!pre && !el.includes(p)) return;
       const x = Math.round(p.x * PPY), y = Math.round(this.sy(p.y)) - 31 - (Math.floor(now / 260 + i) % 2);
       ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = OPEN_COLOR[pre ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = OPEN_COLOR[pre || !this.dif.openHint ? 'pre' : this.openLevel(p)]; ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.fill();
       bigText(ctx, String(i + 1), x, y, '#FFFFFF', 1);
     });
   }

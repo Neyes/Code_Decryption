@@ -3,6 +3,7 @@
 // 게임 속 '하루'(시즌 진행 한 단계, 오프시즌·시즌 준비도 각각 하루)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지라
 // 한 번에 많이 올릴 수는 없습니다. 소수점 진행도가 1이 되면 능력치가 1 오릅니다.
 import { clamp, ATTR, attrsOf, overall } from './core.js';
+import { diffOf } from './difficulty.js';
 
 // 단계: 1 동네 헬스장 · 2 퍼포먼스 센터 · 3 엘리트 트레이닝 랩
 export const GYM_TIERS = [
@@ -76,7 +77,7 @@ export function finishExercise(s, exId, perf, detail = '') {
   const ageF = p.age <= 21 ? 1.1 : p.age <= 25 ? 1 : p.age <= 29 ? .8 : .6;
   const room = clamp((99 - p.attrs[k]) / 40, .15, 1);
   const talent = Math.sqrt(Math.exp(.034 * (p.potential - 80)));
-  const gain = Math.round(.24 * perf * tier.mult * ageF * room * talent * 100) / 100;
+  const gain = Math.round(.24 * perf * tier.mult * ageF * room * talent * diffOf(s).gym * 100) / 100;
   g.prog[k] = (g.prog[k] || 0) + gain;
   let ups = 0;
   while (g.prog[k] >= 1 && p.attrs[k] < 99) { g.prog[k] -= 1; p.attrs[k] += 1; ups++; }

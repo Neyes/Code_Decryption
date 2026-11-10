@@ -496,3 +496,11 @@ kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { displa
 .gym-cell kbd.gk { position: absolute; left: 6px; top: 6px; opacity: .85; }
 .gym-ex strong kbd.gk { margin-right: 6px; vertical-align: 2px; }
 .gym-x kbd.gk, .gym-result .primary kbd.gk { margin-left: 6px; vertical-align: 1px; }
+
+/* ───────── 난이도 ───────── */
+.diff-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font: 800 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; color: #fff; background: var(--dc, #2F6FD6); vertical-align: 1px; }
+.diff-list { display: grid; gap: 8px; margin-top: 10px; }
+.diff-opt { text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 11px 13px; display: grid; gap: 3px; }
+.diff-opt strong { font-size: 15px; }
+.diff-opt .sub { font-size: 12.5px; color: var(--muted); }
+.diff-opt.on { border-color: var(--dc); box-shadow: inset 0 0 0 1px var(--dc); background: color-mix(in srgb, var(--dc) 9%, var(--surface)); }

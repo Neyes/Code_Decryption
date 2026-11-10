@@ -15,10 +15,11 @@ import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
 import { GYM_TIERS, gymTier, gymState } from '../engine/gym.js';
-export const PATCH = { id: '2026-11-12', title: '컴퓨터 키보드 조작 · 리시버 지정 패스', items: [['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+export const PATCH = { id: '2026-11-13', title: '난이도: 쉬움 · 노말 · 하드', items: [['난이도 3단계', '새 커리어를 만들 때 쉬움·노말·하드(리얼리스틱)를 골라요. 지금 커리어는 노말이고, 설정에서 바꿀 수 있어요.'], ['쉬움', '성장이 빠르고 선택지 확률이 높아요. 직접 플레이는 캐치 범위가 넓고 상대 AI가 느려요.'], ['하드 (리얼리스틱)', '성장 속도와 NFL 드래프트 확률이 현실에 가까워요(자동 진행 기준 지명 약 13%). 직접 플레이는 판정 보정이 없고 상대 커버·패스 러시가 빨라요. 리시버 열림 색도 안 보여요.'], ['같이 바뀌는 것', '성장·급성장·노쇠, 리크루팅·드래프트 평가, 선택 카드 확률, 부상, 주전 경쟁, 방출, 헬스장, 그리고 직접 플레이의 캐치·패스 오차·포켓 시간·기술 성공률·태클·인터셉트·킥 흔들림까지.'], ['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { INPUT_PREFS, inputPref, inputMode } from './input.js';
+import { DIFFICULTY, DIFF_ORDER, diffId, diffOf, diffLowest } from '../engine/difficulty.js';
 import { COLLEGES } from '../data/colleges.js';
 
 export const TABS = [['home', '홈', 'home'], ['season', '시즌', 'season'], ['player', '선수', 'player'], ['records', '기록', 'records'], ['social', '반응', 'social']];
@@ -86,12 +87,23 @@ function stageText(s) {
   if (s.stage === 'fa') return 'FA (무소속)';
   return '';
 }
+// 난이도 표시 (작은 배지)
+export const diffBadge = id => { const d = DIFFICULTY[id] || DIFFICULTY.normal; return `<span class="diff-badge" style="--dc:${d.color}">${d.tag}</span>`; };
+// 난이도 고르기 (커리어 만들 때·설정)
+export function diffPicker(current, action) {
+  return `<div class="diff-list">${DIFF_ORDER.map(id => { const d = DIFFICULTY[id]; return `<button class="diff-opt ${current === id ? 'on' : ''}" data-action="${action}" data-v="${id}" style="--dc:${d.color}"><div class="row between"><strong>${esc(d.name)}</strong>${diffBadge(id)}</div><div class="sub">${esc(d.blurb)}</div><div class="tiny faint">${esc(DIFF_FACTS[id])}</div></button>`; }).join('')}</div>`;
+}
+const DIFF_FACTS = {
+  easy: '성장 +10% · 선택지 확률 +8%p · 부상 −30% · 캐치 범위 넓음 · 상대 AI 느림',
+  normal: '기준 성장·확률 · 드래프트 지명 약 80%(자동 진행 기준) · 직접 플레이 기본 판정',
+  hard: '성장 −28% · 선택지 확률 −8%p · 부상 +30% · 드래프트 지명 약 13% · 판정 보정 없음 · 상대 AI 빠름',
+};
 export function profileCard(s, compact = false) {
   const p = s.player, last = s.history.at(-1), delta = last ? last.ovrAfter - last.ovrBefore : 0;
   return `<section class="card"><div class="hero">${portrait(s, 64)}
     <div class="grow"><div class="name">${nameTag(p.name)} <span class="muted small">#${p.number}</span></div>
     <div class="small muted">${esc(s.team?.name || '')} · ${POSITIONS[p.pos].ko}${p.twoWay ? `·${POSITIONS[p.twoWay.pos].ko}` : ''} · ${p.age}세</div>
-    <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'}</div></div>
+    <div class="tiny faint">${stageText(s)}${p.nat === 'KR' ? ' · 🇰🇷 대한민국' : ' · 🇺🇸 미국'} ${diffBadge(diffId(s))}</div></div>
     <div class="ovr"><small>OVR</small><b>${p.ovr}</b><span class="tier">${tierOf(p.ovr)}</span>${last && !compact ? `<div class="tiny ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'faint'}">지난 시즌 ${delta > 0 ? '▲' : delta < 0 ? '▼' : ''}${Math.abs(delta) || '유지'}</div>` : ''}</div></div></section>`;
 }
 
@@ -135,6 +147,7 @@ export function setupPage(st) {
     body = `<p class="eyebrow">${esc(c.label)} · OVR ${c.ovr}</p><h2>집중해서 키울 능력치를<br>골라 주세요</h2>
       <p class="muted small" style="margin-top:6px">최대 2개. 고른 능력치가 훨씬 빨리 자라고, 커리어 중 전환점에서 바꿀 수 있어요.</p>
       <div class="card flat">${attrsOf(st.pos).map(k => `<button class="option ${st.focus.includes(k) ? 'sel' : ''}" data-action="setup-focus" data-v="${k}" style="margin-top:8px"><div class="row between"><strong>${ATTR[k][0]}</strong><b>${c.attrs[k]}</b></div><div class="sub">${ATTR[k][1]} · OVR 비중 ${Math.round(POSITIONS[st.pos].w[k] * 100)}%</div></button>`).join('')}</div>
+      <h3 style="margin-top:18px">난이도</h3><p class="muted small" style="margin-top:4px">성장·드래프트·선택지 확률과 직접 플레이(상대 AI·판정)가 함께 바뀌어요. 설정에서 나중에 바꿀 수 있어요.</p>${diffPicker(st.difficulty || 'normal', 'setup-diff')}
       <div class="card"><div class="hero">${px(portraitUrl(st.avatar, ['#157347', '#FFFFFF'], st.number), '선수 얼굴', 'portrait', 'width:56px;height:56px')}<div class="grow"><div class="name">${nameTag(st.name)}</div><div class="small muted">${esc(SCHOOL_BY_ID[st.schoolId].ko)} · ${POSITIONS[st.pos].ko} · #${esc(st.number)}</div><div class="tiny faint">${esc(c.label)} · 능력치 합 240 · 집중 육성 ${st.focus.map(k => ATTR[k][0]).join(', ') || '-'}</div></div></div></div>
       <div class="dock"><button class="primary" data-action="setup-create" ${st.focus.length ? '' : 'disabled'}>10학년 시즌 시작 ${icon('arrow')}</button><button class="ghost" data-action="setup-back">이전 단계</button></div>`;
   }
@@ -403,7 +416,7 @@ export function retiredPage(s) {
   const tcount = s.history.reduce((n, h) => n + (h.awards?.length || 0), 0);
   return `<section class="card" style="text-align:center">${sceneImg(s, 'trophy', 'cheer', { count: tcount, alt: '트로피 룸' })}<div style="display:flex;justify-content:center;margin-top:-34px">${portrait(s, 72)}</div>
     <p class="eyebrow" style="margin-top:10px">${s.startYear}–${s.retiredYear} · ${POSITIONS[p.pos].ko}</p><h2 style="font-size:24px">${nameTag(p.name)}의 풋볼 인생</h2>
-    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span></div>
+    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="pill gold">커리어 등급 ${L.grade}</span><span class="pill green">점수 ${L.score}</span><span class="pill">최고 OVR ${L.peak}</span>${diffBadge(diffLowest(s))}</div>
     <p class="small" style="margin-top:10px">${esc(honorsLine(s) || '수상 기록 없음')}</p></section>
     <section class="card"><h3>명예의 전당</h3><p style="margin-top:6px">${esc(hof.verdict)}</p>${(L.legend || []).map(x => `<p class="small" style="margin-top:6px"><span class="pill gold">${x.kind === 'number' ? '영구결번' : '링 오브 아너'}</span> ${esc(x.text)}</p>`).join('')}${L.oneClub ? '<p class="small" style="margin-top:6px"><span class="pill green">원클럽맨</span> 한 팀에서만 NFL 커리어를 보냈습니다.</p>' : ''}</section>
     ${cmp.length ? `<section class="card"><h3>역대 기록과 비교</h3>${cmp.map(([v, mine]) => `<div class="kv"><span>${esc(v.label)}<div class="tiny faint">역대 1위 ${esc(v.holder)} ${v.value.toLocaleString('ko-KR')}</div></span><b>${num(mine)} <span class="tiny muted">(${Math.round(mine / v.value * 100)}%)</span></b></div>`).join('')}</section>` : ''}
@@ -495,6 +508,7 @@ const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요.
 export function settingsSheet(s, status = 'local') {
   return sheet(`<h2>설정</h2><p class="lead">${STORAGE_TEXT[status] || STORAGE_TEXT.local}</p>
     <div class="option"><strong>${icon('settings')} 조작 방식</strong><div class="sub">직접 플레이(빅게임·킥·헬스장) 조작이에요. 컴퓨터는 키보드(WASD 이동 · Space·J·K·L 기술 · 숫자 키로 리시버 지정), 모바일은 터치(스틱·버튼·리시버 탭). 지금: <b>${inputMode() === 'key' ? '키보드' : '터치'}</b>${inputPref() === 'auto' ? ' (자동)' : ''}</div><div class="seg" style="margin-top:8px">${INPUT_PREFS.map(([v, n]) => `<button class="${inputPref() === v ? 'on' : ''}" data-action="input-pref" data-v="${v}">${esc(n)}</button>`).join('')}</div></div>
+    ${s && s.phase !== 'retired' ? `<div class="option"><strong>${icon('settings')} 난이도</strong><div class="sub">지금: <b>${esc(diffOf(s).name)}</b>. 바꾸면 다음 진행부터 적용돼요. 은퇴 기록에는 이 커리어에서 쓴 가장 쉬운 난이도(${esc(DIFFICULTY[diffLowest(s)].name)})가 남아요.</div>${diffPicker(diffId(s), 'set-diff')}</div>` : ''}
     <button class="option" data-action="export"><strong>${icon('download')} 저장 파일 내보내기</strong><div class="sub">커리어와 은퇴 기록을 JSON 파일로 받아요.</div></button>
     <label class="option" style="cursor:pointer"><strong>${icon('upload')} 저장 파일 가져오기</strong><div class="sub">내보낸 파일로 커리어를 이어 가요.</div><input type="file" accept="application/json,.json" data-input="import" hidden></label>
     <div class="option"><strong>${icon('upload')} 저장 데이터 붙여넣기</strong><div class="sub">내보낸 글자를 붙여 넣어 불러와요.</div><textarea id="import-text" rows="3" placeholder='{"app":"touchdown-life",...}' style="width:100%;margin-top:8px;border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);color:var(--ink);font-size:12px"></textarea><button class="secondary" data-action="import-text" style="margin-top:8px;padding:10px">불러오기</button></div>
@@ -507,7 +521,7 @@ export function archiveSheet(list) {
   const best = {};
   for (const e of sorted) { const g = { DT: 'DL', EDGE: 'DL' }[e.pos] || e.pos; if (!best[g] || best[g].score < e.score) best[g] = e; }
   return sheet(`<h2>내 은퇴 기록</h2><p class="lead">MVP → 슈퍼볼 우승 → 최고 OVR → 수상 수 → 커리어 점수 순으로 비교해요.</p>
-    ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span></td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
+    ${sorted.length ? `<div class="table-wrap" style="margin-top:10px"><table><thead><tr><th class="l">#</th><th class="l">선수</th><th>MVP</th><th>반지</th><th>최고</th><th>등급</th></tr></thead><tbody>${sorted.map((e, i) => `<tr><td class="l">${i + 1}</td><td class="l">${nameTag(e.name)} <span class="tiny faint">${e.pos} · ${e.years}</span> ${diffBadge(e.diff || 'normal')}</td><td>${e.mvp}</td><td>${e.sb}</td><td>${e.peak}</td><td><b>${e.grade}</b></td></tr>`).join('')}</tbody></table></div>
     <h3 style="margin-top:16px">나의 베스트 라인업</h3>${Object.entries(best).map(([g, e]) => `<div class="kv"><span>${g}</span><b>${nameTag(e.name)} · OVR ${e.peak}</b></div>`).join('')}` : '<p class="muted" style="margin-top:12px">아직 은퇴한 선수가 없어요.</p>'}`);
 }
 export function interviewSheet(s, year) {
