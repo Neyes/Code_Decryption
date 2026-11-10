@@ -14,7 +14,7 @@ import { pullPrice, pullPriceN, RATES, PITY, RARITY } from '../engine/shop.js';
 import { teamPower, leagueTop, displayName } from '../engine/league.js';
 import { fmtFollowers } from '../engine/social.js';
 import { ITEMS, STAFF, FACILITIES, canBuy } from '../engine/shop.js';
-export const PATCH = { id: '2026-11-09b', title: '빅게임 직접 플레이와 연출', items: [['직접 플레이', '라이벌전·플레이오프·결승을 터치로 직접 플레이해요. 4번째 다운과 2점 컨버전도 내가 정해요.'], ['연출', '시즌 진행 화면, 성장 공개, 수상 세리머니, 드래프트 지명, 계약 서명, 은퇴식이 생겼어요.'], ['새 선택지', '헤일 메리, 아이스 더 키커, 트릭 플레이 등 미식축구만의 장면 21개를 더했어요.'], ['국가대표', '2028 LA 올림픽 플래그 풋볼. 한국 국적은 메달을 따면 병역 특례!'], ['훈련 카드 뽑기', '희귀 10회·전설 60회 천장이 있는 카드 뽑기와 칭호 컬렉션을 넣었어요.']] };
+export const PATCH = { id: '2026-11-10', title: '빅게임이 실시간 플레이로 바뀌었어요', items: [['어디서 하나요?', '홈 화면의 빅게임 카드(라이벌전·플레이오프·결승)에서 "실시간 직접 플레이"를 누르세요. 위에서 내려다본 필드가 바로 떠요.'], ['조작', '작전을 고르면 스냅! 노란 표시(YOU)가 내 선수예요. 손가락을 대고 끌면 그쪽으로 달려요.'], ['쿼터백', '열린 리시버 쪽을 탭하면 그 자리로 패스, 끌면 스크램블. 잡히면 받은 선수를 조작해요.'], ['리시버·러닝백·수비', '노란 선이 내 루트예요. 공이 떨어질 노란 원으로 가서 받거나 가로채고, 볼 캐리어에 닿으면 태클.'], ['라인맨', '빨간 화살표 러셔 앞을 막아서 쿼터백을 지켜요. 놓치면 색!'], ['키커·펀터', '키커 뒤 시점에서 위로 쓸어 올려 차요. 끈 길이가 파워, 기울기가 방향, 바람은 직접 계산해요.']] };
 import { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } from './art.js';
 import { sceneUrl, spriteUrl, portraitUrl, iconUrl } from './pixel.js';
 import { COLLEGES } from '../data/colleges.js';
@@ -241,6 +241,7 @@ export function homePage(s) {
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
 
+const bigHow = pos => pos === 'QB' ? '작전을 고르고, 열린 리시버를 탭해서 패스' : pos === 'OL' ? '빨간 표시 러셔를 몸으로 막아 쿼터백을 지키기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '내 선수를 끌어서 달리고, 공을 받고, 태클을 피하기' : '내 수비수를 끌어서 커버하고, 가로채고, 태클하기';
 function bigGameCard(s) {
   const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
   const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: g.final ? 'FINAL' : 'BIG GAME', players: [{ pose: kickerPose(s, 'stance'), ...look(s), x: 46 }, { pose: 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '빅게임', 'scene');
@@ -248,7 +249,7 @@ function bigGameCard(s) {
   return `<section class="card big-card">${art}<p class="eyebrow" style="margin-top:12px">${g.post ? '포스트시즌' : '정규시즌 빅게임'} · ${esc(s.year)}</p><h2>${esc(g.title || g.round)}</h2>
     <div class="vs"><span>${esc(s.team.name)}</span><b>VS</b><span>${esc(g.oppName)}</span></div>
     <p class="small muted" style="margin-top:8px;text-align:center">예상 승률 ${prob}% · ${g.home ? '홈 경기' : '원정 경기'}${g.final ? ' · 우승이 걸린 결승' : ''}</p>
-    ${can ? `<button class="primary" data-action="big-play" style="margin-top:14px">${icon('bolt')} 직접 플레이 (터치)</button>` : `<p class="small" style="margin-top:12px;text-align:center"><span class="pill red">${s.season.injury?.out > 0 ? '부상으로 결장' : '출전 명단에 없음'}</span> 이번 경기는 사이드라인에서 지켜봐요.</p>`}
+    ${can ? `<button class="primary" data-action="big-play" style="margin-top:14px">${icon('bolt')} 실시간 직접 플레이</button><p class="tiny muted" style="text-align:center;margin-top:6px">${esc(bigHow(s.player.pos))}</p>` : `<p class="small" style="margin-top:12px;text-align:center"><span class="pill red">${s.season.injury?.out > 0 ? '부상으로 결장' : '출전 명단에 없음'}</span> 이번 경기는 사이드라인에서 지켜봐요.</p>`}
     <button class="secondary" data-action="big-auto" style="margin-top:8px">빠르게 진행</button>
     <button class="ghost" data-action="big-auto-all">이번 시즌 남은 빅게임은 모두 빠르게</button></section>`;
 }

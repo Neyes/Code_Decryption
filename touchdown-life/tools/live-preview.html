@@ -1,14 +1,24 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>실시간 플레이 미리보기</title><link rel="stylesheet" href="../css/app.css">
-<body style="background:#101814;color:#fff;padding:12px"><div class="clutch" style="position:static"><div id="host" class="cl-live"></div><pre id="out"></pre></div>
+<body style="background:#101814;color:#fff;padding:12px"><div class="clutch" style="position:static"><div id="host" class="cl-live"></div><button id="go" class="primary" style="margin-top:8px">스냅</button><pre id="out"></pre></div>
 <script type="module">
-// 개발용: 실시간 플레이 한 번을 바로 띄웁니다. ?pos=QB|WR|RB|CB|EDGE&concept=flood
-import { runLivePlay, CONCEPTS } from '../js/ui/liveplay.js';
-const q = new URLSearchParams(location.search), pos = q.get('pos') || 'QB';
-const control = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' }[pos];
-const off = !['CB', 'S', 'LB', 'EDGE', 'DT'].includes(pos);
-window.result = runLivePlay(document.getElementById('host'), { ball: 30, toGo: 10, concept: CONCEPTS.find(c => c.id === (q.get('concept') || 'flood')), defCall: 'man', control, edge: pos === 'EDGE', side: off ? 'O' : 'D',
-  me: { attrs: { spd: 80, agi: 78, hands: 80, route: 75, arm: 80, acc: 80, vis: 75, str: 70, cov: 78, ball: 75, tkl: 75, rush: 78 }, ovr: 78 }, teamRating: 70, oppRating: 70,
-  offColors: off ? ['#002244', '#69BE28'] : ['#E31837', '#FFB81C'], defColors: off ? ['#E31837', '#FFB81C'] : ['#002244', '#69BE28'], endzone: ['#002244', '#E31837'], away: 'D' })
-  .then(r => { document.getElementById('out').textContent = JSON.stringify(r, null, 1); return r; });
+// 개발용: 실시간 플레이 한 번을 바로 띄웁니다. ?pos=QB|RB|WR|TE|OL|DT|EDGE|LB|CB|S&concept=flood · ?pos=K&dist=45 · ?pos=P&start=30
+// &auto=1 이면 스냅 버튼 없이 바로 시작합니다.
+import { LivePlay, CONCEPTS } from '../js/ui/liveplay.js';
+import { KickPlay } from '../js/ui/kickplay.js';
+const q = new URLSearchParams(location.search), pos = q.get('pos') || 'QB', host = document.getElementById('host');
+const attrs = { spd: 80, agi: 78, hands: 80, route: 75, arm: 80, acc: 80, vis: 75, str: 70, cov: 78, ball: 75, tkl: 75, rush: 78, pblk: 76, rblk: 74, kpow: 82, kacc: 80, poise: 75, cons: 74, pnt: 80 };
+const me = { attrs, ovr: 78 }, home = ['#002244', '#69BE28'], opp = ['#E31837', '#FFB81C'];
+let view;
+if (pos === 'K' || pos === 'P') view = new KickPlay(host, { mode: pos === 'K' ? 'fg' : 'punt', dist: +(q.get('dist') || 45), start: +(q.get('start') || 30), wind: +(q.get('wind') || 6), me, colors: home, oppColors: opp, hint: '위로 쓸어 올려 킥' });
+else {
+  const control = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', OL: 'OL', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' }[pos];
+  const off = !['CB', 'S', 'LB', 'EDGE', 'DT'].includes(pos);
+  view = new LivePlay(host, { ball: 30, toGo: 10, control, edge: pos === 'EDGE', side: off ? 'O' : 'D', me, teamRating: 70, oppRating: 70,
+    offColors: off ? home : opp, defColors: off ? opp : home, endzone: off ? [home[0], opp[0]] : [opp[0], home[0]], away: off ? 'D' : 'O', banner: '1ST & 10', hint: pos });
+}
+window.view = view;
+const go = () => { document.getElementById('go').hidden = true; window.result = view.snap({ concept: CONCEPTS.find(c => c.id === (q.get('concept') || (pos === 'RB' ? 'run' : 'flood'))), defCall: q.get('call') || 'man' }).then(r => { document.getElementById('out').textContent = JSON.stringify(r, null, 1); return r; }); };
+document.getElementById('go').onclick = go;
+if (q.get('auto')) go();
 </script>

@@ -328,19 +328,11 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .cl-q { background: var(--board-flag); color: var(--board); border-radius: 8px; padding: 2px 8px; font-weight: 900; font-size: 12px; }
 .cl-mid small { font-family: var(--font-num); font-size: 14px; }
 .cl-title { text-align: center; font-size: 12.5px; font-weight: 800; color: var(--board-flag); margin: 6px auto 4px; }
-.cl-field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 12px; }
-.cl-msg { min-height: 44px; margin: 8px auto 4px; font-size: 14.5px; line-height: 1.45; }
+.cl-msg { min-height: 40px; margin: 6px auto 4px; font-size: 14.5px; line-height: 1.45; }
 .cl-actions { display: grid; gap: 8px; }
 .clutch .choice { margin-top: 0; background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .16); color: inherit; }
 .clutch .choice:hover { background: rgba(255, 255, 255, .14); border-color: var(--board-flag); }
 .clutch .choice .hint { color: inherit; opacity: .7; }
-.cl-meter { position: relative; height: 40px; border-radius: 12px; background: rgba(232, 90, 90, .35); overflow: hidden; cursor: pointer; touch-action: manipulation; }
-.cl-meter .zone { position: absolute; top: 0; bottom: 0; }
-.cl-meter .zone.good { background: rgba(107, 216, 138, .65); } .cl-meter .zone.perfect { background: #F2C230; } .cl-meter .zone.need { background: rgba(107, 216, 138, .55); }
-.cl-meter i { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: #FFFFFF; box-shadow: 0 0 0 2px var(--board); border-radius: 2px; }
-.cl-meter .cl-zone { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-num); font-size: 22px; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, .8); animation: pop .3s; }
-.cl-meter.perfect .cl-zone, .cl-meter.ok .cl-zone { color: var(--board-flag); } .cl-meter.miss .cl-zone, .cl-meter.bad .cl-zone { color: #FF9A9A; }
-.cl-tap { font-size: 18px; padding: 16px; }
 .cl-foot { margin-top: 8px; }
 .clutch .ghost { color: inherit; opacity: .7; }
 /* 빅게임 카드 · 주사위 */
@@ -363,5 +355,13 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .roll.anim i { left: var(--to); } .result-box.reveal, .scene.reveal { animation: none; } }
 
 /* 실시간 플레이 */
-.cl-live canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; height: auto; aspect-ratio: 160 / 210; image-rendering: pixelated; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cl-live { min-height: 120px; }
+.cl-live canvas { display: block; margin: 0 auto; width: clamp(220px, calc((100vh - 390px) * .762), min(100%, 420px)); width: clamp(220px, calc((100dvh - 390px) * .762), min(100%, 420px)); height: auto; aspect-ratio: 160 / 210; image-rendering: pixelated; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.cl-live-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px; background: #E85A5A; color: #fff; font-size: 11px; letter-spacing: .02em; animation: livePulse 1.6s ease-in-out infinite; }
+@keyframes livePulse { 50% { opacity: .55; } }
+.cl-calls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cl-calls.three { grid-template-columns: repeat(3, 1fr); }
+.cl-call { border: 1.5px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .08); color: inherit; border-radius: 12px; padding: 9px 8px; text-align: left; display: grid; gap: 1px; touch-action: manipulation; }
+.cl-call b { font-size: 14.5px; font-weight: 800; } .cl-call small { font-size: 11.5px; opacity: .7; line-height: 1.3; }
+.cl-call:hover, .cl-call:active { border-color: var(--board-flag); background: rgba(255, 255, 255, .15); }
 .lp-hint { text-align: center; font-size: 12px; opacity: .75; margin-top: 6px; }

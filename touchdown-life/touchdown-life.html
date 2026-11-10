@@ -342,19 +342,11 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 .cl-q { background: var(--board-flag); color: var(--board); border-radius: 8px; padding: 2px 8px; font-weight: 900; font-size: 12px; }
 .cl-mid small { font-family: var(--font-num); font-size: 14px; }
 .cl-title { text-align: center; font-size: 12.5px; font-weight: 800; color: var(--board-flag); margin: 6px auto 4px; }
-.cl-field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 12px; }
-.cl-msg { min-height: 44px; margin: 8px auto 4px; font-size: 14.5px; line-height: 1.45; }
+.cl-msg { min-height: 40px; margin: 6px auto 4px; font-size: 14.5px; line-height: 1.45; }
 .cl-actions { display: grid; gap: 8px; }
 .clutch .choice { margin-top: 0; background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .16); color: inherit; }
 .clutch .choice:hover { background: rgba(255, 255, 255, .14); border-color: var(--board-flag); }
 .clutch .choice .hint { color: inherit; opacity: .7; }
-.cl-meter { position: relative; height: 40px; border-radius: 12px; background: rgba(232, 90, 90, .35); overflow: hidden; cursor: pointer; touch-action: manipulation; }
-.cl-meter .zone { position: absolute; top: 0; bottom: 0; }
-.cl-meter .zone.good { background: rgba(107, 216, 138, .65); } .cl-meter .zone.perfect { background: #F2C230; } .cl-meter .zone.need { background: rgba(107, 216, 138, .55); }
-.cl-meter i { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; background: #FFFFFF; box-shadow: 0 0 0 2px var(--board); border-radius: 2px; }
-.cl-meter .cl-zone { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-num); font-size: 22px; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, .8); animation: pop .3s; }
-.cl-meter.perfect .cl-zone, .cl-meter.ok .cl-zone { color: var(--board-flag); } .cl-meter.miss .cl-zone, .cl-meter.bad .cl-zone { color: #FF9A9A; }
-.cl-tap { font-size: 18px; padding: 16px; }
 .cl-foot { margin-top: 8px; }
 .clutch .ghost { color: inherit; opacity: .7; }
 /* 빅게임 카드 · 주사위 */
@@ -377,7 +369,15 @@ table { font-size: 14px; } td.l, th.l, .tiny { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { .roll.anim i { left: var(--to); } .result-box.reveal, .scene.reveal { animation: none; } }
 
 /* 실시간 플레이 */
-.cl-live canvas { display: block; width: 100%; max-width: 420px; margin: 0 auto; height: auto; aspect-ratio: 160 / 210; image-rendering: pixelated; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cl-live { min-height: 120px; }
+.cl-live canvas { display: block; margin: 0 auto; width: clamp(220px, calc((100vh - 390px) * .762), min(100%, 420px)); width: clamp(220px, calc((100dvh - 390px) * .762), min(100%, 420px)); height: auto; aspect-ratio: 160 / 210; image-rendering: pixelated; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.cl-live-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px; background: #E85A5A; color: #fff; font-size: 11px; letter-spacing: .02em; animation: livePulse 1.6s ease-in-out infinite; }
+@keyframes livePulse { 50% { opacity: .55; } }
+.cl-calls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cl-calls.three { grid-template-columns: repeat(3, 1fr); }
+.cl-call { border: 1.5px solid rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .08); color: inherit; border-radius: 12px; padding: 9px 8px; text-align: left; display: grid; gap: 1px; touch-action: manipulation; }
+.cl-call b { font-size: 14.5px; font-weight: 800; } .cl-call small { font-size: 11.5px; opacity: .7; line-height: 1.3; }
+.cl-call:hover, .cl-call:active { border-color: var(--board-flag); background: rgba(255, 255, 255, .15); }
 .lp-hint { text-align: center; font-size: 12px; opacity: .75; margin-top: 6px; }
 
 </style>
@@ -3249,7 +3249,7 @@ const OUT = '#1B1A22';
 const FONT = {
   0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111',
   A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100', G: '011100101101011', H: '101101111101101', I: '111010010010111', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', R: '110101110101101', S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', Y: '101101010010010', X: '101101010101101', '!': '010010010000010', J: '001001001101010', Q: '010101101110011', Z: '111001010100111', '.': '000000000000010', ' ': '000000000000000', '-': '000000111000000', ':': '000010000010000',
+  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', R: '110101110101101', S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', Y: '101101010010010', X: '101101010101101', '!': '010010010000010', J: '001001001101010', Q: '010101101110011', Z: '111001010100111', '.': '000000000000010', ' ': '000000000000000', '-': '000000111000000', ':': '000010000010000', '&': '010101010101011', '%': '101001010100101', '+': '000010111010000', '?': '111001011000010', '/': '001001010100100',
 };
 function text(ctx, str, x, y, color) {
   ctx.fillStyle = color;
@@ -3621,9 +3621,12 @@ function bigText(ctx, str, cx, cy, color, scale = 2, outline = OUT) {
 return { SPRITE_W, SCENE_W, sceneUrl, spriteUrl, portraitUrl, iconUrl, PIXEL_READY, spriteCanvas, bigText, pixelText: text, textWidth, vivid, shade, lum, drawPlayer, OUT };
 });
 __def("js/ui/liveplay.js", function () {
-// 실시간 플레이 한 번 (위에서 내려다본 필드, 공격은 위쪽으로 전진).
+// 실시간 플레이 (위에서 내려다본 필드, 공격은 위쪽으로 전진).
+// new LivePlay(host, cfg)로 스냅 전 포메이션을 먼저 보여 주고, snap({ concept, defCall })로 한 플레이를 진행합니다.
+// 플레이가 끝나도 마지막 장면과 글자 연출은 destroy() 전까지 계속 그려집니다.
 // 조작: 손가락을 대고 끌면 내 선수가 그쪽으로 달립니다. 쿼터백이 공을 들고 있을 때 짧게 탭하면 그 지점으로 패스.
-// 공을 든 채 짧게 탭하면 저크(순간 가속, 태클을 피할 확률 증가). 키보드: 방향키로 이동, 스페이스로 가장 빈 리시버에게 패스.
+// 공을 든 채 짧게 탭하면 저크(순간 가속, 태클을 피할 확률 증가). 라인맨은 빨간 표시 러셔 앞을 막습니다.
+// 키보드: 방향키로 이동, 스페이스로 가장 빈 리시버에게 패스.
 const { pixelText, bigText, vivid, shade, OUT } = __req("js/ui/pixel.js");
 
 const FW = 53.3, CW = 160, CH = 210, PPY = CW / FW, EYE = .64;
@@ -3655,24 +3658,35 @@ const DEF_CALLS = [
   { id: 'blitz', name: '블리츠', note: '라인배커가 쿼터백에게 돌진' },
 ];
 function conceptsFor(pos) {
-  if (pos === 'QB') return CONCEPTS.filter(c => !['screen', 'wheel'].includes(c.id)).slice(0, 5);
+  if (pos === 'QB') return CONCEPTS.filter(c => !['sweep', 'wheel'].includes(c.id));
+  if (pos === 'OL') return ['run', 'sweep', 'quick', 'flood', 'pa', 'verts'].map(id => CONCEPTS.find(c => c.id === id));
   if (pos === 'RB') return CONCEPTS.filter(c => ['run', 'sweep', 'screen', 'wheel'].includes(c.id));
   return CONCEPTS.filter(c => !c.run && !['screen', 'wheel'].includes(c.id));
 }
-function runLivePlay(host, cfg) { return new Promise(resolve => new LivePlay(host, cfg, resolve)); }
+// 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용).
+function runLivePlay(host, cfg) { const lp = new LivePlay(host, cfg); return lp.snap({}).then(r => { lp.destroy(); return r; }); }
 
 class LivePlay {
-  constructor(host, cfg, done) {
-    this.host = host; this.cfg = cfg; this.done = done;
+  constructor(host, cfg) {
+    this.host = host; this.cfg = { ...cfg };
     host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="실시간 플레이 필드"></canvas><p class="lp-hint">${cfg.hint || ''}</p>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.los = cfg.ball; this.first = Math.min(100, cfg.ball + cfg.toGo);
-    this.t = -1.1; this.phase = 'pre'; this.ball = null; this.carrier = null; this.result = null; this.fx = []; this.msg = 'READY';
+    this.t = 0; this.phase = 'idle'; this.ball = null; this.carrier = null; this.result = null; this.fx = []; this.msg = '';
     this.camY = this.los + 10; this.touch = null; this.keys = new Set(); this.juke = 0;
     this.stats = {}; this.setupTeams();
     this.bindInput();
+    if (cfg.banner) { this.pop(cfg.banner, '#FFFFFF'); this.msgT = 1.4; }
     this.last = performance.now();
-    this.raf = requestAnimationFrame(this.loop.bind(this));
+    this.loopFn = this.loop.bind(this);
+    this.raf = requestAnimationFrame(this.loopFn);
+  }
+  // 작전이 정해지면 스냅. 결과는 Promise로 돌려줍니다.
+  snap(opts = {}) {
+    Object.assign(this.cfg, opts);
+    this.assign();
+    this.phase = 'pre'; this.t = this.cfg.side === 'O' ? -1.5 : -1.1; this.msg = ''; this.msgT = 0;
+    return new Promise(res => { this.done = res; });
   }
   // ───────── 배치 ─────────
   setupTeams() {
@@ -3695,7 +3709,12 @@ class LivePlay {
     // 내 선수
     const me = c.me, mine = this.pick(c.control);
     if (mine) { Object.assign(mine, { me: true, rating: me.ovr, attrs: me.attrs, spd: (speedOf(me.attrs.spd ?? me.attrs.mob ?? me.attrs.agi ?? me.ovr) + .3) * ({ OL: .74, DL: .8, QB: .9, LB: .92, TE: .93 }[mine.role] ?? 1) }); this.mine = mine; }
-    // 루트 배정
+    // 라인맨: 맞상대 러셔(가장 바깥 DL)를 빨간 표시로
+    if (c.control === 'OL') { const dl = P.filter(p => p.role === 'DL').sort((a, b) => a.x - b.x)[0]; if (dl) dl.vsMe = true; }
+  }
+  // 작전·수비 콜 배정 (스냅 직전)
+  assign() {
+    const c = this.cfg, P = this.P;
     const concept = c.concept || CONCEPTS[0];
     this.concept = concept;
     for (const p of P.filter(x => x.team === 'O' && ['X', 'Z', 'SL', 'TE', 'RB'].includes(x.role))) {
@@ -3711,6 +3730,7 @@ class LivePlay {
     this.pocket = clamp(3.1 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * .8, 2.2, 4.6);
   }
   pick(role) {
+    if (role === 'OL') return this.P.find(p => p.role === 'OL' && p.ol === 0);
     if (role === 'DL') return this.P.find(p => p.role === 'DL' && p.dl === (this.cfg.edge ? 3 : 1));
     if (role === 'LB') return this.P.find(p => p.mike);
     if (role === 'CB') return this.P.find(p => p.role === 'CB' && p.man === 'Z');
@@ -3771,7 +3791,7 @@ class LivePlay {
     const dt = clamp((now - this.last) / 1000, 0, .05); this.last = now;
     for (let i = 0; i < (this.cfg.speedup || 1); i++) this.update(dt);
     this.draw(now);
-    this.raf = requestAnimationFrame(this.loop.bind(this));
+    this.raf = requestAnimationFrame(this.loopFn);
   }
   seek(p, tx, ty, dt, k = 1, accel = 12) {
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1, v = p.spd * k * (p.engaged ? (p.y > this.los + 4 ? .42 : .16) : 1) * (p.stun > 0 ? .2 : 1);
@@ -3780,10 +3800,11 @@ class LivePlay {
     p.vx += clamp(vx - p.vx, -accel * dt, accel * dt); p.vy += clamp(vy - p.vy, -accel * dt, accel * dt);
   }
   update(dt) {
+    if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
+    if (this.phase === 'idle' || this.phase === 'done') return;
     this.t += dt;
     if (this.phase === 'pre') { if (this.t >= 0) { this.phase = 'live'; this.msg = 'HUT!'; this.msgT = .7; this.carrier = this.pick('QB'); } return; }
-    if (this.phase !== 'live') { this.endT -= dt; if (this.endT <= 0 && !this.closed) this.finish(); return; }
-    if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
+    if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     const c = this.cfg, P = this.P, qb = this.pick('QB'), car = this.carrier;
     // 핸드오프 / 스크린
     if (this.concept.run && car === qb && this.t > .45) {
@@ -3792,10 +3813,12 @@ class LivePlay {
     }
     // AI 쿼터백 패스
     if (!this.ball && car === qb && !qb.me && !this.concept.run) {
-      const wait = this.concept.fake ? 1.2 : this.concept.screen ? 1.05 : 1.1;
+      // 라인맨으로 뛸 때는 쿼터백이 공을 더 오래 들고 있어 블로킹이 결과를 가릅니다
+      const olMode = this.cfg.control === 'OL' && !this.concept.screen;
+      const wait = olMode ? 1.9 : this.concept.fake ? 1.2 : this.concept.screen ? 1.05 : 1.1;
       const prefer = this.mine && this.mine.team === 'O' ? this.mine : null;
       const best = this.concept.screen ? this.pick('RB') : this.bestTarget(prefer);
-      if (best && this.t > wait && (this.openness(best) > 2.3 || this.t > 2.8)) {
+      if (best && this.t > wait && (this.openness(best) > 2.3 || this.t > (olMode ? Math.min(3.3, this.pocket) : 2.8))) {
         if (!this.concept.screen && this.t > 2.8 && this.openness(best) < 1.3 && R() < .6) { this.thrown = true; if (qb.me) this.inc('att'); this.pop('THROWN AWAY', '#FFFFFF'); return this.endPlay({ incomplete: true, text: '패스를 버렸다' }); }
         const lead = this.flightTime(qb, best); this.throwTo(best.x + best.vx * lead, best.y + best.vy * lead, qb);
       }
@@ -3805,13 +3828,15 @@ class LivePlay {
     for (const p of P) { if (p.stun > 0) p.stun -= dt; p.engaged = false; }
     for (const d of P.filter(p => p.team === 'D')) {
       const db = d.role === 'CB' || d.role === 'S';
-      const blocker = P.find(o => o.team === 'O' && !(db && o.role === 'OL') && (o.role === 'OL' || (this.carrier && this.carrier !== o && ['TE', 'X', 'Z', 'SL', 'RB'].includes(o.role) && (o.routeName === 'block' || this.thrown))) && dist(o, d) < 1.1);
+      const near = P.filter(o => o.team === 'O' && (!d.vsMe || o.me || this.concept.run) && !(db && o.role === 'OL') && (o.role === 'OL' || (this.carrier && this.carrier !== o && ['TE', 'X', 'Z', 'SL', 'RB'].includes(o.role) && (o.routeName === 'block' || this.thrown))) && dist(o, d) < 1.1);
+      const blocker = near.find(o => o.me) || near[0];
       if (!blocker || (d.me && this.juke > 0)) continue;
       // 묶여 있는 동안에도 초당 일정 확률로 떨쳐 냅니다 (능력치 차이·내 선수 보정)
       const open = d.y > this.los + 4;
-      d.shed = (d.shed || 0) + dt * ((open ? 1.1 : .35) + Math.max(0, d.rating - blocker.rating) * .02 + (d.me ? .35 : 0));
+      const bR = blocker.me ? (this.concept.run ? (c.me.attrs.rblk ?? c.me.ovr) : (c.me.attrs.pblk ?? c.me.ovr)) : blocker.rating;
+      d.shed = (d.shed || 0) + dt * ((open ? 1.1 : .35) + Math.max(0, d.rating - bR) * .02 + (d.me ? .35 : 0) + (d.vsMe ? .15 : 0));
       if (d.shed > 1 + R() * .6) { d.shed = 0; d.stunFree = .45; continue; }
-      if (!(d.stunFree > 0)) d.engaged = true;
+      if (!(d.stunFree > 0)) { d.engaged = true; if (blocker.me) this.myBlockT = (this.myBlockT || 0) + dt; }
     }
     for (const p of P) if (p.stunFree > 0) p.stunFree -= dt;
     // 이동
@@ -3839,7 +3864,7 @@ class LivePlay {
           const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.rating;
           const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) - (sackish ? .08 : 0), .03, .55);
           if (R() < pBreak) { d.stun = .55; this.pop('BROKEN TACKLE', '#FFFFFF'); continue; }
-          if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, text: '색!' }); }
+          if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, sacker: d, text: '색!' }); }
           const fumble = R() < clamp(.03 - ((carrier.attrs?.carry ?? 60) - 60) * .0006, .008, .05);
           if (d.me) { this.inc('tkl'); if (carrier.y < this.los) this.inc('tfl'); if (fumble) this.inc('ff'); }
           if (fumble) return this.endPlay({ gain: carrier.y - this.los, turnover: 'FUMBLE', text: '펌블!' });
@@ -3862,7 +3887,7 @@ class LivePlay {
     // 손을 떼면: 공을 들고 있으면 계속 앞으로, 아니면 AI가 느리게 도와줌
     if (this.carrier === p && p.role !== 'QB') return this.seek(p, p.x + p.vx * .2, p.y + 6, dt, .9, 10);
     if (p.role === 'QB' && this.carrier === p) return this.seek(p, p.x, p.y, dt, 1, 14);
-    this.ai(p, dt, this.pick('QB'), .6);
+    this.ai(p, dt, this.pick('QB'), this.cfg.assist ?? (p.role === 'OL' ? .3 : .6)); // assist: 개발 도구용 (손을 뗐을 때 AI가 돕는 정도)
   }
   ai(p, dt, qb, k = 1) {
     const car = this.carrier, ball = this.ball;
@@ -3877,7 +3902,8 @@ class LivePlay {
         return this.seek(p, clamp(hole + avoid, 1, FW - 1), p.y + 8, dt, (this.thrown ? .88 : .95) * k);
       }
       if (ball && p === this.target) return this.seek(p, ball.x, ball.y, dt, k, 22);
-      if (car && car !== p) {
+      const pocketPass = car === qb && !this.thrown && !this.concept.run;
+      if (car && car !== p && !pocketPass) {
         // 블로커: 볼 캐리어 앞의 가장 가까운 수비에게
         const d = this.P.filter(x => x.team === 'D' && x.y > car.y - 2).sort((a, b) => dist(a, car) - dist(b, car))[p.role === 'OL' ? p.ol % 3 : 0];
         if (d && (p.role === 'OL' || p.routeName === 'block' || this.thrown)) return this.seek(p, d.x, Math.min(d.y - .6, p.role === 'OL' ? this.los + 5 : 999), dt, .85 * k);
@@ -3887,7 +3913,7 @@ class LivePlay {
         const rushers = this.P.filter(x => x.team === 'D' && (x.role === 'DL' || x.blitz)).sort((a, b) => a.x - b.x);
         let r = null;
         if (p.role === 'OL') r = rushers.length ? rushers[Math.round(p.ol * (rushers.length - 1) / 4)] : null;
-        else r = rushers.filter(x => !this.P.some(o => o.role === 'OL' && dist(o, x) < 1.3)).sort((a, b) => dist(a, qb) - dist(b, qb))[0];
+        else r = rushers.filter(x => !x.vsMe && !this.P.some(o => o.role === 'OL' && dist(o, x) < 1.3)).sort((a, b) => dist(a, qb) - dist(b, qb))[0];
         if (!r) return this.seek(p, p.x, Math.min(p.y, this.los - .8), dt, .6 * k);
         const d = dist(r, qb) || 1, tx = r.x + (qb.x - r.x) / d * .9, ty = r.y + (qb.y - r.y) / d * .9;
         return this.seek(p, tx, Math.min(ty, this.los - .3), dt, k, 16);
@@ -3899,7 +3925,18 @@ class LivePlay {
     // 수비
     if (ball) { const lx = ball.x, ly = ball.y, deepBall = ly > this.los + 15, r = p.role === 'S' ? (deepBall ? 15 : 9) : 7; if (Math.hypot(lx - p.x, ly - p.y) < r && ball.t > .35) return this.seek(p, lx, ly, dt, k); }
     if (this.concept.run && this.t < .72 && p.role !== 'DL') return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k); // 런인지 읽는 시간
-    if (car && (car !== qb || this.concept.run || p.role === 'DL' || p.blitz || car.y > this.los)) {
+    // 라인맨 모드의 맞상대: 바깥으로 크게 돌아 쿼터백을 노립니다
+    if (p.vsMe && car === qb && !this.thrown && !this.concept.run) {
+      // 정해진 러시 레인(태클 바깥)으로 돌다가, 내 라인맨이 바깥을 막으면 가끔 안쪽으로 꺾습니다. 지나간 뒤에는 쿼터백에게 곧장.
+      const m = this.mine;
+      p.laneX ??= m.x - 2; p.counter ??= R() < .3;
+      const past = p.y < m.y - .4 || p.y <= this.los - 3;
+      const inside = p.counter && m.x < p.laneX + .6;
+      return this.seek(p, past ? qb.x : inside ? m.x + 1.8 : p.laneX, past ? qb.y : this.los - 3.2, dt, 1.04 * k);
+    }
+    // 러셔는 쿼터백이 포켓에 있는 동안 포켓 시계를 따릅니다 (아래)
+    const rushing = (p.role === 'DL' || p.blitz) && car === qb && !this.thrown && !this.concept.run && car.y <= this.los;
+    if (car && !rushing && (car !== qb || this.concept.run || p.role === 'DL' || p.blitz || car.y > this.los)) {
       const lead = Math.min(.9, dist(p, car) / 9);
       return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, k);
     }
@@ -3964,6 +4001,12 @@ class LivePlay {
     this.phase = 'over'; this.endT = o.td ? 1.6 : 1.1;
     const car = this.carrier, passPlay = this.thrown && !o.incomplete && !o.turnover && !o.sack;
     o.gain = Math.round(o.gain ?? 0);
+    if (this.cfg.control === 'OL') {
+      if (o.sack && o.sacker?.vsMe) this.inc('sa');
+      else if (!o.sack && (this.myBlockT || 0) > 1.6 && R() < .45) this.inc('pan');
+    }
+    if (o.sacker) this.dbg = { ...(this.dbg || {}), sacker: `${o.sacker.role}${o.sacker.dl ?? ''}${o.sacker.vsMe ? '*' : ''}${o.sacker.blitz ? 'B' : ''}@${this.t.toFixed(1)}` };
+    delete o.sacker;
     // 스탯 정리
     if (o.td && car?.team === 'O') { if (this.thrown) { if (this.cfg.control === 'QB') this.inc('ptd'); if (car.me && this.cfg.control !== 'QB') this.inc('rectd'); } else if ((car.me && !this.switched) || (this.cfg.control === 'QB' && car.role === 'QB')) this.inc('rtd'); }
     if (passPlay && this.cfg.control === 'QB') this.inc('pyds', o.gain);
@@ -3978,9 +4021,13 @@ class LivePlay {
   }
   burst() { for (let i = 0; i < 50; i++) { const a = R() * Math.PI * 2, v = .5 + R() * 1.6; this.fx.push({ x: CW / 2, y: CH * .35, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .5, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', '#E85A5A', '#6BD88A'][i % 4] }); } }
   finish() {
+    this.phase = 'done';
+    const done = this.done; this.done = null;
+    done?.(this.result || { gain: 0, incomplete: true, stats: this.stats });
+  }
+  destroy() {
     this.closed = true; cancelAnimationFrame(this.raf);
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
-    this.done(this.result || { gain: 0, incomplete: true, stats: this.stats });
   }
   // ───────── 그리기 ─────────
   sy(y) { return CH * EYE - (y - this.camY) * PPY; }
@@ -3999,6 +4046,8 @@ class LivePlay {
     const los = Math.round(this.sy(this.los)), fd = Math.round(this.sy(this.first));
     ctx.fillStyle = '#4A8CFF'; ctx.fillRect(0, los, CW, 2);
     if (this.first < 100) { ctx.fillStyle = '#FFD84A'; ctx.fillRect(0, fd, CW, 2); }
+    // 작전 그림: 스냅 전에는 우리 팀 루트를 보여 줍니다 (내 루트는 노랑)
+    if (this.phase === 'pre' && c.side === 'O') this.drawRoutes(ctx);
     // 공 착지 지점
     if (this.ball) { const b = this.ball, px = b.x * PPY, py = this.sy(b.y), r = 3 + Math.sin(now / 90); ctx.strokeStyle = '#FFD84A'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(px, py, r + 2, r, 0, 0, Math.PI * 2); ctx.stroke(); }
     // 선수 (아래쪽부터)
@@ -4016,6 +4065,25 @@ class LivePlay {
     for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .03; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
     if (this.phase === 'pre') bigText(ctx, this.t < -.5 ? 'READY' : 'SET', CW / 2, CH * .3, '#FFFFFF', 3);
     else if (this.msg) bigText(ctx, this.msg, CW / 2, CH * .3, this.msgColor || '#FFFFFF', this.msg.length > 10 ? 2 : 3);
+    if (this.phase === 'idle' && this.mine) {
+      const m = this.mine, px = Math.round(m.x * PPY), py = Math.round(this.sy(m.y));
+      const bob = Math.floor(now / 300) % 2;
+      bigText(ctx, 'YOU', clamp(px, 10, CW - 10), py - 18 - bob, '#FFD84A', 1);
+    }
+  }
+  drawRoutes(ctx) {
+    ctx.save(); ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+    for (const p of this.P.filter(x => x.team === 'O')) {
+      let pts = null;
+      if (p.route?.length) pts = [p, ...p.route];
+      else if (p.role === 'RB' && this.concept.run) { const hx = this.concept.hole ? CX + (p.x < CX ? -9 : 9) : CX + 2.4; pts = [p, { x: hx, y: this.los + 1 }, { x: hx, y: this.los + 7 }]; }
+      if (!pts) continue;
+      ctx.strokeStyle = p.me ? '#FFD84A' : 'rgba(255,255,255,.6)';
+      ctx.beginPath(); pts.forEach((q, i) => { const x = q.x * PPY, y = this.sy(q.y); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+      const a = pts.at(-1), b = pts.at(-2), ang = Math.atan2(this.sy(a.y) - this.sy(b.y), (a.x - b.x) * PPY), ax = a.x * PPY, ay = this.sy(a.y);
+      ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(ax - Math.cos(ang - .5) * 4, ay - Math.sin(ang - .5) * 4); ctx.lineTo(ax, ay); ctx.lineTo(ax - Math.cos(ang + .5) * 4, ay - Math.sin(ang + .5) * 4); ctx.stroke(); ctx.setLineDash([2, 2]);
+    }
+    ctx.restore();
   }
   drawPlayer(ctx, p, now) {
     const c = this.cfg, colors = p.team === 'O' ? c.offColors : c.defColors, [c1, c2] = colors.map(vivid);
@@ -4037,68 +4105,350 @@ class LivePlay {
     if (p.team === 'D') { ctx.fillStyle = '#C9CED6'; ctx.fillRect(x + 2, y + 3, 3, 1); }
     // 공
     if (this.carrier === p && this.phase !== 'pre') { ctx.fillStyle = OUT; ctx.fillRect(x + 6, y + 3, 3, 3); ctx.fillStyle = '#8A4B22'; ctx.fillRect(x + 6, y + 4, 2, 1); }
+    // 라인맨 모드: 막아야 할 러셔
+    if (p.vsMe && this.phase !== 'done') { const bob = Math.floor(now / 200) % 2; ctx.fillStyle = OUT; ctx.fillRect(x - 1, y - 8 - bob, 9, 2); ctx.fillStyle = '#FF5A5A'; ctx.fillRect(x, y - 8 - bob, 7, 1); ctx.fillRect(x + 1, y - 7 - bob, 5, 1); ctx.fillRect(x + 2, y - 6 - bob, 3, 1); ctx.fillRect(x + 3, y - 5 - bob, 1, 1); }
     // 내 선수 표시
     if (p.me) { const bob = Math.floor(now / 250) % 2; ctx.fillStyle = '#FFD84A'; ctx.fillRect(x + 2, y - 5 - bob, 3, 1); ctx.fillRect(x + 3, y - 4 - bob, 1, 1); }
   }
 }
 function gauss() { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
-return { CONCEPTS, DEF_CALLS, conceptsFor, runLivePlay };
+return { CONCEPTS, DEF_CALLS, conceptsFor, runLivePlay, LivePlay };
+});
+__def("js/ui/kickplay.js", function () {
+// 키커·펀터 실시간 킥 (키커 뒤에서 내려다본 시점).
+// new KickPlay(host, cfg)로 골대와 바람을 먼저 보여 주고, snap()으로 스냅 → 손가락으로 위로 쓸어 올려 찹니다.
+// 끈 길이 = 파워(오른쪽 막대의 초록 구간에서 놓기, 빨강은 너무 세서 휘어짐), 기울기 = 방향. 바람은 직접 계산해야 합니다.
+// cfg: { mode: 'fg'|'punt', dist(필드골 거리), start(펀트 스크리미지 라인, 자기 진영 기준), wind(km/h, +는 오른쪽),
+//        me: { attrs, ovr }, colors, oppColors, last(마지막 승부 킥), hint }
+const { pixelText, bigText, vivid, shade, OUT } = __req("js/ui/pixel.js");
+
+const CW = 160, CH = 210, HOR = 50, F = 300, CAM_H = 6, CAM_BACK = 16;
+const G = 10.7, HALF_W = 26.65, UPRIGHT = 3.08, BAR = 3.33, UP_H = 11.7;
+const SWIPE_FULL = 92; // 캔버스 픽셀: 이만큼 끌면 파워 100%
+const R = Math.random;
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const gauss = () => { let u = 0, v = 0; while (!u) u = R(); while (!v) v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+
+// 9×11 뒷모습/앞모습 선수 (외곽선 포함 11×13)
+const FIG = ['...HHH...', '..HHHHH..', '..HHHHH..', '.JJJJJJJ.', 'JJJJJJJJJ', 'JJJJJJJJJ', '.JJJJJJJ.', '..PPPPP..', '..PP.PP..', '..PP.PP..', '..BB.BB..'];
+const figCache = new Map();
+function figure(helmet, stripe, kit, front, kneel = false) {
+  const key = [helmet, stripe, kit, front, kneel].join('|');
+  if (figCache.has(key)) return figCache.get(key);
+  const rows = kneel ? [...FIG.slice(0, 7), '.PPPPPPP.', '.BB...BB.'] : FIG;
+  const w = 11, h = rows.length + 2, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const col = ch => ch === 'H' ? helmet : ch === 'J' ? kit : ch === 'P' ? '#E9ECEF' : ch === 'B' ? '#22262B' : null;
+  // 외곽선
+  ctx.fillStyle = OUT;
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (col(ch)) ctx.fillRect(x, y, 3, 3); }));
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { const c = col(ch); if (c) { ctx.fillStyle = c; ctx.fillRect(x + 1, y + 1, 1, 1); } }));
+  ctx.fillStyle = stripe; ctx.fillRect(5, 1, 1, 3);                       // 헬멧 줄무늬
+  ctx.fillStyle = shade(kit, -.25); ctx.fillRect(2, 7, 7, 1);              // 저지 밑단
+  ctx.fillStyle = shade(helmet, .35); ctx.fillRect(4, 2, 1, 1);            // 헬멧 광택
+  if (front) { ctx.fillStyle = '#C9CED6'; ctx.fillRect(4, 3, 3, 1); ctx.fillStyle = shade(kit, .45); ctx.fillRect(5, 5, 1, 2); } // 페이스마스크·앞번호
+  else { ctx.fillStyle = shade(kit, .45); ctx.fillRect(4, 5, 1, 2); ctx.fillRect(6, 5, 1, 2); } // 등번호
+  figCache.set(key, cv);
+  return cv;
+}
+
+class KickPlay {
+  constructor(host, cfg) {
+    this.host = host; this.cfg = cfg;
+    host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="킥 화면"></canvas><p class="lp-hint">${cfg.hint || ''}</p>`;
+    this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
+    this.fg = cfg.mode === 'fg';
+    // 필드 좌표 Y(0 = 우리 골라인, 100 = 상대 골라인), 공은 z = 0, 화면 안쪽이 +z
+    this.spotY = this.fg ? 110 - cfg.dist : cfg.start - 15;
+    this.losZ = this.fg ? 7 : 15;
+    this.camZ = -CAM_BACK; this.camX = 0;
+    this.phase = 'idle'; this.t = 0; this.msg = ''; this.msgT = 0; this.fx = [];
+    this.ball = { x: 0, z: 0, h: this.fg ? .35 : 1, vx: 0, vz: 0, vh: 0 }; this.trail = [];
+    this.kickT = -1; this.drag = null;
+    // 라인 (우리 7명 + 상대 러셔)
+    this.line = [-4.2, -2.8, -1.4, 0, 1.4, 2.8, 4.2].map(x => ({ x, z: this.losZ - .6 }));
+    this.rush = [-5, -2.2, 0.6, 3.3, 5.6].map(x => ({ x, z: this.losZ + .9, x0: x }));
+    this.stands = this.makeStands();
+    this.bind();
+    this.last = performance.now();
+    this.loopFn = this.loop.bind(this);
+    this.raf = requestAnimationFrame(this.loopFn);
+  }
+  snap() {
+    this.phase = 'pre'; this.t = -.9; this.msg = ''; this.msgT = 0;
+    this.rushT = this.fg ? 3.2 : 2.8;
+    return new Promise(res => { this.done = res; });
+  }
+  pop(text, color, burst = false) { this.msg = text; this.msgColor = color; this.msgT = 1.6; if (burst) this.burst(); }
+  destroy() { this.closed = true; cancelAnimationFrame(this.raf); }
+  // ───────── 입력 ─────────
+  pt(e) { const r = this.canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * CW / r.width, y: (e.clientY - r.top) * CH / r.height }; }
+  bind() {
+    const cv = this.canvas;
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); if (this.phase !== 'live') return; cv.setPointerCapture?.(e.pointerId); const p = this.pt(e); this.drag = { sx: p.x, sy: p.y, x: p.x, y: p.y }; });
+    cv.addEventListener('pointermove', e => { if (!this.drag) return; const p = this.pt(e); this.drag.x = p.x; this.drag.y = p.y; });
+    cv.addEventListener('pointerup', () => { const d = this.drag; this.drag = null; if (!d || this.phase !== 'live') return; const s = this.swipe(d); if (s.up < 12) return; this.kick(s.p, s.phi); });
+    cv.addEventListener('pointercancel', () => { this.drag = null; });
+  }
+  swipe(d) {
+    const up = d.sy - d.y, dx = d.x - d.sx;
+    return { up, p: clamp(up / SWIPE_FULL, 0, 1.3), phi: Math.atan2(dx, Math.max(8, up)) * .36 };
+  }
+  // ───────── 킥 ─────────
+  kick(p, phi) {
+    const c = this.cfg, a = c.me.attrs, ovr = c.me.ovr;
+    const kpow = a.kpow ?? ovr, kacc = a.kacc ?? ovr, pnt = a.pnt ?? ovr, cons = a.cons ?? kacc, poise = a.poise ?? 60;
+    const over = Math.max(0, p - 1), pp = Math.min(1, p);
+    const maxR = this.fg ? 47 + (kpow - 50) * .55 : 47 + (kpow - 50) * .45 + (pnt - 60) * .15;
+    let err = this.fg ? clamp(1.75 - kacc * .013, .35, 1.6) : clamp(2.6 - pnt * .018, .6, 2.4);
+    err *= (1 + over * 7) * (1.12 - cons * .0025) * (c.last ? clamp(1.35 - poise * .005, .85, 1.3) : 1);
+    const ang = phi + gauss() * err * Math.PI / 180;
+    const th = ((this.fg ? 34 : 55) - over * 14) * Math.PI / 180;
+    const range = maxR * (.38 + .62 * pp) * (1 - over * .1);
+    const v = Math.sqrt(range * G / Math.sin(2 * th));
+    Object.assign(this.ball, { x: 0, z: 0, h: this.fg ? .35 : 1, vx: v * Math.cos(th) * Math.sin(ang), vz: v * Math.cos(th) * Math.cos(ang), vh: v * Math.sin(th) });
+    this.phase = 'flight'; this.kickT = 0; this.hang = 0; this.crossed = false; this.outX = null;
+    this.power = p;
+  }
+  // ───────── 업데이트 ─────────
+  loop(now) {
+    if (this.closed) return;
+    const dt = clamp((now - this.last) / 1000, 0, .05); this.last = now;
+    this.update(dt);
+    this.draw(now);
+    this.raf = requestAnimationFrame(this.loopFn);
+  }
+  update(dt) {
+    if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
+    if (this.kickT >= 0) this.kickT += dt;
+    if (this.phase === 'idle' || this.phase === 'done') return;
+    this.t += dt;
+    if (this.phase === 'pre') { if (this.t >= 0) { this.phase = 'live'; this.t = 0; this.pop(this.fg ? 'KICK!' : 'PUNT!', '#FFD84A'); this.msgT = .6; } return; }
+    if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
+    // 러셔가 몰려옵니다 (킥을 하면 그 자리에서 멈춤)
+    if (this.phase === 'live') this.rushK = clamp(this.t / this.rushT, 0, 1);
+    const rushK = this.rushK || 0;
+    for (const r of this.rush) { r.z = this.losZ + .9 - rushK * (this.losZ - 2.6) * (Math.abs(r.x0) < 3 ? .45 : 1); r.x = r.x0 * (1 - rushK * .45); }
+    if (this.phase === 'live') {
+      if (this.t >= this.rushT) { this.pop('BLOCKED!', '#E85A5A'); return this.end({ blocked: true }); }
+      return;
+    }
+    // 공 비행
+    const b = this.ball, wind = (this.cfg.wind || 0) * .035;
+    const pz = b.z, ph = b.h, px = b.x;
+    b.vx += wind * dt; b.x += b.vx * dt; b.z += b.vz * dt; b.h += b.vh * dt; b.vh -= G * dt; this.hang += dt;
+    this.trail.push({ x: b.x, z: b.z, h: b.h }); if (this.trail.length > 10) this.trail.shift();
+    if (this.fg) {
+      const zP = this.cfg.dist;
+      if (!this.crossed && b.z >= zP) {
+        this.crossed = true;
+        const k = (zP - pz) / Math.max(.001, b.z - pz), hx = px + (b.x - px) * k, hh = ph + (b.h - ph) * k, ax = Math.abs(hx);
+        const postHit = Math.abs(ax - UPRIGHT) <= .2 && hh > BAR - .1 && hh < BAR + UP_H;
+        const barHit = ax < UPRIGHT && Math.abs(hh - BAR) < .22;
+        let good, why = '';
+        if (hh <= 0) { good = false; why = 'short'; }
+        else if (postHit || barHit) { good = barHit ? hh >= BAR && R() < .6 : R() < .45; why = 'doink'; this.pop('DOINK!', '#FFFFFF'); if (!good) { b.vz *= -.25; b.vx *= barHit ? .3 : -.6; } else b.vz *= .5; }
+        else { good = ax < UPRIGHT && hh > BAR; why = good ? '' : hh < BAR ? 'short' : hx < 0 ? 'left' : 'right'; }
+        this.result = { good, why, doink: why === 'doink', offset: +hx.toFixed(2) };
+        this.endAfter = .9;
+      }
+      if (b.h <= 0 && !this.crossed) { b.h = 0; this.result = { good: false, why: 'short' }; this.crossed = true; this.endAfter = .5; }
+      if (this.crossed) {
+        if (b.h <= 0) { b.h = 0; b.vh = Math.abs(b.vh) * .35; b.vz *= .5; b.vx *= .5; }
+        this.endAfter -= dt;
+        if (this.endAfter <= 0) {
+          const r = this.result;
+          if (r.good) this.pop(this.cfg.last ? 'IT IS GOOD!' : 'GOOD!', '#F2C230', true);
+          else this.pop(r.why === 'short' ? 'SHORT!' : r.why === 'left' ? 'WIDE LEFT' : r.why === 'right' ? 'WIDE RIGHT' : 'NO GOOD', '#E85A5A');
+          return this.end(r);
+        }
+      }
+    } else {
+      // 펀트: 카메라가 공을 따라갑니다
+      this.camZ += (Math.max(-CAM_BACK, b.z - 16) - this.camZ) * clamp(dt * 2.2, 0, 1);
+      this.camX += (clamp(b.x * .6, -14, 14) - this.camX) * clamp(dt * 2, 0, 1);
+      if (this.outX === null && Math.abs(b.x) > HALF_W) this.outX = { z: b.z };
+      if (b.h <= 0) {
+        b.h = 0;
+        const oob = this.outX !== null, landZ = oob ? this.outX.z : b.z, landY = this.spotY + landZ, losY = this.cfg.start;
+        let tb = landY >= 100, ret = 0, fair = false, final;
+        if (!tb && !oob) {
+          fair = this.hang >= 4.2 || landY >= 86 || R() < .3;
+          if (landY > 95 && R() < .5) tb = true;
+          else if (!fair) ret = Math.max(0, Math.round(2 + R() * 14 - (this.hang - 3.8) * 6));
+        }
+        final = tb ? 80 : clamp(Math.round(landY - ret), losY + 1, 99);
+        const gross = Math.round(Math.min(100, landY) - losY), net = final - losY, in20 = !tb && final >= 80;
+        this.result = { gross: Math.max(0, gross), net, final, tb, oob, fair, ret, in20, hang: +this.hang.toFixed(1) };
+        if (in20) this.pop('INSIDE 20!', '#F2C230', true);
+        else if (tb) this.pop('TOUCHBACK', '#FFFFFF');
+        else if (oob) this.pop('OUT OF BOUNDS', '#FFFFFF');
+        else this.pop(`${Math.max(0, gross)} YARDS`, '#FFFFFF');
+        b.vz = 0; b.vx = 0; b.vh = 0;
+        return this.end(this.result, 1.5);
+      }
+    }
+  }
+  end(res, wait = 1.3) { if (this.phase === 'over' || this.phase === 'done') return; this.result = res; this.phase = 'over'; this.endT = wait; }
+  finish() { this.phase = 'done'; const d = this.done; this.done = null; d?.(this.result); }
+  burst() { for (let i = 0; i < 50; i++) { const a = R() * Math.PI * 2, v = .5 + R() * 1.6; this.fx.push({ x: CW / 2, y: CH * .3, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .5, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', '#E85A5A', '#6BD88A'][i % 4] }); } }
+  // ───────── 그리기 ─────────
+  proj(x, z, h) { const d = z - this.camZ; if (d < .4) return null; return { x: CW / 2 + F * (x - this.camX) / d, y: HOR + F * (CAM_H - h) / d, d }; }
+  makeStands() {
+    const cv = document.createElement('canvas'); cv.width = CW; cv.height = HOR; const ctx = cv.getContext('2d');
+    for (let y = 0; y < HOR; y++) { const k = y / HOR; ctx.fillStyle = `rgb(${Math.round(14 + 20 * k)},${Math.round(22 + 30 * k)},${Math.round(44 + 40 * k)})`; ctx.fillRect(0, y, CW, 1); }
+    // 관중석
+    const top = HOR - 22, colors = this.cfg.colors.concat(this.cfg.oppColors, ['#F2F2F2', '#D9C27A', '#8A93A6']).map(vivid);
+    ctx.fillStyle = '#20262E'; ctx.fillRect(0, top, CW, 22);
+    for (let y = top + 1; y < HOR - 3; y += 2) for (let x = (y % 4) / 2; x < CW; x += 2) if (R() < .78) { ctx.fillStyle = colors[Math.floor(R() * colors.length)]; ctx.fillRect(x, y, 1, 1); }
+    ctx.fillStyle = '#3A424D'; ctx.fillRect(0, HOR - 3, CW, 3);
+    // 조명탑
+    for (const lx of [14, CW - 22]) { ctx.fillStyle = '#5A6270'; ctx.fillRect(lx + 3, 8, 2, top - 8); ctx.fillStyle = '#FFF6C8'; ctx.fillRect(lx, 4, 8, 4); ctx.fillStyle = 'rgba(255,246,200,.18)'; ctx.fillRect(lx - 4, 0, 16, 12); }
+    return cv;
+  }
+  draw(now) {
+    const ctx = this.ctx, c = this.cfg;
+    ctx.drawImage(this.stands, 0, 0);
+    // 잔디 (줄마다 깊이를 계산)
+    const ez = vivid(c.oppColors[0]), ez0 = vivid(c.colors[0]);
+    for (let sy = HOR; sy < CH; sy++) {
+      const d = F * CAM_H / (sy - HOR + .5), Y = this.spotY + this.camZ + d, hw = F * HALF_W / d, cx = CW / 2 - F * this.camX / d;
+      ctx.fillStyle = '#2B5E37'; ctx.fillRect(0, sy, CW, 1);
+      ctx.fillStyle = Y > 110 ? '#20262E' : Y > 100 ? ez : Y < 0 ? ez0 : Math.floor(Y / 5) % 2 ? '#3E9A52' : '#368A49';
+      ctx.fillRect(Math.round(cx - hw), sy, Math.round(hw * 2), 1);
+      if (!this.fg && Y >= 80 && Y <= 100) { ctx.fillStyle = 'rgba(242,194,48,.16)'; ctx.fillRect(Math.round(cx - hw), sy, Math.round(hw * 2), 1); }
+    }
+    // 야드 라인과 숫자
+    ctx.fillStyle = '#FFFFFF';
+    for (let Y = 0; Y <= 110; Y += 5) {
+      if (Y > 100 && Y !== 110) continue;
+      const a = this.proj(-HALF_W, Y - this.spotY, 0), b = this.proj(HALF_W, Y - this.spotY, 0);
+      if (!a || a.y < HOR || a.y > CH) continue;
+      ctx.fillRect(Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Y === 100 || Y === 0 ? 2 : 1);
+      if (Y % 10 === 0 && Y > 0 && Y < 100 && a.y > HOR + 10) { const n = String(Y <= 50 ? Y : 100 - Y), l = this.proj(-HALF_W + 7, Y - this.spotY, 0), r = this.proj(HALF_W - 7, Y - this.spotY, 0); pixelText(ctx, n, Math.round(l.x) - 3, Math.round(l.y) - 6, '#FFFFFF'); pixelText(ctx, n, Math.round(r.x) - 3, Math.round(r.y) - 6, '#FFFFFF'); ctx.fillStyle = '#FFFFFF'; }
+    }
+    // 스크리미지 라인
+    { const a = this.proj(-HALF_W, this.losZ, 0), b = this.proj(HALF_W, this.losZ, 0); if (a) { ctx.fillStyle = '#4A8CFF'; ctx.fillRect(Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), 1); } }
+    // 골대 (Y = 110)
+    this.drawPosts(ctx);
+    // 공 그림자·선수·공 (먼 것부터)
+    const items = [];
+    const my = c.colors.map(vivid), op = c.oppColors.map(vivid);
+    for (const r of this.rush) items.push({ z: r.z, f: () => this.drawFig(ctx, r.x, r.z, op[0], op[1], op[0], true) });
+    for (const l of this.line) items.push({ z: l.z, f: () => this.drawFig(ctx, l.x, l.z, my[0], my[1], my[0], false) });
+    if (this.fg) items.push({ z: .25, f: () => this.drawFig(ctx, -.9, .25, my[0], my[1], my[0], false, true) });
+    // 키커: 공 뒤에서 달려와 찹니다
+    const kk = this.kickT < 0 ? 0 : clamp(this.kickT / .22, 0, 1);
+    const kx = this.fg ? -1.1 + kk * .9 : 0, kz = this.fg ? -2.4 + kk * 2.1 : -.9 + kk * .5;
+    items.push({ z: kz, f: () => this.drawFig(ctx, kx, kz, my[0], my[1], my[0], false, false, this.kickT >= 0 && this.kickT < .5) });
+    const b = this.ball;
+    items.push({ z: b.z, f: () => this.drawBall(ctx, now) });
+    items.sort((a, b2) => b2.z - a.z).forEach(i => i.f());
+    // 조준선
+    if (this.drag && this.phase === 'live') this.drawAim(ctx);
+    // 바람
+    this.drawWind(ctx);
+    // 남은 시간 (러셔)
+    if (this.phase === 'live') { const k = 1 - this.t / this.rushT; ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(40, CH - 7, 80, 4); ctx.fillStyle = k < .35 ? '#E85A5A' : '#FFD84A'; ctx.fillRect(40, CH - 7, Math.round(80 * k), 4); }
+    // 파티클·글자
+    this.fx = this.fx.filter(p => p.life-- > 0);
+    for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .03; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
+    if (this.phase === 'pre') bigText(ctx, this.t < -.45 ? 'READY' : 'SET', CW / 2, CH * .36, '#FFFFFF', 3);
+    else if (this.msg) bigText(ctx, this.msg, CW / 2, CH * .36, this.msgColor || '#FFFFFF', this.msg.length > 10 ? 2 : 3);
+    if (this.phase === 'idle') { const bob = Math.floor(now / 300) % 2; bigText(ctx, this.fg ? `${c.dist} YD FG` : 'PUNT', CW / 2, CH * .36 - bob, '#FFD84A', 2); }
+  }
+  drawPosts(ctx) {
+    const z = 110 - this.spotY, base = this.proj(0, z, 0), bar = this.proj(0, z, BAR);
+    if (!base || base.y < 0) return;
+    const w = Math.max(1, Math.round(F * .12 / base.d)), l = this.proj(-UPRIGHT, z, BAR), r = this.proj(UPRIGHT, z, BAR), lt = this.proj(-UPRIGHT, z, BAR + UP_H), rt = this.proj(UPRIGHT, z, BAR + UP_H);
+    ctx.fillStyle = '#C8961A';
+    ctx.fillRect(Math.round(base.x) - Math.floor(w / 2), Math.round(bar.y), w, Math.round(base.y - bar.y));
+    ctx.fillStyle = '#F2C230';
+    ctx.fillRect(Math.round(l.x), Math.round(l.y), Math.round(r.x - l.x) + w, w);
+    ctx.fillRect(Math.round(l.x), Math.round(lt.y), w, Math.round(l.y - lt.y));
+    ctx.fillRect(Math.round(r.x), Math.round(rt.y), w, Math.round(r.y - rt.y));
+  }
+  drawFig(ctx, x, z, helmet, stripe, kit, front, kneel = false, kicking = false) {
+    const p = this.proj(x, z, 0); if (!p || p.y < HOR - 4) return;
+    const cv = figure(helmet, stripe, kit, front, kneel), s = clamp(Math.round(F * 1.9 / p.d / 13), 1, 4);
+    const w = cv.width * s, h = cv.height * s, dx = Math.round(p.x - w / 2), dy = Math.round(p.y - h);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(dx + s, Math.round(p.y) - s, w - 2 * s, s);
+    ctx.drawImage(cv, dx, dy, w, h);
+    if (kicking) { ctx.fillStyle = OUT; ctx.fillRect(dx + 6 * s, dy + 5 * s, 3 * s, 5 * s); ctx.fillStyle = '#E9ECEF'; ctx.fillRect(dx + 7 * s, dy + 6 * s, s, 3 * s); ctx.fillStyle = '#22262B'; ctx.fillRect(dx + 7 * s, dy + 5 * s, s, s); }
+  }
+  drawBall(ctx, now) {
+    const b = this.ball, g = this.proj(b.x, b.z, 0), p = this.proj(b.x, b.z, b.h);
+    if (!p) return;
+    if (g && g.y >= HOR) { ctx.fillStyle = 'rgba(0,0,0,.3)'; const r = Math.max(1, Math.round(F * .25 / g.d)); ctx.fillRect(Math.round(g.x - r), Math.round(g.y), r * 2, Math.max(1, Math.round(r / 2))); }
+    // 꼬리
+    if (this.phase === 'flight' || this.phase === 'over') for (const [i, t] of this.trail.entries()) { const q = this.proj(t.x, t.z, t.h); if (q) { ctx.fillStyle = `rgba(255,255,255,${.06 + i * .03})`; ctx.fillRect(Math.round(q.x), Math.round(q.y), 1, 1); } }
+    const r = clamp(Math.round(F * .2 / p.d), 1, 5), spin = Math.floor(now / 70) % 2;
+    ctx.fillStyle = OUT; ctx.fillRect(Math.round(p.x - r - 1), Math.round(p.y - r * .7 - 1), r * 2 + 2, Math.round(r * 1.4) + 2);
+    ctx.fillStyle = '#8A4B22'; ctx.fillRect(Math.round(p.x - r), Math.round(p.y - r * .7), r * 2, Math.round(r * 1.4));
+    if (r >= 2) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(Math.round(p.x) - (spin ? 1 : 0), Math.round(p.y) - 1, 1, 2); }
+  }
+  drawAim(ctx) {
+    const s = this.swipe(this.drag), p = Math.min(1, s.p), over = s.p > 1;
+    // 파워 막대 (오른쪽)
+    const bx = CW - 10, by = 84, bh = 100;
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(bx - 1, by - 1, 6, bh + 2);
+    ctx.fillStyle = 'rgba(107,216,138,.45)'; ctx.fillRect(bx, by + Math.round(bh * (1 - 1)), 4, Math.round(bh * .18));
+    ctx.fillStyle = over ? '#E85A5A' : p >= .82 ? '#6BD88A' : '#FFD84A';
+    const fill = Math.round(bh * Math.min(1, s.p / 1.0));
+    ctx.fillRect(bx, by + bh - fill, 4, fill);
+    if (over) { ctx.fillStyle = '#E85A5A'; ctx.fillRect(bx - 2, by - 4, 8, 2); }
+    // 조준선 (바람 미반영)
+    const zEnd = this.fg ? this.cfg.dist : 40 * (.38 + .62 * p) + 8;
+    ctx.save(); ctx.setLineDash([2, 3]); ctx.strokeStyle = over ? '#E85A5A' : '#FFD84A'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) { const z = zEnd * i / 16, q = this.proj(Math.tan(s.phi) * z, z, Math.min(6, z * .25) * (1 - i / 20)); if (!q) continue; i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+    ctx.stroke(); ctx.restore();
+    bigText(ctx, over ? 'TOO HARD' : p >= .82 ? 'GOOD' : 'POWER', bx - 18, by + bh + 8, over ? '#E85A5A' : p >= .82 ? '#6BD88A' : '#FFFFFF', 1);
+  }
+  drawWind(ctx) {
+    const w = this.cfg.wind || 0, s = w === 0 ? 'WIND 0' : `WIND ${Math.abs(w)}`;
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(4, 4, 52, 13);
+    pixelText(ctx, s, 7, 8, '#FFFFFF');
+    if (w) { const dir = Math.sign(w), x0 = 44, y = 10; ctx.fillStyle = '#FFD84A'; ctx.fillRect(x0 - 4, y, 9, 1); ctx.fillRect(dir > 0 ? x0 + 3 : x0 - 4, y - 1, 2, 3); ctx.fillRect(dir > 0 ? x0 + 5 : x0 - 6, y, 1, 1); }
+  }
+}
+
+return { KickPlay };
 });
 __def("js/ui/clutch.js", function () {
-// 빅게임 직접 플레이 (터치 미니게임).
-// 공격: 플레이 콜 → 타이밍 미터를 탭 → 결과가 필드에서 움직입니다. 4번째 다운·2점 컨버전도 직접 정합니다.
-// 수비: 상대 포메이션을 읽고 수비 콜 → 타이밍. 키커: 파워·정확도 두 번 탭. 펀터: 비거리·방향.
+// 빅게임 직접 플레이. 모든 포지션이 실시간으로 진행됩니다.
+// 공격·수비: 작전(수비 콜)을 고르면 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js).
+// 키커·펀터: 키커 뒤 시점에서 위로 쓸어 올려 찹니다 (kickplay.js). 4번째 다운·2점 컨버전도 직접 정합니다.
 const { POSITIONS, LEVEL_AVG, clamp } = __req("js/engine/core.js");
-const { spriteCanvas, bigText, pixelText, vivid, shade, OUT } = __req("js/ui/pixel.js");
-const { runLivePlay, conceptsFor, CONCEPTS, DEF_CALLS } = __req("js/ui/liveplay.js");
-const LIVE_POS = new Set(['QB', 'RB', 'WR', 'TE', 'CB', 'S', 'LB', 'EDGE', 'DT']);
-const LIVE_TELLS = { run: TELLS_RUN(), pass: ['샷건, 리시버 넷이 넓게', '트립스 오른쪽', '엠티 백필드, 리시버 다섯', '쿼터백이 세이프티를 오래 본다'] };
-function TELLS_RUN() { return ['I 포메이션, 풀백이 보인다', '타이트 엔드 둘, 헤비 세트', '러닝백이 쿼터백 바로 뒤에']; }
+const { LivePlay, conceptsFor, CONCEPTS, DEF_CALLS } = __req("js/ui/liveplay.js");
+const { KickPlay } = __req("js/ui/kickplay.js");
 
-const W = 192, H = 96, YARDS = 48, PPY = W / YARDS;
+const TELLS = {
+  run: ['I 포메이션, 풀백이 보인다', '타이트 엔드 둘, 헤비 세트', '러닝백이 쿼터백 바로 뒤에'],
+  pass: ['샷건, 리시버 넷이 넓게', '트립스 오른쪽', '엠티 백필드, 리시버 다섯', '쿼터백이 세이프티를 오래 본다'],
+};
+// 내 포지션 → 필드에서 조작할 선수
+const CONTROL = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', OL: 'OL', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' };
+const HINT = {
+  QB: '탭: 그 자리로 패스 · 끌기: 스크램블 · 패스가 잡히면 받은 선수를 조작',
+  RB: '끌기: 달리기 · 공을 들고 탭: 저크로 태클 피하기',
+  WR: '끌기: 루트 달리기 · 노란 원으로 가면 캐치 · 공 들고 탭: 저크',
+  TE: '끌기: 루트 달리기 · 노란 원으로 가면 캐치 · 공 들고 탭: 저크',
+  OL: '끌기: 빨간 표시 러셔 앞을 막아서기 · 쿼터백을 지키세요',
+  DL: '끌기: 블로커를 돌아 쿼터백·볼 캐리어에게',
+  LB: '끌기: 내 수비수 이동 · 볼 캐리어에 닿으면 태클',
+  CB: '끌기: 마크맨을 따라가기 · 노란 원에 먼저 가면 인터셉트',
+  S: '끌기: 깊은 곳 지키기 · 노란 원에 먼저 가면 인터셉트',
+};
+const SNAP_MSG = {
+  QB: '스냅! 열린 리시버 쪽을 탭하세요.', RB: '스냅! 구멍을 찾아 달리세요.', WR: '스냅! 노란 선이 내 루트예요.', TE: '스냅! 노란 선이 내 루트예요.',
+  OL: '스냅! 빨간 표시 러셔를 막으세요.', DL: '스냅! 쿼터백을 향해!', LB: '상대가 스냅한다. 볼 캐리어를 쫓으세요.', CB: '상대가 스냅한다. 마크맨에게 붙으세요.', S: '상대가 스냅한다. 깊은 패스를 노리세요.',
+};
+const ORD = ['', '1ST', '2ND', '3RD', '4TH'];
 const R = Math.random;
 const pick = a => a[Math.floor(R() * a.length)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
-
-// 포지션별 플레이 콜. base·spread 야드, attr 관련 능력치, speed 바늘 속도, risk 실패 시 위험, w 성공 구간 배율
-const PLAYS = {
-  QB: [
-    { id: 'slant', name: '퀵 슬랜트', note: '안전 · 짧게', base: 6, spread: 4, attr: 'acc', speed: 1, w: 1.15, kind: 'pass', fail: { int: .05 } },
-    { id: 'pa', name: '플레이 액션 아웃', note: '보통 · 중거리', base: 13, spread: 6, attr: 'vis', speed: 1.25, w: 1, kind: 'pass', fail: { int: .09, sack: .3 } },
-    { id: 'post', name: '딥 포스트', note: '모험 · 한 방', base: 30, spread: 18, attr: 'arm', speed: 1.6, w: .78, kind: 'deep', fail: { int: .22 } },
-    { id: 'scramble', name: 'QB 스크램블', note: '기동력', base: 7, spread: 9, attr: 'mob', speed: 1.15, w: 1, kind: 'run', fail: { sack: .5 }, need: p => (p.attrs.mob ?? 0) >= 55 },
-  ],
-  RB: [
-    { id: 'inside', name: '인사이드 존', note: '안전 · 힘으로', base: 4, spread: 3, attr: 'carry', speed: 1, w: 1.15, kind: 'run', fail: { fumble: .03 } },
-    { id: 'sweep', name: '아웃사이드 스윕', note: '보통 · 바깥으로', base: 7, spread: 10, attr: 'spd', speed: 1.35, w: .95, kind: 'run', fail: { loss: 3 } },
-    { id: 'screen', name: '스크린 패스', note: '보통 · 받아서 달리기', base: 8, spread: 10, attr: 'hands', speed: 1.2, w: 1, kind: 'pass', fail: {} },
-    { id: 'wildcat', name: '와일드캣 다이렉트 스냅', note: '모험 · 트릭', base: 13, spread: 16, attr: 'vis', speed: 1.7, w: .75, kind: 'run', fail: { fumble: .15 } },
-  ],
-  WR: [
-    { id: 'slant', name: '슬랜트', note: '안전 · 짧게', base: 7, spread: 4, attr: 'hands', speed: 1, w: 1.15, kind: 'pass', fail: { int: .04 } },
-    { id: 'comeback', name: '컴백 루트', note: '보통 · 끊어 받기', base: 12, spread: 5, attr: 'route', speed: 1.25, w: 1, kind: 'pass', fail: { int: .07 } },
-    { id: 'go', name: '고 루트', note: '모험 · 직선 승부', base: 32, spread: 16, attr: 'spd', speed: 1.6, w: .78, kind: 'deep', fail: { int: .12 } },
-    { id: 'reverse', name: '엔드 어라운드', note: '트릭 · 직접 달리기', base: 9, spread: 14, attr: 'agi', speed: 1.5, w: .85, kind: 'run', fail: { loss: 5, fumble: .05 } },
-  ],
-  TE: [
-    { id: 'flat', name: '블로킹 후 플랫', note: '안전', base: 5, spread: 6, attr: 'hands', speed: 1, w: 1.15, kind: 'pass', fail: {} },
-    { id: 'seam', name: '시엄 루트', note: '보통 · 가운데 돌파', base: 15, spread: 8, attr: 'route', speed: 1.3, w: .95, kind: 'pass', fail: { int: .08 } },
-    { id: 'wheel', name: '휠 루트', note: '모험 · 사이드라인 딥', base: 26, spread: 14, attr: 'spd', speed: 1.55, w: .8, kind: 'deep', fail: { int: .1 } },
-  ],
-  OL: [
-    { id: 'pass', name: '패스 프로텍션', note: 'QB를 지켜라', base: 11, spread: 12, attr: 'pblk', speed: 1.2, w: 1, kind: 'pass', fail: { sack: .7 } },
-    { id: 'double', name: '더블팀 런 블록', note: '안전 · 힘으로', base: 5, spread: 4, attr: 'rblk', speed: 1, w: 1.15, kind: 'run', fail: { loss: 1 } },
-    { id: 'pull', name: '풀링 블록 (스윕 리드)', note: '모험 · 바깥으로 길을 연다', base: 9, spread: 12, attr: 'agi', speed: 1.45, w: .85, kind: 'run', fail: { loss: 3 } },
-  ],
-};
-// 수비 콜: 상대 플레이(run/short/deep)에 맞으면 성공 구간이 넓어집니다.
-const DCALLS = {
-  front: [{ id: 'speed', name: '스피드 러시', note: '패스에 강함', beats: ['short', 'deep'], attr: 'spd' }, { id: 'bull', name: '불 러시 (힘으로 밀기)', note: '모두 무난', beats: ['run', 'short', 'deep'], weak: true, attr: 'str' }, { id: 'gap', name: '런 갭 지키기', note: '런에 강함', beats: ['run'], attr: 'rdef' }],
-  lb: [{ id: 'blitz', name: 'A갭 블리츠', note: '패스에 강함', beats: ['short', 'deep'], attr: 'rush' }, { id: 'fill', name: '런 갭 메우기', note: '런에 강함', beats: ['run'], attr: 'tkl' }, { id: 'zone', name: '존 드롭', note: '짧은 패스에 강함', beats: ['short'], attr: 'cov' }],
-  db: [{ id: 'press', name: '프레스 맨투맨', note: '짧은 패스에 강함', beats: ['short'], attr: 'cov' }, { id: 'cover2', name: '딥 존 (커버 2)', note: '긴 패스에 강함', beats: ['deep'], attr: 'vis' }, { id: 'nickel', name: '나켈 블리츠', note: '런·짧은 패스', beats: ['run', 'short'], attr: 'tkl' }],
-};
-const TELLS = { run: ['I 포메이션, 풀백이 보인다', '타이트 엔드 둘, 헤비 세트', '러닝백이 QB 바로 뒤에'], short: ['샷건, 리시버 셋이 가까이', '트립스 오른쪽, 짧은 간격', '버블 스크린 냄새'], deep: ['엠티 백필드, 리시버 다섯', '와이드 리시버가 넓게 벌어졌다', 'QB가 세이프티를 오래 본다'] };
 
 function openClutch(root, ctx) {
   return new Promise(resolve => new Clutch(root, ctx, resolve));
@@ -4108,39 +4458,33 @@ class Clutch {
   constructor(root, c, done) {
     this.root = root; this.c = c; this.done = done;
     const p = c.player, g = c.game;
-    this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.live = LIVE_POS.has(p.pos);
+    this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.control = CONTROL[p.pos];
     this.mode = p.pos === 'K' ? 'kick' : p.pos === 'P' ? 'punt' : this.side === 'D' ? 'defense' : 'offense';
     this.final = !!g.final;
-    this.drivesTotal = this.mode === 'kick' || this.mode === 'punt' ? (this.final ? 4 : 3) : (this.final ? 4 : 3);
+    this.drivesTotal = this.final ? 4 : 3;
     this.drive = 0;
-    this.me = { colors: c.colors, avatar: p.avatar, number: p.number };
+    this.me = { colors: c.colors };
     this.oppColors = c.oppColors;
     // 미니게임 밖에서 쌓이는 양 팀 점수 (쿼터별로 나눠 전광판에 반영)
-    const lvl = c.levelAvg, myStr = g.myStr ?? 60, oppStr = g.oppStr ?? 60;
+    const myStr = g.myStr ?? 60, oppStr = g.oppStr ?? 60;
     const td = x => Math.max(0, Math.round(x)) * 7;
     this.restFor = this.mode === 'offense' ? td(.5 + (myStr - oppStr) * .02 + R() * 1.2) : this.mode === 'kick' ? td(1.6 + (myStr - oppStr) * .03 + R() * 1.4) : td(1.8 + (myStr - oppStr) * .03 + R() * 1.6);
     this.restAgainst = this.mode === 'defense' ? td(.5 + (oppStr - myStr) * .02 + R() * 1.2) : td(1.6 + (oppStr - myStr) * .03 + R() * 1.6);
     this.pf = 0; this.pa = 0;
     this.line = {}; this.snaps = []; this.log = [];
-    this.rel = p.ovr - (lvl + (oppStr - 60) * .1);
-    this.cam = 25; this.anim = null; this.fx = [];
     this.build();
     this.startDrive();
-    this.loop = this.loop.bind(this);
-    this.raf = requestAnimationFrame(this.loop);
   }
   // ───────── 화면 ─────────
   build() {
     const c = this.c;
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
       <div class="cl-board"><div class="cl-team"><small>${esc(c.myName)}</small><b id="cl-pf">0</b></div><div class="cl-mid"><span id="cl-q" class="cl-q">1Q</span><small id="cl-dd"></small></div><div class="cl-team"><small>${esc(c.oppName)}</small><b id="cl-pa">0</b></div></div>
-      <div class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</div>
-      <canvas id="cl-field" width="${W}" height="${H}" class="cl-field" aria-label="필드"></canvas><div id="cl-live" class="cl-live" hidden></div>
+      <div class="cl-title"><span class="cl-live-tag">LIVE · 직접 조작</span>${esc(c.game.title || c.game.round || '빅게임')}</div>
+      <div id="cl-live" class="cl-live"></div>
       <p id="cl-msg" class="cl-msg"></p>
       <div id="cl-actions" class="cl-actions"></div>
       <div class="cl-foot"><button class="ghost" data-cl="auto">자동으로 마무리</button></div></div>`;
-    this.canvas = this.root.querySelector('#cl-field');
-    this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.root.querySelector('[data-cl="auto"]').onclick = () => this.finish(true);
   }
   $(id) { return this.root.querySelector('#' + id); }
@@ -4156,6 +4500,35 @@ class Clutch {
   actions(html) { this.$('cl-actions').innerHTML = html; }
   spot(y) { return y >= 50 ? `상대 진영 ${100 - y}` : y === 50 ? '미드필드' : `자기 진영 ${y}`; }
   dd() { const d = this.d; return d ? `${['', '1st', '2nd', '3rd', '4th'][d.down]} & ${d.goal ? 'Goal' : d.toGo} · ${this.spot(d.ball)}` : ''; }
+  banner() { const d = this.d; return `${ORD[d.down]} & ${d.goal ? 'GOAL' : d.toGo}`; }
+  pop(text, color, burst = false) { this.view?.pop(text, color, burst); }
+  clearView() { this.view?.destroy(); this.view = null; }
+
+  // ───────── 실시간 필드 ─────────
+  liveCfg() {
+    const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
+    const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
+    return {
+      ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, control: this.control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
+      me: { attrs: this.p.attrs, ovr: this.p.ovr }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
+      offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
+      endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
+      away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
+      hint: HINT[this.control], banner: this.banner(),
+    };
+  }
+  // 스냅 전 포메이션을 바로 보여 줍니다.
+  preview() { this.clearView(); this.view = new LivePlay(this.$('cl-live'), this.liveCfg()); }
+  snapLive(opts) {
+    this.actions('');
+    this.msg(esc(SNAP_MSG[this.control] || '스냅!'));
+    return this.view.snap(opts);
+  }
+  showConcepts(cb) {
+    const list = conceptsFor(this.pos);
+    this.actions(`<div class="cl-calls">${list.map((x, i) => `<button class="cl-call" data-cc="${i}"><b>${esc(x.name)}</b><small>${esc(x.note)}</small></button>`).join('')}</div>`);
+    this.root.querySelectorAll('[data-cc]').forEach(b => b.onclick = () => cb(list[+b.dataset.cc]));
+  }
 
   // ───────── 드라이브 ─────────
   startDrive() {
@@ -4167,221 +4540,87 @@ class Clutch {
     if (this.mode === 'punt') return this.puntSetup(story);
     const start = 20 + Math.floor(R() * 16);
     this.d = { ball: start, down: 1, toGo: 10, first: start + 10, snaps: 0, offense: this.mode === 'offense' };
-    this.cam = clamp(start + 10, 24, 76);
     this.board(this.dd());
-    this.msg(`<b>${esc(story)}</b><br>${this.mode === 'offense' ? '우리 공격. 플레이를 고르세요.' : '상대 공격. 포메이션을 읽고 수비를 고르세요.'}`);
+    this.storyLine = `<b>${esc(story)}</b><br>`;
     this.mode === 'offense' ? this.offensePick() : this.defensePick();
   }
   endDrive(text) {
     this.log.push(text);
     this.drive++;
     this.board(this.dd());
+    this.msg(esc(text));
     this.actions(`<button class="primary" data-cl="next">${this.drive >= this.drivesTotal ? '경기 결과 보기' : '다음 장면'}</button>`);
     this.root.querySelector('[data-cl="next"]').onclick = () => this.startDrive();
   }
   // ───────── 공격 ─────────
-  offensePick() {
-    const d = this.d, plays = (PLAYS[this.pos] || PLAYS.WR).filter(x => !x.need || x.need(this.p));
+  offensePick(note = '') {
+    const d = this.d, intro = this.storyLine || ''; this.storyLine = '';
+    this.board(this.dd());
+    this.preview();
     if (d.down === 4) {
       const dist = 100 - d.ball + 17;
       const opts = [`<button class="choice" data-go="go"><strong>고! 4번째 다운 승부</strong><div class="hint">${d.toGo}야드를 가야 한다</div></button>`];
       if (dist <= 57) opts.push(`<button class="choice" data-go="fg"><strong>필드골 시도 (${dist}야드)</strong><div class="hint">팀 키커에게 맡긴다</div></button>`);
       opts.push(`<button class="choice" data-go="punt"><strong>펀트</strong><div class="hint">필드 포지션을 지킨다</div></button>`);
-      this.msg(`<b>4th & ${d.toGo}</b> · 감독이 나를 본다. 어떻게 할까?`);
+      this.msg(`${intro}${note ? esc(note) + ' ' : ''}<b>4th & ${d.toGo}</b> · 감독이 나를 본다. 어떻게 할까?`);
       this.actions(opts.join(''));
       this.root.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
         const v = b.dataset.go;
-        if (v === 'go') return this.showPlays(plays);
+        if (v === 'go') { this.msg('승부! 작전을 고르세요.'); return this.callPlay(); }
         if (v === 'fg') { const ok = R() < clamp(.97 - (dist - 20) * .013, .3, .97); if (ok) this.pf += 3; this.pop(ok ? 'GOOD!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A'); return this.endDrive(ok ? `${dist}야드 필드골 성공` : `${dist}야드 필드골 실패`); }
         this.pop('PUNT', '#FFFFFF'); return this.endDrive('펀트로 공격권을 넘겼다');
       });
       return;
     }
-    this.showPlays(plays);
+    this.msg(`${intro}${note ? esc(note) + ' ' : ''}${intro ? '우리 공격. ' : ''}작전을 고르면 바로 스냅합니다.`);
+    this.callPlay();
   }
-  showPlays(plays) {
-    this.board(this.dd());
-    if (this.live) return this.showConcepts(c => this.runLive({ concept: c }).then(o => this.resolveLive(o)));
-    this.actions(plays.map((x, i) => `<button class="choice" data-play="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
-    this.root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => this.meter(plays[+b.dataset.play], zone => this.resolveOffense(plays[+b.dataset.play], zone)));
-  }
-  resolveOffense(play, zone) {
-    const d = this.d, P = this.pos, L = this.line, f = play.fail || {};
-    let yards = 0, text = '', turnover = null, sack = false, incomplete = false;
-    const big = zone === 'perfect' && R() < (play.kind === 'deep' ? .45 : .16);
-    if (zone === 'perfect') yards = Math.round(play.base + play.spread * (.6 + R() * .6) + (big ? 15 + R() * 25 : 0));
-    else if (zone === 'good') yards = Math.round(play.base + play.spread * (R() - .35));
-    else {
-      if (f.int && R() < f.int * 2.2) turnover = 'INT';
-      else if (f.fumble && R() < f.fumble * 3) turnover = 'FUMBLE';
-      else if (f.sack && R() < f.sack) { sack = true; yards = -6 - Math.floor(R() * 4); }
-      else if (play.kind !== 'run') incomplete = true;
-      else yards = -(f.loss || 1) + Math.floor(R() * 2);
-    }
-    const target = Math.min(100, d.ball + yards);
-    // 스탯
-    const passer = P === 'QB', receiver = ['WR', 'TE', 'RB'].includes(P) && play.kind !== 'run', runner = play.kind === 'run' && P !== 'OL' && P !== 'QB' || (P === 'QB' && play.id === 'scramble');
-    const gain = target - d.ball, td = target >= 100;
-    if (passer && play.kind !== 'run') { inc(L, 'att'); if (!incomplete && !turnover && !sack) { inc(L, 'cmp'); inc(L, 'pyds', gain); if (td) inc(L, 'ptd'); } if (turnover === 'INT') inc(L, 'pint'); }
-    if (receiver) { inc(L, 'tgt'); if (!incomplete && !turnover) { inc(L, 'rec'); inc(L, 'recyds', gain); if (td) inc(L, 'rectd'); } }
-    if (runner) { inc(L, 'ratt'); if (!turnover) { inc(L, 'ryds', gain); if (td) inc(L, 'rtd'); } if (turnover === 'FUMBLE') inc(L, 'fum'); }
-    if (P === 'OL') { if (sack) inc(L, 'sa'); if (zone === 'perfect') inc(L, 'pan'); }
-    this.snap(zone, td, !!turnover);
-    // 애니메이션
-    const from = d.ball;
-    const carrierPose = turnover ? 'sad' : td ? 'cheer' : 'run';
-    if (turnover) text = turnover === 'INT' ? '인터셉트! 공격권을 잃었다.' : '펌블! 상대가 공을 덮쳤다.';
-    else if (sack) text = `색. ${-yards}야드 손실.`;
-    else if (incomplete) text = '패스 인컴플리트.';
-    else text = td ? '터치다운!' : `${gain >= 0 ? `${gain}야드 전진` : `${-gain}야드 손실`}${big ? ' · 빅 플레이!' : ''}`;
-    this.animate(from, turnover || incomplete ? from : target, carrierPose, () => {
-      if (turnover) { this.pop(turnover === 'INT' ? 'INTERCEPTED' : 'FUMBLE', '#E85A5A'); return this.endDrive(text); }
-      if (td) { this.pop('TOUCHDOWN!', '#F2C230', true); this.pf += 6; return this.afterTD(); }
-      if (!incomplete) d.ball = target;
-      d.snaps++;
-      if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; this.pop('FIRST DOWN', '#FFFFFF'); }
-      else { d.down++; d.toGo = d.first - d.ball; }
-      if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive('4번째 다운 실패, 공격권 넘김'); }
-      if (d.snaps >= 9) { const dist = 100 - d.ball + 17; if (dist <= 50 && R() < .8) { this.pf += 3; return this.endDrive(`시간에 쫓겨 ${dist}야드 필드골`); } return this.endDrive('시간이 다 됐다'); }
-      this.msg(`${esc(text)}`);
-      this.offensePick();
-    });
+  callPlay() { this.showConcepts(c => this.snapLive({ concept: c }).then(o => this.resolveLive(o))); }
+  resolveLive(o) {
+    const d = this.d;
+    this.mergeStats(o.stats);
+    let zone = o.td || o.gain >= 15 ? 'perfect' : (!o.incomplete && !o.turnover && !o.sack && (o.gain >= Math.min(d.toGo, 5))) ? 'good' : 'miss';
+    if (this.pos === 'OL') zone = o.stats?.sa ? 'miss' : o.stats?.pan || o.td ? 'perfect' : o.turnover ? 'miss' : 'good';
+    this.snap(zone, !!o.td, !!o.turnover);
+    if (o.turnover) { this.pop(o.turnover === 'INT' ? 'INTERCEPTED' : 'FUMBLE', '#E85A5A'); return this.endDrive(o.turnover === 'INT' ? '인터셉트! 공격권을 잃었다.' : '펌블! 공격권을 잃었다.'); }
+    if (o.td) { this.pf += 6; return this.afterTD(); }
+    if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
+    d.snaps++;
+    const text = o.incomplete ? '패스 인컴플리트.' : o.sack ? `색. ${-o.gain}야드 손실.` : o.gain >= 0 ? `${o.gain}야드 전진.` : `${-o.gain}야드 손실.`;
+    if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
+    else { d.down++; d.toGo = d.first - d.ball; }
+    if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive('4번째 다운 실패, 공격권 넘김'); }
+    if (d.snaps >= 9) { const dist = 100 - d.ball + 17; if (dist <= 50 && R() < .8) { this.pf += 3; this.pop('FG GOOD', '#F2C230'); return this.endDrive(`시간에 쫓겨 ${dist}야드 필드골`); } return this.endDrive('시간이 다 됐다'); }
+    this.offensePick(text);
   }
   afterTD() {
     this.board(this.dd());
     this.msg('<b>터치다운!</b> 추가 득점은?');
     this.actions(`<button class="choice" data-x="pat"><strong>PAT (1점)</strong><div class="hint">거의 확실하다</div></button><button class="choice" data-x="two"><strong>2점 컨버전</strong><div class="hint">2야드에서 한 번 더 승부</div></button>`);
-    this.root.querySelector('[data-x="pat"]').onclick = () => { const ok = R() < .95; if (ok) this.pf += 1; this.endDrive(ok ? '터치다운 + PAT' : '터치다운, PAT 실패'); };
+    this.root.querySelector('[data-x="pat"]').onclick = () => { const ok = R() < .95; if (ok) this.pf += 1; this.pop(ok ? 'PAT GOOD' : 'PAT MISS', ok ? '#F2C230' : '#E85A5A'); this.endDrive(ok ? '터치다운 + PAT' : '터치다운, PAT 실패'); };
     this.root.querySelector('[data-x="two"]').onclick = () => {
-      if (this.live) {
-        this.msg('2점 컨버전! 플레이를 고르세요.');
-        const save = this.d; this.d = { ...save, ball: 98, toGo: 2, first: 100, goal: true };
-        return this.showConcepts(c => this.runLive({ concept: c }).then(o => {
-          this.d = save; const ok = !!o.td; this.mergeStats(o.stats); if (ok) this.pf += 2; this.snap(ok ? 'perfect' : 'miss', ok, false);
-          this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
-        }));
-      }
-      const plays = (PLAYS[this.pos] || PLAYS.WR).filter(x => !x.need || x.need(this.p));
-      this.msg('2점 컨버전! 플레이를 고르세요.');
-      this.actions(plays.map((x, i) => `<button class="choice" data-two="${i}"><strong>${esc(x.name)}</strong></button>`).join(''));
-      this.root.querySelectorAll('[data-two]').forEach(b => b.onclick = () => this.meter(plays[+b.dataset.two], zone => {
-        const ok = zone !== 'miss'; if (ok) this.pf += 2; this.snap(zone, ok, false);
-        this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok);
-        this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
+      const save = this.d; this.d = { ...save, ball: 98, down: 1, toGo: 2, first: 100, goal: true };
+      this.preview();
+      this.msg('2점 컨버전! 작전을 고르세요.');
+      this.showConcepts(c => this.snapLive({ concept: c }).then(o => {
+        this.d = save; const ok = !!o.td; this.mergeStats(o.stats); if (ok) this.pf += 2; this.snap(ok ? 'perfect' : 'miss', ok, false);
+        this.pop(ok ? '2 POINTS!' : 'NO GOOD', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? '터치다운 + 2점 컨버전 성공' : '터치다운, 2점 컨버전 실패');
       }));
     };
   }
   // ───────── 수비 ─────────
-  defensePick() {
-    if (this.live) return this.defenseLive();
-    const d = this.d, group = ['DT', 'EDGE'].includes(this.pos) ? 'front' : this.pos === 'LB' ? 'lb' : 'db';
-    // 상대 플레이 (상황에 맞게) + 70% 맞는 힌트
-    const toGoal = 100 - d.ball;
-    const w = d.toGo >= 8 ? { run: .25, short: .45, deep: .3 } : d.toGo <= 2 ? { run: .6, short: .3, deep: .1 } : { run: .4, short: .4, deep: .2 };
-    if (toGoal < 20) { w.deep = .05; w.short += .1; }
-    let roll = R(), playType = 'run';
-    for (const [k, v] of Object.entries(w)) { if (roll < v) { playType = k; break; } roll -= v; }
-    const tellType = R() < .7 ? playType : pick(Object.keys(TELLS).filter(k => k !== playType));
-    this.oppPlay = playType;
-    this.board(this.dd());
-    this.msg(`상대 포메이션: <b>${esc(pick(TELLS[tellType]))}</b>`);
-    const calls = DCALLS[group];
-    this.actions(calls.map((x, i) => `<button class="choice" data-call="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
-    this.root.querySelectorAll('[data-call]').forEach(b => b.onclick = () => {
-      const call = calls[+b.dataset.call], match = call.beats.includes(playType);
-      this.meter({ ...call, speed: playType === 'deep' ? 1.45 : 1.2, w: match ? (call.weak ? 1.05 : 1.4) : .62 }, zone => this.resolveDefense(call, match, zone));
-    });
-  }
-  resolveDefense(call, match, zone) {
-    const d = this.d, P = this.pos, L = this.line, t = this.oppPlay;
-    let gain = 0, text = '', takeaway = null, big = '';
-    if (zone === 'perfect' && match) {
-      if (t === 'run') { gain = -2 - Math.floor(R() * 3); inc(L, 'tkl'); inc(L, 'tfl'); big = 'TFL'; text = '백필드에서 러닝백을 잡았다!'; if (R() < .18) { takeaway = 'FF'; inc(L, 'ff'); } }
-      else if (['DT', 'EDGE', 'LB'].includes(P) && call.id !== 'zone') { gain = -7 - Math.floor(R() * 4); inc(L, 'sack'); inc(L, 'tkl'); big = 'SACK!'; text = '쿼터백을 쓰러뜨렸다! 색!'; if (R() < .2) { takeaway = 'FF'; inc(L, 'ff'); } }
-      else { takeaway = 'INT'; inc(L, 'dint'); inc(L, 'pd'); big = 'INTERCEPTION!'; text = '공을 낚아챘다! 인터셉트!'; if (R() < .25) { this.pf += 7; inc(L, 'dtd'); text = '인터셉트 후 엔드존까지! 픽식스!'; big = 'PICK SIX!'; } }
-    } else if (zone === 'perfect' || (zone === 'good' && match)) {
-      gain = t === 'run' ? Math.floor(R() * 3) : 0; inc(L, gain ? 'tkl' : 'pd');
-      text = t === 'run' ? `${gain}야드에서 막았다.` : '패스를 쳐 냈다!';
-    } else if (zone === 'good') {
-      gain = t === 'run' ? 3 + Math.floor(R() * 4) : t === 'short' ? 5 + Math.floor(R() * 5) : 12 + Math.floor(R() * 10); inc(L, 'tkl');
-      text = `${gain}야드를 내줬다.`;
-    } else {
-      gain = t === 'run' ? 8 + Math.floor(R() * 10) : t === 'short' ? 10 + Math.floor(R() * 8) : 25 + Math.floor(R() * 25);
-      text = t === 'deep' ? '뚫렸다! 긴 패스를 허용했다.' : `${gain}야드 돌파를 허용했다.`;
-    }
-    this.snap(zone, !!takeaway, false, !!takeaway);
-    const from = d.ball, target = Math.min(100, d.ball + gain);
-    this.animate(from, takeaway === 'INT' ? from : target, takeaway ? 'cheer' : zone === 'miss' ? 'sad' : 'stance', () => {
-      if (big) this.pop(big, '#F2C230', big === 'PICK SIX!' || big === 'SACK!');
-      if (takeaway) return this.endDrive(takeaway === 'INT' ? (this.line.dtd ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '강제 펌블로 공격권을 빼앗았다');
-      if (target >= 100) { this.pa += 7; this.pop('TOUCHDOWN', '#E85A5A'); return this.endDrive('터치다운을 허용했다'); }
-      d.ball = target; d.snaps++;
-      if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
-      else { d.down++; d.toGo = d.first - d.ball; }
-      if (d.down === 4 || d.snaps >= 8) {
-        const dist = 100 - d.ball + 17;
-        if (dist <= 52) { const ok = R() < clamp(.95 - (dist - 20) * .012, .4, .95); if (ok) this.pa += 3; this.pop(ok ? 'FG GOOD' : 'FG MISS', ok ? '#E85A5A' : '#F2C230'); return this.endDrive(ok ? `상대 ${dist}야드 필드골` : `상대 ${dist}야드 필드골 실패`); }
-        if (d.toGo <= 2 && d.ball >= 45 && R() < .5) { this.msg(`${esc(text)} 상대가 4번째 다운에 승부를 건다!`); return this.defensePick(); }
-        this.pop('STOP!', '#F2C230'); return this.endDrive('수비 성공, 상대 펀트');
-      }
-      this.msg(esc(text));
-      this.defensePick();
-    });
-  }
-  // ───────── 실시간 플레이 ─────────
-  showConcepts(cb) {
-    const list = conceptsFor(this.pos);
-    this.actions(`<p class="tiny" style="opacity:.75">${this.pos === 'QB' ? '스냅 뒤 원하는 곳을 탭하면 패스 · 끌면 스크램블 · 공을 넘기면 볼 캐리어를 조작' : '손가락을 대고 끌면 내 선수(노란 표시)가 달려요 · 공이 오면 노란 원으로'}</p>` + list.map((x, i) => `<button class="choice" data-cc="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
-    this.root.querySelectorAll('[data-cc]').forEach(b => b.onclick = () => cb(list[+b.dataset.cc]));
-  }
-  async runLive({ concept, defCall = null }) {
-    const c = this.c, g = c.game, d = this.d, offense = this.mode === 'offense';
-    const lvl = c.levelAvg, myR = lvl + ((g.myStr ?? 60) - 60) * .12, oppR = lvl + ((g.oppStr ?? 60) - 60) * .12;
-    const control = { QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', CB: 'CB', S: 'S', LB: 'LB', EDGE: 'DL', DT: 'DL' }[this.pos];
-    this.actions(''); this.msg(offense ? '스냅! 내 선수는 노란 표시예요.' : '상대가 스냅한다. 내 수비수(노란 표시)를 움직이세요.');
-    const field = this.$('cl-field'), host = this.$('cl-live');
-    field.hidden = true; host.hidden = false; this.liveActive = true;
-    const out = await runLivePlay(host, {
-      ball: d.ball, toGo: d.goal ? 100 - d.ball : d.toGo, concept, defCall, control, edge: this.pos === 'EDGE', side: offense ? 'O' : 'D',
-      me: { attrs: this.p.attrs, ovr: this.p.ovr }, teamRating: offense ? myR : oppR, oppRating: offense ? oppR : myR,
-      offColors: offense ? this.me.colors : this.oppColors, defColors: offense ? this.oppColors : this.me.colors,
-      endzone: offense ? [this.me.colors[0], this.oppColors[0]] : [this.oppColors[0], this.me.colors[0]],
-      away: (g.home === false) === offense ? 'O' : 'D', // 내가 원정이면 우리 팀이 흰 유니폼
-      hint: offense ? (this.pos === 'QB' ? '탭: 패스 · 끌기: 이동 · 스페이스: 가장 빈 리시버' : '끌기: 이동 · 공을 들고 탭: 저크') : '끌기: 이동 · 볼 캐리어에 닿으면 태클',
-    });
-    host.hidden = true; host.innerHTML = ''; field.hidden = false; this.liveActive = false;
-    return out;
-  }
-  mergeStats(st = {}) { for (const [k, v] of Object.entries(st)) inc(this.line, k, v); }
-  resolveLive(o) {
-    const d = this.d;
-    this.mergeStats(o.stats);
-    const zone = o.td || o.gain >= 15 ? 'perfect' : (!o.incomplete && !o.turnover && !o.sack && (o.gain >= Math.min(d.toGo, 5))) ? 'good' : 'miss';
-    this.snap(zone, !!o.td, !!o.turnover);
-    if (o.turnover) return this.endDrive(o.turnover === 'INT' ? '인터셉트! 공격권을 잃었다.' : '펌블! 공격권을 잃었다.');
-    if (o.td) { this.pf += 6; this.pop('TOUCHDOWN!', '#F2C230', true); return this.afterTD(); }
-    if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
-    d.snaps++;
-    const text = o.incomplete ? '패스 인컴플리트.' : o.sack ? `색. ${-o.gain}야드 손실.` : o.gain >= 0 ? `${o.gain}야드 전진.` : `${-o.gain}야드 손실.`;
-    if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; this.pop('FIRST DOWN', '#FFFFFF'); }
-    else { d.down++; d.toGo = d.first - d.ball; }
-    if (d.down > 4) { this.pop('TURNOVER', '#E85A5A'); return this.endDrive('4번째 다운 실패, 공격권 넘김'); }
-    if (d.snaps >= 9) { const dist = 100 - d.ball + 17; if (dist <= 50 && R() < .8) { this.pf += 3; return this.endDrive(`시간에 쫓겨 ${dist}야드 필드골`); } return this.endDrive('시간이 다 됐다'); }
-    this.cam = clamp(d.ball + 8, 24, 76);
-    this.msg(esc(text));
-    this.offensePick();
-  }
-  defenseLive() {
-    const d = this.d, toGoal = 100 - d.ball;
+  defensePick(note = '') {
+    const d = this.d, toGoal = 100 - d.ball, intro = this.storyLine || ''; this.storyLine = '';
     const pool = CONCEPTS.filter(c => !(toGoal < 20 && c.id === 'verts'));
     const runBias = d.toGo <= 2 ? .6 : d.toGo >= 8 ? .2 : .4;
     const runs = pool.filter(c => c.run), passes = pool.filter(c => !c.run);
     const concept = R() < runBias ? pick(runs) : pick(passes);
     const tellRun = R() < .7 ? !!concept.run : !concept.run;
     this.board(this.dd());
-    this.msg(`상대 포메이션: <b>${esc(pick(tellRun ? LIVE_TELLS.run : LIVE_TELLS.pass))}</b>`);
-    this.actions(`<p class="tiny" style="opacity:.75">수비 콜을 고르면 스냅. 손가락으로 내 수비수를 움직여 커버하고, 공이 떨어지는 노란 원으로 가면 인터셉트를 노릴 수 있어요.</p>` + DEF_CALLS.map((x, i) => `<button class="choice" data-dc="${i}"><strong>${esc(x.name)}</strong><div class="hint">${esc(x.note)}</div></button>`).join(''));
-    this.root.querySelectorAll('[data-dc]').forEach(b => b.onclick = () => this.runLive({ concept, defCall: DEF_CALLS[+b.dataset.dc].id }).then(o => this.resolveLiveDefense(o)));
+    this.preview();
+    this.msg(`${intro}${note ? esc(note) + ' ' : ''}상대 포메이션: <b>${esc(pick(tellRun ? TELLS.run : TELLS.pass))}</b>. 수비 콜을 고르면 스냅.`);
+    this.actions(`<div class="cl-calls three">${DEF_CALLS.map((x, i) => `<button class="cl-call" data-dc="${i}"><b>${esc(x.name)}</b><small>${esc(x.note)}</small></button>`).join('')}</div>`);
+    this.root.querySelectorAll('[data-dc]').forEach(b => b.onclick = () => this.snapLive({ concept, defCall: DEF_CALLS[+b.dataset.dc].id }).then(o => this.resolveLiveDefense(o)));
   }
   resolveLiveDefense(o) {
     const d = this.d;
@@ -4389,164 +4628,70 @@ class Clutch {
     const mine = o.stats || {}, big = mine.sack || mine.dint || mine.tfl || mine.ff;
     const zone = big || o.turnover ? 'perfect' : (o.incomplete || o.gain <= 3) ? 'good' : 'miss';
     this.snap(zone, !!big, !!o.td, !!o.turnover);
-    if (o.turnover) { if (o.pickSix) this.pf += 7; return this.endDrive(o.turnover === 'INT' ? (o.pickSix ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '펌블을 유도해 공격권을 빼앗았다'); }
+    if (o.turnover) { if (o.pickSix) this.pf += 7; this.pop(o.pickSix ? 'PICK SIX!' : 'TAKEAWAY!', '#F2C230', true); return this.endDrive(o.turnover === 'INT' ? (o.pickSix ? '픽식스!' : '인터셉트로 공격권을 빼앗았다') : '펌블을 유도해 공격권을 빼앗았다'); }
     if (o.td) { this.pa += 7; return this.endDrive('터치다운을 허용했다'); }
     if (!o.incomplete) d.ball = clamp(d.ball + o.gain, 1, 99);
     d.snaps++;
     if (d.ball >= d.first) { d.down = 1; d.toGo = Math.min(10, 100 - d.ball); d.goal = 100 - d.ball <= 10; d.first = d.ball + d.toGo; }
     else { d.down++; d.toGo = d.first - d.ball; }
+    const text = o.incomplete ? '패스 인컴플리트!' : o.gain <= 0 ? '막아 냈다!' : `${o.gain}야드를 내줬다.`;
     if (d.down === 4 || d.snaps >= 8) {
       const dist = 100 - d.ball + 17;
       if (dist <= 52) { const ok = R() < clamp(.95 - (dist - 20) * .012, .4, .95); if (ok) this.pa += 3; this.pop(ok ? 'FG GOOD' : 'FG MISS', ok ? '#E85A5A' : '#F2C230'); return this.endDrive(ok ? `상대 ${dist}야드 필드골` : `상대 ${dist}야드 필드골 실패`); }
-      if (d.toGo <= 2 && d.ball >= 45 && R() < .5) { this.msg('상대가 4번째 다운에 승부를 건다!'); return this.defenseLive(); }
-      this.pop('STOP!', '#F2C230'); return this.endDrive('수비 성공, 상대 펀트');
+      if (d.toGo <= 2 && d.ball >= 45 && R() < .5) return this.defensePick(`${text} 상대가 4번째 다운에 승부를 건다!`);
+      this.pop('STOP!', '#F2C230', true); return this.endDrive('수비 성공, 상대 펀트');
     }
-    this.cam = clamp(d.ball - 4, 24, 76);
-    this.msg(o.incomplete ? '패스 인컴플리트!' : o.gain <= 0 ? '막아 냈다!' : `${o.gain}야드를 내줬다.`);
-    this.defensePick();
+    this.defensePick(text);
   }
+  mergeStats(st = {}) { for (const [k, v] of Object.entries(st)) inc(this.line, k, v); }
   // ───────── 키커 ─────────
   kickSetup(story, last) {
     const dists = this.final ? [36, 44, 49, 53] : [33, 42, 48];
     const dist = dists[this.drive] ?? 45;
-    const wind = Math.round((R() - .5) * 20);
-    this.kick = { dist, wind, last };
+    const wind = Math.round((R() - .5) * 24);
     this.d = { ball: 100 - (dist - 17), down: 4, toGo: 3, first: 103, goal: false };
-    this.cam = clamp(this.d.ball, 24, 76);
     this.board(`${dist}야드 필드골`);
-    this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}. 먼저 파워, 다음 방향을 탭하세요.`);
-    const need = clamp(30 + (dist - 20) * 1.7, 30, 96);
-    this.meter({ name: '파워', attr: 'kpow', speed: 1.2, w: 1, power: need }, z1 => {
-      const powerOk = z1.power >= need;
-      this.meter({ name: '정확도', attr: last ? 'poise' : 'kacc', speed: 1.35 + Math.abs(wind) / 40, w: 1, shift: wind / 100 }, z2 => {
-        const ok = powerOk && z2 !== 'miss', L = this.line;
+    this.clearView();
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'fg', dist, wind, last, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, hint: '위로 쓸어 올려 킥 · 길이 = 파워(초록에서 놓기) · 기울기 = 방향' });
+    this.msg(`<b>${esc(story)}</b><br>${dist}야드 필드골. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '오른쪽 →' : '← 왼쪽'} ${Math.abs(wind)}km/h`}. 스냅 뒤 러셔가 오기 전에 차세요.`);
+    this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
+    this.root.querySelector('[data-cl="snap"]').onclick = () => {
+      this.actions(''); this.msg('위로 쓸어 올리세요!');
+      this.view.snap().then(r => {
+        const L = this.line, ok = !!r.good;
         inc(L, 'fga'); if (ok) { inc(L, 'fgm'); L.fglong = Math.max(L.fglong || 0, dist); this.pf += 3; }
-        this.snap(ok ? (z2 === 'perfect' ? 'perfect' : 'good') : 'miss', ok, false);
-        this.kickAnim(ok, () => { this.pop(ok ? 'IT IS GOOD!' : powerOk ? 'NO GOOD' : 'SHORT!', ok ? '#F2C230' : '#E85A5A', ok); this.endDrive(ok ? `${dist}야드 필드골 성공` : `${dist}야드 필드골 실패`); });
+        this.snap(ok ? (Math.abs(r.offset ?? 9) < 1.3 ? 'perfect' : 'good') : 'miss', ok, false);
+        const why = r.blocked ? '블록당했다' : r.why === 'short' ? '짧았다' : r.why === 'left' ? '왼쪽으로 빗나갔다' : r.why === 'right' ? '오른쪽으로 빗나갔다' : '골대를 맞고 나왔다';
+        this.endDrive(ok ? `${dist}야드 필드골 성공${r.doink ? ' (골대 맞고 들어갔다!)' : ''}` : `${dist}야드 필드골 실패 · ${why}`);
       });
-    });
+    };
   }
   // ───────── 펀터 ─────────
   puntSetup(story) {
-    const start = 22 + Math.floor(R() * 18);
+    const start = 22 + Math.floor(R() * 18), wind = Math.round((R() - .5) * 20);
     this.d = { ball: start, down: 4, toGo: 6, first: start + 6, goal: false };
-    this.cam = clamp(start + 15, 24, 76);
     this.board(`4th & 6 · ${this.spot(start)}`);
-    this.msg(`<b>${esc(story)}</b><br>펀트. 비거리를 먼저, 다음 방향(코너)을 탭하세요.`);
-    this.meter({ name: '비거리', attr: 'kpow', speed: 1.15, w: 1, power: 60 }, z1 => {
-      this.meter({ name: '방향', attr: 'pnt', speed: 1.3, w: 1 }, z2 => {
-        const dist = Math.round(32 + z1.power * .28 + (z2 === 'perfect' ? 3 : 0));
-        let land = start + dist; const tb = land >= 100;
-        if (tb) land = 80;
-        const in20 = !tb && land >= 80 && z2 !== 'miss';
-        const L = this.line; inc(L, 'punts'); inc(L, 'puntyds', tb ? 100 - start : dist); if (in20) inc(L, 'in20');
-        // 상대 시작 위치(자기 진영 기준) → 실점 확률
+    this.clearView();
+    this.view = new KickPlay(this.$('cl-live'), { mode: 'punt', start, wind, me: { attrs: this.p.attrs, ovr: this.p.ovr }, colors: this.me.colors, oppColors: this.oppColors, hint: '위로 쓸어 올려 펀트 · 금색 구역(20야드 안)에 떨어뜨리면 최고 · 사이드라인 밖도 OK' });
+    this.msg(`<b>${esc(story)}</b><br>펀트. 금색으로 칠한 상대 20야드 안쪽을 노리세요. 엔드존에 들어가면 터치백. 바람 ${wind === 0 ? '없음' : `${wind > 0 ? '→' : '←'} ${Math.abs(wind)}km/h`}.`);
+    this.actions(`<button class="primary" data-cl="snap">스냅!</button>`);
+    this.root.querySelector('[data-cl="snap"]').onclick = () => {
+      this.actions(''); this.msg('위로 쓸어 올리세요!');
+      this.view.snap().then(r => {
+        const L = this.line;
+        let land, text;
+        if (r.blocked) { land = Math.max(1, start - 12); text = '펀트가 막혔다!'; }
+        else { land = r.final; text = `${r.gross}야드 펀트${r.in20 ? ', 20야드 안쪽' : r.tb ? ', 터치백' : r.oob ? ', 사이드라인 밖' : r.fair ? ', 페어 캐치' : r.ret ? `, ${r.ret}야드 리턴` : ''}`; inc(L, 'punts'); inc(L, 'puntyds', r.gross); if (r.in20) inc(L, 'in20'); }
+        // 상대 시작 위치(자기 진영 기준) → 그 드라이브의 실점 확률
         const oppStart = 100 - land, risk = oppStart >= 50 ? [.38, .22] : oppStart >= 30 ? [.22, .2] : oppStart >= 20 ? [.14, .16] : [.07, .1];
-        const roll = R(); const allowed = roll < risk[0] ? 7 : roll < risk[0] + risk[1] ? 3 : 0; this.pa += allowed;
-        this.snap(z2 === 'perfect' && in20 ? 'perfect' : z2 === 'miss' ? 'miss' : 'good', in20, false);
-        this.kickAnim(true, () => { this.pop(in20 ? 'INSIDE 20!' : tb ? 'TOUCHBACK' : `${dist} YARDS`, in20 ? '#F2C230' : '#FFFFFF', in20); this.endDrive(`${dist}야드 펀트${in20 ? ', 20야드 안쪽' : tb ? ', 터치백' : ''}${allowed ? ` · 그 드라이브에서 ${allowed}점 실점` : ''}`); }, land);
+        const roll = R(), allowed = roll < risk[0] ? 7 : roll < risk[0] + risk[1] ? 3 : 0; this.pa += allowed;
+        const net = r.blocked ? -99 : r.net;
+        this.snap(r.in20 || net >= 42 ? 'perfect' : net >= 34 ? 'good' : 'miss', !!r.in20, !!r.blocked);
+        this.endDrive(`${text}${allowed ? ` · 그 드라이브에서 ${allowed}점 실점` : ''}`);
       });
-    });
-  }
-  // ───────── 타이밍 미터 ─────────
-  meter(play, cb) {
-    const a = this.p.attrs[play.attr] ?? this.p.ovr;
-    let good = clamp((.2 + (a - 55) * .004 + this.rel * .006) * (play.w ?? 1), .08, .48);
-    if (play.power) good = .28;
-    const perfect = good * .3, center = clamp(.5 + (play.shift || 0), .25, .75);
-    const period = 1500 / (play.speed || 1);
-    this.actions(`<div class="cl-meter" id="cl-meter" role="button" tabindex="0" aria-label="타이밍 미터, 탭해서 멈추기">
-      ${play.power ? `<div class="zone need" style="left:${play.power}%;right:0"></div>` : `<div class="zone good" style="left:${(center - good / 2) * 100}%;width:${good * 100}%"></div><div class="zone perfect" style="left:${(center - perfect / 2) * 100}%;width:${perfect * 100}%"></div>`}
-      <i id="cl-needle"></i></div><button class="primary cl-tap" id="cl-tap">${play.power ? '탭! (파워)' : '탭! 스냅!'}</button><p class="tiny muted" style="text-align:center;margin-top:6px">${esc(play.name)} · ${play.power ? '초록 구간 오른쪽에서 멈추세요' : '금색이 퍼펙트, 초록이 성공'}</p>`);
-    const needle = this.$('cl-needle'), t0 = performance.now();
-    let stopped = false, pos = 0;
-    const tick = now => { if (stopped) return; const ph = ((now - t0) % period) / period; pos = ph < .5 ? ph * 2 : 2 - ph * 2; needle.style.left = `${pos * 100}%`; this.meterRaf = requestAnimationFrame(tick); };
-    this.meterRaf = requestAnimationFrame(tick);
-    const stop = () => {
-      if (stopped) return; stopped = true; cancelAnimationFrame(this.meterRaf);
-      const dz = Math.abs(pos - center);
-      const zone = play.power ? { power: Math.round(pos * 100) } : dz <= perfect / 2 ? 'perfect' : dz <= good / 2 ? 'good' : 'miss';
-      const label = play.power ? `파워 ${Math.round(pos * 100)}` : ({ perfect: 'PERFECT', good: 'GOOD', miss: 'MISS' })[zone];
-      this.$('cl-meter').classList.add('stopped', play.power ? (pos * 100 >= play.power ? 'ok' : 'bad') : zone);
-      const tag = document.createElement('b'); tag.className = 'cl-zone'; tag.textContent = label; this.$('cl-meter').appendChild(tag);
-      this.$('cl-tap').disabled = true;
-      setTimeout(() => cb(zone), 380);
     };
-    this.$('cl-tap').onclick = stop; this.$('cl-meter').onclick = stop;
-    this.$('cl-meter').onkeydown = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); stop(); } };
   }
   snap(zone, good, bad, takeaway = false) { this.snaps.push({ zone, good, bad, takeaway }); }
-  // ───────── 연출 ─────────
-  pop(text, color, burst = false) { this.popup = { text, color, t: performance.now() }; if (burst) this.burst(); }
-  burst() { for (let i = 0; i < 46; i++) { const a = R() * Math.PI * 2, v = .4 + R() * 1.4; this.fx.push({ x: W / 2 + (R() - .5) * 40, y: 30 + R() * 20, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .6, life: 40 + R() * 30, c: pick(['#F2C230', '#FFFFFF', vivid(this.me.colors[0]), '#E85A5A']) }); } }
-  animate(from, to, pose, done) { this.anim = { from, to, pose, t0: performance.now(), dur: 420 + Math.min(900, Math.abs(to - from) * 26), done }; this.actions('<p class="tiny muted" style="text-align:center">플레이 진행 중…</p>'); }
-  kickAnim(ok, done, land = null) { this.anim = { kick: true, ok, land, t0: performance.now(), dur: 900, done, from: this.d.ball }; this.actions(''); }
-  loop(now) {
-    if (this.closed) return;
-    this.draw(now);
-    this.raf = requestAnimationFrame(this.loop);
-  }
-  yx(y) { return (y - (this.cam - YARDS / 2)) * PPY; }
-  draw(now) {
-    if (this.liveActive) return;
-    const ctx = this.ctx, d = this.d || { ball: 25, first: 35 };
-    let ballY = d.ball, carrierX = null, pose = 'stand';
-    const a = this.anim;
-    if (a) {
-      const k = clamp((now - a.t0) / a.dur, 0, 1), e = 1 - Math.pow(1 - k, 2);
-      if (!a.kick) { ballY = a.from + (a.to - a.from) * e; pose = k < 1 ? (Math.floor(now / 110) % 2 ? 'run' : 'run2') : a.pose; }
-      this.cam += (clamp(ballY + (this.mode === 'defense' ? -4 : 8), 24, 76) - this.cam) * .08;
-      if (k >= 1) { const done = a.done; this.anim = null; if (!a.kick) d.ball = a.to; done(); }
-    } else this.cam += (clamp(ballY + (this.mode === 'defense' ? -4 : 8), 24, 76) - this.cam) * .05;
-    // 필드
-    for (let x = 0; x < W; x++) { const y = (this.cam - YARDS / 2) + x / PPY; ctx.fillStyle = y < 0 || y > 100 ? vivid(y < 0 ? (this.mode === 'defense' ? this.oppColors[0] : this.me.colors[0]) : (this.mode === 'defense' ? this.me.colors[0] : this.oppColors[0])) : Math.floor(y / 5) % 2 ? '#3E9A52' : '#368A49'; ctx.fillRect(x, 0, 1, H); }
-    ctx.fillStyle = '#FFFFFF';
-    for (let y = 0; y <= 100; y += 5) { const x = Math.round(this.yx(y)); if (x < -2 || x > W + 2) continue; ctx.fillRect(x, 0, 1, H); if (y % 10 === 0 && y > 0 && y < 100) { const n = y <= 50 ? y : 100 - y; pixelText(ctx, String(n), x - (n >= 10 ? 3 : 1), H - 9, '#FFFFFF'); pixelText(ctx, String(n), x - (n >= 10 ? 3 : 1), 4, '#FFFFFF'); } }
-    for (let y = 1; y < 100; y++) { const x = Math.round(this.yx(y)); if (x >= 0 && x < W) { ctx.fillRect(x, 30, 1, 2); ctx.fillRect(x, H - 32, 1, 2); } }
-    // 골포스트
-    for (const gy of [-10, 110]) { const x = Math.round(this.yx(gy)); if (x > -10 && x < W + 10) { ctx.fillStyle = '#F2C230'; ctx.fillRect(x, 14, 1, 30); ctx.fillRect(x - 1, 14, 3, 1); } }
-    if (this.mode !== 'kick' && this.mode !== 'punt' || !a) {
-      // 스크리미지 라인(파랑)·퍼스트 다운 라인(노랑)
-      const los = Math.round(this.yx(d.ball)), fd = Math.round(this.yx(Math.min(100, d.first)));
-      ctx.fillStyle = '#4A8CFF'; ctx.fillRect(los, 0, 2, H);
-      if (!d.goal && this.mode !== 'kick' && this.mode !== 'punt') { ctx.fillStyle = '#FFD84A'; ctx.fillRect(fd, 0, 2, H); }
-    }
-    // 선수들
-    const off = this.mode === 'defense' ? { colors: this.oppColors, avatar: { skin: 2 }, number: 12 } : this.me;
-    const def = this.mode === 'defense' ? this.me : { colors: this.oppColors, avatar: { skin: 3 }, number: 55 };
-    const los = this.yx(d.ball);
-    const put = (o, x, y, ps, flip = false) => { const c = spriteCanvas({ ...o, pose: ps, flip }); if (c) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(Math.round(x) + 4, y + 26, 14, 2); ctx.drawImage(c, Math.round(x), y); } };
-    if (!a || !a.kick) {
-      if (this.mode === 'offense') {
-        put({ ...def, number: 54 }, los + 6, 16, a ? 'stance' : 'stance', true);
-        put({ ...def, number: 21 }, los + 30, 52, 'idle', true);
-        put({ ...off, number: 77 }, los - 22, 50, 'stance');
-        carrierX = this.yx(ballY) - 20;
-        put(this.me, carrierX, 34, a ? pose : (this.pos === 'QB' ? 'throw' : this.pos === 'OL' ? 'stance' : 'stand'));
-      } else {
-        put({ ...off, number: 12 }, this.yx(ballY) - 20, 34, a ? pose : 'stand');
-        put({ ...off, number: 77 }, los - 22, 52, 'stance');
-        put({ ...def, number: 31 }, los + 34, 16, 'idle', true);
-        put(this.me, los + 6 + (a ? Math.min(14, (now - a.t0) / 30) : 0) * -1 + 4, 40, a ? (a.pose === 'cheer' || a.pose === 'sad' ? a.pose : 'stance') : 'stance', true);
-      }
-    } else {
-      // 킥 연출: 공이 포물선을 그리며 날아갑니다.
-      const k = clamp((now - a.t0) / a.dur, 0, 1), x0 = los - 10, target = this.mode === 'punt' ? this.yx(a.land ?? d.ball + 45) : this.yx(110);
-      put(this.me, x0 - 14, 40, k < .2 ? 'kick' : a.ok ? 'cheer' : 'sad');
-      const bx = x0 + (target - x0) * k, by = 52 - Math.sin(k * Math.PI) * 40 + (this.mode !== 'punt' && !a.ok ? k * 10 : 0);
-      ctx.fillStyle = OUT; ctx.fillRect(bx - 2, by - 1, 5, 3); ctx.fillStyle = '#8A4B22'; ctx.fillRect(bx - 1, by, 3, 1);
-    }
-    // 파티클
-    this.fx = this.fx.filter(p => p.life-- > 0);
-    for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .03; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
-    // 큰 글자
-    if (this.popup) {
-      const k = (now - this.popup.t0 || now - this.popup.t) / 1400, t = (now - this.popup.t) / 1400;
-      if (t < 1) { const sc = t < .15 ? 2 + (1 - t / .15) : 2; bigText(ctx, this.popup.text, W / 2, 24, this.popup.color, Math.round(sc)); }
-      else this.popup = null;
-      void k;
-    }
-  }
   // ───────── 결과 ─────────
   grade() {
     if (!this.snaps.length) return 60;
@@ -4558,7 +4703,7 @@ class Clutch {
   finish(auto) {
     if (this.closed) return;
     this.closed = true;
-    cancelAnimationFrame(this.raf); cancelAnimationFrame(this.meterRaf);
+    this.clearView();
     if (auto && this.drive === 0 && !this.snaps.length) { this.root.innerHTML = ''; return this.done(null); }
     // 아직 남은 장면은 자동으로: 공격·수비 각각 평범한 결과로 채웁니다.
     for (let i = this.drive; i < this.drivesTotal; i++) {
@@ -4576,8 +4721,7 @@ class Clutch {
 function inc(L, k, v = 1) { L[k] = (L[k] || 0) + v; }
 const clutchLevelAvg = s => s.stage === 'hs' ? 48 : s.stage === 'college' ? 62 : s.stage === 'cfl' ? LEVEL_AVG.CFL : LEVEL_AVG.NFL;
 
-
-return { openClutch, clutchLevelAvg, shade };
+return { openClutch, clutchLevelAvg };
 });
 __def("js/storage.js", function () {
 // 저장: 진행 중인 커리어 1개 + 은퇴 기록 보관함.
@@ -4753,7 +4897,7 @@ const { pullPrice, pullPriceN, RATES, PITY, RARITY } = __req("js/engine/shop.js"
 const { teamPower, leagueTop, displayName } = __req("js/engine/league.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
-const PATCH = { id: '2026-11-09b', title: '빅게임 직접 플레이와 연출', items: [['직접 플레이', '라이벌전·플레이오프·결승을 터치로 직접 플레이해요. 4번째 다운과 2점 컨버전도 내가 정해요.'], ['연출', '시즌 진행 화면, 성장 공개, 수상 세리머니, 드래프트 지명, 계약 서명, 은퇴식이 생겼어요.'], ['새 선택지', '헤일 메리, 아이스 더 키커, 트릭 플레이 등 미식축구만의 장면 21개를 더했어요.'], ['국가대표', '2028 LA 올림픽 플래그 풋볼. 한국 국적은 메달을 따면 병역 특례!'], ['훈련 카드 뽑기', '희귀 10회·전설 60회 천장이 있는 카드 뽑기와 칭호 컬렉션을 넣었어요.']] };
+const PATCH = { id: '2026-11-10', title: '빅게임이 실시간 플레이로 바뀌었어요', items: [['어디서 하나요?', '홈 화면의 빅게임 카드(라이벌전·플레이오프·결승)에서 "실시간 직접 플레이"를 누르세요. 위에서 내려다본 필드가 바로 떠요.'], ['조작', '작전을 고르면 스냅! 노란 표시(YOU)가 내 선수예요. 손가락을 대고 끌면 그쪽으로 달려요.'], ['쿼터백', '열린 리시버 쪽을 탭하면 그 자리로 패스, 끌면 스크램블. 잡히면 받은 선수를 조작해요.'], ['리시버·러닝백·수비', '노란 선이 내 루트예요. 공이 떨어질 노란 원으로 가서 받거나 가로채고, 볼 캐리어에 닿으면 태클.'], ['라인맨', '빨간 화살표 러셔 앞을 막아서 쿼터백을 지켜요. 놓치면 색!'], ['키커·펀터', '키커 뒤 시점에서 위로 쓸어 올려 차요. 끈 길이가 파워, 기울기가 방향, 바람은 직접 계산해요.']] };
 const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
 const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
 const { COLLEGES } = __req("js/data/colleges.js");
@@ -4980,6 +5124,7 @@ function homePage(s) {
     ${['ready', 'offseason'].includes(s.phase) ? `<button class="ghost" data-action="retire-ask">지금 은퇴하기</button>` : ''}`;
 }
 
+const bigHow = pos => pos === 'QB' ? '작전을 고르고, 열린 리시버를 탭해서 패스' : pos === 'OL' ? '빨간 표시 러셔를 몸으로 막아 쿼터백을 지키기' : pos === 'K' || pos === 'P' ? '위로 쓸어 올려 킥 · 바람을 계산하기' : ['RB', 'WR', 'TE'].includes(pos) ? '내 선수를 끌어서 달리고, 공을 받고, 태클을 피하기' : '내 수비수를 끌어서 커버하고, 가로채고, 태클하기';
 function bigGameCard(s) {
   const g = s.bigGame, oc = colorsByName(g.oppName), can = canPlayBig(s), mine = teamColors(s);
   const art = px(sceneUrl({ scene: s.stage === 'hs' ? 'hs' : 'stadium', colors: mine, opp: oc, board: g.final ? 'FINAL' : 'BIG GAME', players: [{ pose: kickerPose(s, 'stance'), ...look(s), x: 46 }, { pose: 'stance', colors: oc, avatar: { skin: 3 }, number: 55, x: 94, flip: true }] }), '빅게임', 'scene');
@@ -4987,7 +5132,7 @@ function bigGameCard(s) {
   return `<section class="card big-card">${art}<p class="eyebrow" style="margin-top:12px">${g.post ? '포스트시즌' : '정규시즌 빅게임'} · ${esc(s.year)}</p><h2>${esc(g.title || g.round)}</h2>
     <div class="vs"><span>${esc(s.team.name)}</span><b>VS</b><span>${esc(g.oppName)}</span></div>
     <p class="small muted" style="margin-top:8px;text-align:center">예상 승률 ${prob}% · ${g.home ? '홈 경기' : '원정 경기'}${g.final ? ' · 우승이 걸린 결승' : ''}</p>
-    ${can ? `<button class="primary" data-action="big-play" style="margin-top:14px">${icon('bolt')} 직접 플레이 (터치)</button>` : `<p class="small" style="margin-top:12px;text-align:center"><span class="pill red">${s.season.injury?.out > 0 ? '부상으로 결장' : '출전 명단에 없음'}</span> 이번 경기는 사이드라인에서 지켜봐요.</p>`}
+    ${can ? `<button class="primary" data-action="big-play" style="margin-top:14px">${icon('bolt')} 실시간 직접 플레이</button><p class="tiny muted" style="text-align:center;margin-top:6px">${esc(bigHow(s.player.pos))}</p>` : `<p class="small" style="margin-top:12px;text-align:center"><span class="pill red">${s.season.injury?.out > 0 ? '부상으로 결장' : '출전 명단에 없음'}</span> 이번 경기는 사이드라인에서 지켜봐요.</p>`}
     <button class="secondary" data-action="big-auto" style="margin-top:8px">빠르게 진행</button>
     <button class="ghost" data-action="big-auto-all">이번 시즌 남은 빅게임은 모두 빠르게</button></section>`;
 }

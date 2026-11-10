@@ -1,6 +1,9 @@
-// 실시간 플레이 한 번 (위에서 내려다본 필드, 공격은 위쪽으로 전진).
+// 실시간 플레이 (위에서 내려다본 필드, 공격은 위쪽으로 전진).
+// new LivePlay(host, cfg)로 스냅 전 포메이션을 먼저 보여 주고, snap({ concept, defCall })로 한 플레이를 진행합니다.
+// 플레이가 끝나도 마지막 장면과 글자 연출은 destroy() 전까지 계속 그려집니다.
 // 조작: 손가락을 대고 끌면 내 선수가 그쪽으로 달립니다. 쿼터백이 공을 들고 있을 때 짧게 탭하면 그 지점으로 패스.
-// 공을 든 채 짧게 탭하면 저크(순간 가속, 태클을 피할 확률 증가). 키보드: 방향키로 이동, 스페이스로 가장 빈 리시버에게 패스.
+// 공을 든 채 짧게 탭하면 저크(순간 가속, 태클을 피할 확률 증가). 라인맨은 빨간 표시 러셔 앞을 막습니다.
+// 키보드: 방향키로 이동, 스페이스로 가장 빈 리시버에게 패스.
 import { pixelText, bigText, vivid, shade, OUT } from './pixel.js';
 
 const FW = 53.3, CW = 160, CH = 210, PPY = CW / FW, EYE = .64;
@@ -32,24 +35,35 @@ export const DEF_CALLS = [
   { id: 'blitz', name: '블리츠', note: '라인배커가 쿼터백에게 돌진' },
 ];
 export function conceptsFor(pos) {
-  if (pos === 'QB') return CONCEPTS.filter(c => !['screen', 'wheel'].includes(c.id)).slice(0, 5);
+  if (pos === 'QB') return CONCEPTS.filter(c => !['sweep', 'wheel'].includes(c.id));
+  if (pos === 'OL') return ['run', 'sweep', 'quick', 'flood', 'pa', 'verts'].map(id => CONCEPTS.find(c => c.id === id));
   if (pos === 'RB') return CONCEPTS.filter(c => ['run', 'sweep', 'screen', 'wheel'].includes(c.id));
   return CONCEPTS.filter(c => !c.run && !['screen', 'wheel'].includes(c.id));
 }
-export function runLivePlay(host, cfg) { return new Promise(resolve => new LivePlay(host, cfg, resolve)); }
+// 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용).
+export function runLivePlay(host, cfg) { const lp = new LivePlay(host, cfg); return lp.snap({}).then(r => { lp.destroy(); return r; }); }
 
-class LivePlay {
-  constructor(host, cfg, done) {
-    this.host = host; this.cfg = cfg; this.done = done;
+export class LivePlay {
+  constructor(host, cfg) {
+    this.host = host; this.cfg = { ...cfg };
     host.innerHTML = `<canvas class="lp-canvas" width="${CW}" height="${CH}" aria-label="실시간 플레이 필드"></canvas><p class="lp-hint">${cfg.hint || ''}</p>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
     this.los = cfg.ball; this.first = Math.min(100, cfg.ball + cfg.toGo);
-    this.t = -1.1; this.phase = 'pre'; this.ball = null; this.carrier = null; this.result = null; this.fx = []; this.msg = 'READY';
+    this.t = 0; this.phase = 'idle'; this.ball = null; this.carrier = null; this.result = null; this.fx = []; this.msg = '';
     this.camY = this.los + 10; this.touch = null; this.keys = new Set(); this.juke = 0;
     this.stats = {}; this.setupTeams();
     this.bindInput();
+    if (cfg.banner) { this.pop(cfg.banner, '#FFFFFF'); this.msgT = 1.4; }
     this.last = performance.now();
-    this.raf = requestAnimationFrame(this.loop.bind(this));
+    this.loopFn = this.loop.bind(this);
+    this.raf = requestAnimationFrame(this.loopFn);
+  }
+  // 작전이 정해지면 스냅. 결과는 Promise로 돌려줍니다.
+  snap(opts = {}) {
+    Object.assign(this.cfg, opts);
+    this.assign();
+    this.phase = 'pre'; this.t = this.cfg.side === 'O' ? -1.5 : -1.1; this.msg = ''; this.msgT = 0;
+    return new Promise(res => { this.done = res; });
   }
   // ───────── 배치 ─────────
   setupTeams() {
@@ -72,7 +86,12 @@ class LivePlay {
     // 내 선수
     const me = c.me, mine = this.pick(c.control);
     if (mine) { Object.assign(mine, { me: true, rating: me.ovr, attrs: me.attrs, spd: (speedOf(me.attrs.spd ?? me.attrs.mob ?? me.attrs.agi ?? me.ovr) + .3) * ({ OL: .74, DL: .8, QB: .9, LB: .92, TE: .93 }[mine.role] ?? 1) }); this.mine = mine; }
-    // 루트 배정
+    // 라인맨: 맞상대 러셔(가장 바깥 DL)를 빨간 표시로
+    if (c.control === 'OL') { const dl = P.filter(p => p.role === 'DL').sort((a, b) => a.x - b.x)[0]; if (dl) dl.vsMe = true; }
+  }
+  // 작전·수비 콜 배정 (스냅 직전)
+  assign() {
+    const c = this.cfg, P = this.P;
     const concept = c.concept || CONCEPTS[0];
     this.concept = concept;
     for (const p of P.filter(x => x.team === 'O' && ['X', 'Z', 'SL', 'TE', 'RB'].includes(x.role))) {
@@ -88,6 +107,7 @@ class LivePlay {
     this.pocket = clamp(3.1 + (c.teamRating - c.oppRating) * .04 + (R() - .5) * .8, 2.2, 4.6);
   }
   pick(role) {
+    if (role === 'OL') return this.P.find(p => p.role === 'OL' && p.ol === 0);
     if (role === 'DL') return this.P.find(p => p.role === 'DL' && p.dl === (this.cfg.edge ? 3 : 1));
     if (role === 'LB') return this.P.find(p => p.mike);
     if (role === 'CB') return this.P.find(p => p.role === 'CB' && p.man === 'Z');
@@ -148,7 +168,7 @@ class LivePlay {
     const dt = clamp((now - this.last) / 1000, 0, .05); this.last = now;
     for (let i = 0; i < (this.cfg.speedup || 1); i++) this.update(dt);
     this.draw(now);
-    this.raf = requestAnimationFrame(this.loop.bind(this));
+    this.raf = requestAnimationFrame(this.loopFn);
   }
   seek(p, tx, ty, dt, k = 1, accel = 12) {
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1, v = p.spd * k * (p.engaged ? (p.y > this.los + 4 ? .42 : .16) : 1) * (p.stun > 0 ? .2 : 1);
@@ -157,10 +177,11 @@ class LivePlay {
     p.vx += clamp(vx - p.vx, -accel * dt, accel * dt); p.vy += clamp(vy - p.vy, -accel * dt, accel * dt);
   }
   update(dt) {
+    if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
+    if (this.phase === 'idle' || this.phase === 'done') return;
     this.t += dt;
     if (this.phase === 'pre') { if (this.t >= 0) { this.phase = 'live'; this.msg = 'HUT!'; this.msgT = .7; this.carrier = this.pick('QB'); } return; }
-    if (this.phase !== 'live') { this.endT -= dt; if (this.endT <= 0 && !this.closed) this.finish(); return; }
-    if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
+    if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     const c = this.cfg, P = this.P, qb = this.pick('QB'), car = this.carrier;
     // 핸드오프 / 스크린
     if (this.concept.run && car === qb && this.t > .45) {
@@ -169,10 +190,12 @@ class LivePlay {
     }
     // AI 쿼터백 패스
     if (!this.ball && car === qb && !qb.me && !this.concept.run) {
-      const wait = this.concept.fake ? 1.2 : this.concept.screen ? 1.05 : 1.1;
+      // 라인맨으로 뛸 때는 쿼터백이 공을 더 오래 들고 있어 블로킹이 결과를 가릅니다
+      const olMode = this.cfg.control === 'OL' && !this.concept.screen;
+      const wait = olMode ? 1.9 : this.concept.fake ? 1.2 : this.concept.screen ? 1.05 : 1.1;
       const prefer = this.mine && this.mine.team === 'O' ? this.mine : null;
       const best = this.concept.screen ? this.pick('RB') : this.bestTarget(prefer);
-      if (best && this.t > wait && (this.openness(best) > 2.3 || this.t > 2.8)) {
+      if (best && this.t > wait && (this.openness(best) > 2.3 || this.t > (olMode ? Math.min(3.3, this.pocket) : 2.8))) {
         if (!this.concept.screen && this.t > 2.8 && this.openness(best) < 1.3 && R() < .6) { this.thrown = true; if (qb.me) this.inc('att'); this.pop('THROWN AWAY', '#FFFFFF'); return this.endPlay({ incomplete: true, text: '패스를 버렸다' }); }
         const lead = this.flightTime(qb, best); this.throwTo(best.x + best.vx * lead, best.y + best.vy * lead, qb);
       }
@@ -182,13 +205,15 @@ class LivePlay {
     for (const p of P) { if (p.stun > 0) p.stun -= dt; p.engaged = false; }
     for (const d of P.filter(p => p.team === 'D')) {
       const db = d.role === 'CB' || d.role === 'S';
-      const blocker = P.find(o => o.team === 'O' && !(db && o.role === 'OL') && (o.role === 'OL' || (this.carrier && this.carrier !== o && ['TE', 'X', 'Z', 'SL', 'RB'].includes(o.role) && (o.routeName === 'block' || this.thrown))) && dist(o, d) < 1.1);
+      const near = P.filter(o => o.team === 'O' && (!d.vsMe || o.me || this.concept.run) && !(db && o.role === 'OL') && (o.role === 'OL' || (this.carrier && this.carrier !== o && ['TE', 'X', 'Z', 'SL', 'RB'].includes(o.role) && (o.routeName === 'block' || this.thrown))) && dist(o, d) < 1.1);
+      const blocker = near.find(o => o.me) || near[0];
       if (!blocker || (d.me && this.juke > 0)) continue;
       // 묶여 있는 동안에도 초당 일정 확률로 떨쳐 냅니다 (능력치 차이·내 선수 보정)
       const open = d.y > this.los + 4;
-      d.shed = (d.shed || 0) + dt * ((open ? 1.1 : .35) + Math.max(0, d.rating - blocker.rating) * .02 + (d.me ? .35 : 0));
+      const bR = blocker.me ? (this.concept.run ? (c.me.attrs.rblk ?? c.me.ovr) : (c.me.attrs.pblk ?? c.me.ovr)) : blocker.rating;
+      d.shed = (d.shed || 0) + dt * ((open ? 1.1 : .35) + Math.max(0, d.rating - bR) * .02 + (d.me ? .35 : 0) + (d.vsMe ? .15 : 0));
       if (d.shed > 1 + R() * .6) { d.shed = 0; d.stunFree = .45; continue; }
-      if (!(d.stunFree > 0)) d.engaged = true;
+      if (!(d.stunFree > 0)) { d.engaged = true; if (blocker.me) this.myBlockT = (this.myBlockT || 0) + dt; }
     }
     for (const p of P) if (p.stunFree > 0) p.stunFree -= dt;
     // 이동
@@ -216,7 +241,7 @@ class LivePlay {
           const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.rating;
           const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) - (sackish ? .08 : 0), .03, .55);
           if (R() < pBreak) { d.stun = .55; this.pop('BROKEN TACKLE', '#FFFFFF'); continue; }
-          if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, text: '색!' }); }
+          if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, sacker: d, text: '색!' }); }
           const fumble = R() < clamp(.03 - ((carrier.attrs?.carry ?? 60) - 60) * .0006, .008, .05);
           if (d.me) { this.inc('tkl'); if (carrier.y < this.los) this.inc('tfl'); if (fumble) this.inc('ff'); }
           if (fumble) return this.endPlay({ gain: carrier.y - this.los, turnover: 'FUMBLE', text: '펌블!' });
@@ -239,7 +264,7 @@ class LivePlay {
     // 손을 떼면: 공을 들고 있으면 계속 앞으로, 아니면 AI가 느리게 도와줌
     if (this.carrier === p && p.role !== 'QB') return this.seek(p, p.x + p.vx * .2, p.y + 6, dt, .9, 10);
     if (p.role === 'QB' && this.carrier === p) return this.seek(p, p.x, p.y, dt, 1, 14);
-    this.ai(p, dt, this.pick('QB'), .6);
+    this.ai(p, dt, this.pick('QB'), this.cfg.assist ?? (p.role === 'OL' ? .3 : .6)); // assist: 개발 도구용 (손을 뗐을 때 AI가 돕는 정도)
   }
   ai(p, dt, qb, k = 1) {
     const car = this.carrier, ball = this.ball;
@@ -254,7 +279,8 @@ class LivePlay {
         return this.seek(p, clamp(hole + avoid, 1, FW - 1), p.y + 8, dt, (this.thrown ? .88 : .95) * k);
       }
       if (ball && p === this.target) return this.seek(p, ball.x, ball.y, dt, k, 22);
-      if (car && car !== p) {
+      const pocketPass = car === qb && !this.thrown && !this.concept.run;
+      if (car && car !== p && !pocketPass) {
         // 블로커: 볼 캐리어 앞의 가장 가까운 수비에게
         const d = this.P.filter(x => x.team === 'D' && x.y > car.y - 2).sort((a, b) => dist(a, car) - dist(b, car))[p.role === 'OL' ? p.ol % 3 : 0];
         if (d && (p.role === 'OL' || p.routeName === 'block' || this.thrown)) return this.seek(p, d.x, Math.min(d.y - .6, p.role === 'OL' ? this.los + 5 : 999), dt, .85 * k);
@@ -264,7 +290,7 @@ class LivePlay {
         const rushers = this.P.filter(x => x.team === 'D' && (x.role === 'DL' || x.blitz)).sort((a, b) => a.x - b.x);
         let r = null;
         if (p.role === 'OL') r = rushers.length ? rushers[Math.round(p.ol * (rushers.length - 1) / 4)] : null;
-        else r = rushers.filter(x => !this.P.some(o => o.role === 'OL' && dist(o, x) < 1.3)).sort((a, b) => dist(a, qb) - dist(b, qb))[0];
+        else r = rushers.filter(x => !x.vsMe && !this.P.some(o => o.role === 'OL' && dist(o, x) < 1.3)).sort((a, b) => dist(a, qb) - dist(b, qb))[0];
         if (!r) return this.seek(p, p.x, Math.min(p.y, this.los - .8), dt, .6 * k);
         const d = dist(r, qb) || 1, tx = r.x + (qb.x - r.x) / d * .9, ty = r.y + (qb.y - r.y) / d * .9;
         return this.seek(p, tx, Math.min(ty, this.los - .3), dt, k, 16);
@@ -276,7 +302,18 @@ class LivePlay {
     // 수비
     if (ball) { const lx = ball.x, ly = ball.y, deepBall = ly > this.los + 15, r = p.role === 'S' ? (deepBall ? 15 : 9) : 7; if (Math.hypot(lx - p.x, ly - p.y) < r && ball.t > .35) return this.seek(p, lx, ly, dt, k); }
     if (this.concept.run && this.t < .72 && p.role !== 'DL') return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k); // 런인지 읽는 시간
-    if (car && (car !== qb || this.concept.run || p.role === 'DL' || p.blitz || car.y > this.los)) {
+    // 라인맨 모드의 맞상대: 바깥으로 크게 돌아 쿼터백을 노립니다
+    if (p.vsMe && car === qb && !this.thrown && !this.concept.run) {
+      // 정해진 러시 레인(태클 바깥)으로 돌다가, 내 라인맨이 바깥을 막으면 가끔 안쪽으로 꺾습니다. 지나간 뒤에는 쿼터백에게 곧장.
+      const m = this.mine;
+      p.laneX ??= m.x - 2; p.counter ??= R() < .3;
+      const past = p.y < m.y - .4 || p.y <= this.los - 3;
+      const inside = p.counter && m.x < p.laneX + .6;
+      return this.seek(p, past ? qb.x : inside ? m.x + 1.8 : p.laneX, past ? qb.y : this.los - 3.2, dt, 1.04 * k);
+    }
+    // 러셔는 쿼터백이 포켓에 있는 동안 포켓 시계를 따릅니다 (아래)
+    const rushing = (p.role === 'DL' || p.blitz) && car === qb && !this.thrown && !this.concept.run && car.y <= this.los;
+    if (car && !rushing && (car !== qb || this.concept.run || p.role === 'DL' || p.blitz || car.y > this.los)) {
       const lead = Math.min(.9, dist(p, car) / 9);
       return this.seek(p, car.x + car.vx * lead, car.y + car.vy * lead, dt, k);
     }
@@ -341,6 +378,12 @@ class LivePlay {
     this.phase = 'over'; this.endT = o.td ? 1.6 : 1.1;
     const car = this.carrier, passPlay = this.thrown && !o.incomplete && !o.turnover && !o.sack;
     o.gain = Math.round(o.gain ?? 0);
+    if (this.cfg.control === 'OL') {
+      if (o.sack && o.sacker?.vsMe) this.inc('sa');
+      else if (!o.sack && (this.myBlockT || 0) > 1.6 && R() < .45) this.inc('pan');
+    }
+    if (o.sacker) this.dbg = { ...(this.dbg || {}), sacker: `${o.sacker.role}${o.sacker.dl ?? ''}${o.sacker.vsMe ? '*' : ''}${o.sacker.blitz ? 'B' : ''}@${this.t.toFixed(1)}` };
+    delete o.sacker;
     // 스탯 정리
     if (o.td && car?.team === 'O') { if (this.thrown) { if (this.cfg.control === 'QB') this.inc('ptd'); if (car.me && this.cfg.control !== 'QB') this.inc('rectd'); } else if ((car.me && !this.switched) || (this.cfg.control === 'QB' && car.role === 'QB')) this.inc('rtd'); }
     if (passPlay && this.cfg.control === 'QB') this.inc('pyds', o.gain);
@@ -355,9 +398,13 @@ class LivePlay {
   }
   burst() { for (let i = 0; i < 50; i++) { const a = R() * Math.PI * 2, v = .5 + R() * 1.6; this.fx.push({ x: CW / 2, y: CH * .35, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .5, life: 50 + R() * 30, c: ['#F2C230', '#FFFFFF', '#E85A5A', '#6BD88A'][i % 4] }); } }
   finish() {
+    this.phase = 'done';
+    const done = this.done; this.done = null;
+    done?.(this.result || { gain: 0, incomplete: true, stats: this.stats });
+  }
+  destroy() {
     this.closed = true; cancelAnimationFrame(this.raf);
     window.removeEventListener('keydown', this.onKey); window.removeEventListener('keyup', this.onKey);
-    this.done(this.result || { gain: 0, incomplete: true, stats: this.stats });
   }
   // ───────── 그리기 ─────────
   sy(y) { return CH * EYE - (y - this.camY) * PPY; }
@@ -376,6 +423,8 @@ class LivePlay {
     const los = Math.round(this.sy(this.los)), fd = Math.round(this.sy(this.first));
     ctx.fillStyle = '#4A8CFF'; ctx.fillRect(0, los, CW, 2);
     if (this.first < 100) { ctx.fillStyle = '#FFD84A'; ctx.fillRect(0, fd, CW, 2); }
+    // 작전 그림: 스냅 전에는 우리 팀 루트를 보여 줍니다 (내 루트는 노랑)
+    if (this.phase === 'pre' && c.side === 'O') this.drawRoutes(ctx);
     // 공 착지 지점
     if (this.ball) { const b = this.ball, px = b.x * PPY, py = this.sy(b.y), r = 3 + Math.sin(now / 90); ctx.strokeStyle = '#FFD84A'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(px, py, r + 2, r, 0, 0, Math.PI * 2); ctx.stroke(); }
     // 선수 (아래쪽부터)
@@ -393,6 +442,25 @@ class LivePlay {
     for (const p of this.fx) { p.x += p.vx; p.y += p.vy; p.vy += .03; ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
     if (this.phase === 'pre') bigText(ctx, this.t < -.5 ? 'READY' : 'SET', CW / 2, CH * .3, '#FFFFFF', 3);
     else if (this.msg) bigText(ctx, this.msg, CW / 2, CH * .3, this.msgColor || '#FFFFFF', this.msg.length > 10 ? 2 : 3);
+    if (this.phase === 'idle' && this.mine) {
+      const m = this.mine, px = Math.round(m.x * PPY), py = Math.round(this.sy(m.y));
+      const bob = Math.floor(now / 300) % 2;
+      bigText(ctx, 'YOU', clamp(px, 10, CW - 10), py - 18 - bob, '#FFD84A', 1);
+    }
+  }
+  drawRoutes(ctx) {
+    ctx.save(); ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+    for (const p of this.P.filter(x => x.team === 'O')) {
+      let pts = null;
+      if (p.route?.length) pts = [p, ...p.route];
+      else if (p.role === 'RB' && this.concept.run) { const hx = this.concept.hole ? CX + (p.x < CX ? -9 : 9) : CX + 2.4; pts = [p, { x: hx, y: this.los + 1 }, { x: hx, y: this.los + 7 }]; }
+      if (!pts) continue;
+      ctx.strokeStyle = p.me ? '#FFD84A' : 'rgba(255,255,255,.6)';
+      ctx.beginPath(); pts.forEach((q, i) => { const x = q.x * PPY, y = this.sy(q.y); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+      const a = pts.at(-1), b = pts.at(-2), ang = Math.atan2(this.sy(a.y) - this.sy(b.y), (a.x - b.x) * PPY), ax = a.x * PPY, ay = this.sy(a.y);
+      ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(ax - Math.cos(ang - .5) * 4, ay - Math.sin(ang - .5) * 4); ctx.lineTo(ax, ay); ctx.lineTo(ax - Math.cos(ang + .5) * 4, ay - Math.sin(ang + .5) * 4); ctx.stroke(); ctx.setLineDash([2, 2]);
+    }
+    ctx.restore();
   }
   drawPlayer(ctx, p, now) {
     const c = this.cfg, colors = p.team === 'O' ? c.offColors : c.defColors, [c1, c2] = colors.map(vivid);
@@ -414,6 +482,8 @@ class LivePlay {
     if (p.team === 'D') { ctx.fillStyle = '#C9CED6'; ctx.fillRect(x + 2, y + 3, 3, 1); }
     // 공
     if (this.carrier === p && this.phase !== 'pre') { ctx.fillStyle = OUT; ctx.fillRect(x + 6, y + 3, 3, 3); ctx.fillStyle = '#8A4B22'; ctx.fillRect(x + 6, y + 4, 2, 1); }
+    // 라인맨 모드: 막아야 할 러셔
+    if (p.vsMe && this.phase !== 'done') { const bob = Math.floor(now / 200) % 2; ctx.fillStyle = OUT; ctx.fillRect(x - 1, y - 8 - bob, 9, 2); ctx.fillStyle = '#FF5A5A'; ctx.fillRect(x, y - 8 - bob, 7, 1); ctx.fillRect(x + 1, y - 7 - bob, 5, 1); ctx.fillRect(x + 2, y - 6 - bob, 3, 1); ctx.fillRect(x + 3, y - 5 - bob, 1, 1); }
     // 내 선수 표시
     if (p.me) { const bob = Math.floor(now / 250) % 2; ctx.fillStyle = '#FFD84A'; ctx.fillRect(x + 2, y - 5 - bob, 3, 1); ctx.fillRect(x + 3, y - 4 - bob, 1, 1); }
   }
