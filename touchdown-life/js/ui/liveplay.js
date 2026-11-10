@@ -273,7 +273,8 @@ export class LivePlay {
       if (r && r.d < 3.4) return this.throwAt(m, r.p, this.passType);
       return this.throwTo(f.x, f.y, m, this.passType);
     }
-    if (m && this.carrier === m) this.skill('juke');
+    if (m && this.carrier === m) return this.skill('juke');
+    if (m && m.team === 'O' && this.canCall()) this.skill('call'); // 리시버: 필드를 탭해도 패스 콜
   }
   // ───────── 스킬 ─────────
   nearestD(m, r) { return this.P.filter(d => d.team !== m.team && !(d.stun > 0) && dist(d, m) < r).sort((a, b) => dist(a, m) - dist(b, m))[0] || null; }
@@ -287,12 +288,20 @@ export class LivePlay {
       if (car && m === this.qb && this.inPocket()) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
       if (car) return [S('spin', '스핀', 2.6), S('juke', '페이크', 2), S('turbo', '터보', 4), S('stiff', '스티프 암', 3)];
       if (nearBall) return [S('c_high', '하이포인트', 9, !sk.catchType), S('c_poss', '안전 캐치', 9, !sk.catchType), S('c_rac', 'RAC 캐치', 9, !sk.catchType), S('turbo', '터보', 4)];
-      return [S('fake', '페이크', 3, !!this.nearestD(m, 3.8)), S('call', '패스 콜', 4, !this.thrown && this.eligible().includes(m)), S('turbo', '터보', 4)];
+      return [S('call', sk.callT > 0 ? '부르는 중' : '패스 콜', 1.5, this.canCall()), S('fake', '페이크', 3, !!this.nearestD(m, 3.8)), S('turbo', '터보', 4)];
     }
     if (m.role === 'DL' || m.blitz) return [S('spinmove', '스핀 무브', 2.4, !!this.myBlocker), S('swim', '스윔', 2.4, !!this.myBlocker), S('turbo', '터보', 4)];
     if (nearBall) return [S('d_int', '가로채기', 9, !sk.defBall), S('d_swat', '쳐내기', 9, !sk.defBall), S('turbo', '터보', 4)];
     const near = this.carrier && this.carrier.team !== m.team && dist(this.carrier, m) < 5.5;
     return [S('jam', '잼', 4, this.t < 2.4 && !this.ball && !!this.nearestD(m, 1.9)), S('dive', '다이브', 2.5, !!near), S('turbo', '터보', 4)];
+  }
+  // 패스 콜을 할 수 있나: 내가 루트를 뛰는 리시버이고, AI 쿼터백이 아직 공을 들고 있을 때
+  canCall() {
+    const m = this.mine, qb = this.qb, sk = this.sk, play = this.play;
+    if (!m || m.team !== 'O' || m === qb || qb.me || this.thrown || this.ball || this.carrier !== qb || this.qbRunning || sk.callT > 0) return false;
+    if (!this.eligible().includes(m)) return false;
+    const rpoMe = play.rpo === m.slot && !this.handed;
+    return (!this.run || this.fleaPhase === 2 || rpoMe) && (!play.flea || this.fleaPhase === 2);
   }
   skill(id) {
     const m = this.mine; if (!m) return;
@@ -316,7 +325,7 @@ export class LivePlay {
       if (d && R() < clamp(.42 + (A('route') - d.rating) * .016, .15, .85)) { d.stun = .6; d.vx = 0; d.vy = 0; this.float(d, '?', '#FFD84A'); this.float(m, 'FAKED OUT!', '#FFD84A'); }
       else this.float(m, 'FAKE', '#FFFFFF');
     }
-    else if (id === 'call') { sk.callT = 1.4; this.float(m, 'HERE!', '#FFD84A'); }
+    else if (id === 'call') { sk.callT = 3; sk.callWait = null; sk.callPose = .55; this.float(m, 'HERE!', '#FFD84A'); }
     else if (id.startsWith('c_')) { sk.catchType = id.slice(2); this.float(m, { high: 'HIGH POINT', poss: 'SECURE', rac: 'RAC' }[sk.catchType], '#FFD84A'); }
     else if (id.startsWith('d_')) { sk.defBall = id.slice(2); this.float(m, sk.defBall === 'int' ? 'PLAY BALL' : 'SWAT', '#FFD84A'); }
     else if (id === 'pump') {
@@ -450,11 +459,12 @@ export class LivePlay {
     if (this.phase === 'over') { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     const c = this.cfg, P = this.P, qb = this.qb, sk = this.sk, play = this.play, ru = this.run;
     for (const k in sk.cd) if (sk.cd[k] > 0) sk.cd[k] -= dt;
-    for (const k of ['spinT', 'turboT', 'diveT', 'jumpT', 'anchorT', 'callT', 'stiffT']) if (sk[k] > 0) sk[k] -= dt;
+    for (const k of ['spinT', 'turboT', 'diveT', 'jumpT', 'anchorT', 'callT', 'stiffT', 'callPose']) if (sk[k] > 0) sk[k] -= dt;
     if (sk.diving && !(sk.diveT > 0)) { sk.diving = false; if (this.mine) { this.mine.stun = .7; this.mine.prone = .7; } }
     for (const p of P) { if (p.prone > 0) p.prone -= dt; if (p.racT > 0) p.racT -= dt; if (p.diveT > 0) { p.diveT -= dt; if (p.diveT <= 0) { p.prone = .7; p.stun = .7; } } }
-    // 핸드오프·RPO·리드 옵션·플리 플리커
-    if (ru && !this.handed && !this.thrown && this.carrier === qb) {
+    // 핸드오프·RPO·리드 옵션·플리 플리커 (RPO 대상인 내가 공을 부르는 중이면 핸드오프하지 않음)
+    const me = this.mine, rpoCall = !!play.rpo && me?.slot === play.rpo && sk.callT > 0;
+    if (ru && !this.handed && !this.thrown && this.carrier === qb && !rpoCall) {
       if (ru.carrier === 'QB') { if (this.t >= (ru.type === 'qbdraw' ? ru.hand : 0)) { this.handed = true; this.qbRunning = true; } }
       else if (play.rpo && !qb.me && this.t > .35 && !this.rpoRead) {
         this.rpoRead = true;
@@ -475,13 +485,20 @@ export class LivePlay {
       if (this.fleaPhase === 0 && this.t > .45) { this.fleaPhase = 1; this.carrier = this.slotP('RB'); }
       else if (this.fleaPhase === 1 && this.t > 1.2) { this.fleaPhase = 2; this.carrier = qb; this.float(qb, 'PITCH!', '#FFD84A'); }
     }
-    // AI 쿼터백 패스
+    // 패스 콜: 내가 공을 부르면 쿼터백이 잠깐(쿼터백 능력에 따라 0.2~0.55초) 보고 나에게 던집니다. 커버가 붙어 있어도 던지니 타이밍은 내 몫!
     const passing = !ru || this.fleaPhase === 2;
-    if (!this.ball && this.carrier === qb && !qb.me && passing && (!play.flea || this.fleaPhase === 2) && !this.qbRunning && qb.y < this.los + .5) {
-      const olMode = c.control === 'OL' && play.cat !== 'screen', base = (olMode ? 1.9 : play.quick ? .35 : play.cat === 'screen' ? (this.readOrder[0]?.delay || 0) + .45 : play.pa ? (play.flea ? 1.6 : 1.25) : .95) + (play.quick || play.cat === 'screen' ? 0 : this.qbFrozen);
+    const calling = sk.callT > 0 && me && me.team === 'O' && me !== qb && !qb.me && this.eligible().includes(me) && !this.ball && this.carrier === qb && !this.qbRunning && qb.y < this.los + .5 && (passing || rpoCall) && (!play.flea || this.fleaPhase === 2);
+    if (calling) {
+      sk.callWait = (sk.callWait ?? clamp(.42 - (c.teamRating - 60) * .006, .2, .55)) - dt;
+      if (sk.callWait <= 0 && this.t > .3) { sk.callT = 0; sk.callWait = null; this.float(qb, 'GOT IT!', '#FFFFFF'); this.throwAt(qb, me, this.aiPassType(qb, me)); }
+    }
+    // AI 쿼터백 패스
+    if (!calling && !this.ball && this.carrier === qb && !qb.me && passing && (!play.flea || this.fleaPhase === 2) && !this.qbRunning && qb.y < this.los + .5) {
+      // 내가 리시버로 루트를 뛰면 쿼터백이 조금 더 기다려 패스 콜할 틈을 줍니다
+      const myRoute = me && me.team === 'O' && me !== qb && this.eligible().includes(me) ? .35 : 0;
+      const olMode = c.control === 'OL' && play.cat !== 'screen', base = (olMode ? 1.9 : play.quick ? .35 : play.cat === 'screen' ? (this.readOrder[0]?.delay || 0) + .45 : play.pa ? (play.flea ? 1.6 : 1.25) : .95) + (play.quick || play.cat === 'screen' ? 0 : this.qbFrozen + myRoute);
       const prefer = this.mine && this.mine.team === 'O' && this.mine !== qb ? this.mine : null;
-      if (sk.callT > 0 && prefer && this.eligible().includes(prefer) && this.t > .5 && this.openness(prefer) > 1.4) { sk.callT = 0; this.throwAt(qb, prefer, this.aiPassType(qb, prefer)); }
-      else {
+      {
         // 블리츠가 뚫려 들어오면 빨리 던집니다 (핫 리드)
         const heat = P.some(d => d.team === 'D' && d.asg?.t === 'rush' && (d.engaged ? dist(d, qb) < 1.8 : dist(d, qb) < 3.2));
         if (heat && !this.heatRoll) this.heatRoll = R() < .62 ? 'throw' : 'hold';
@@ -833,6 +850,8 @@ export class LivePlay {
     ctx.fillStyle = 'rgba(74,140,255,.92)'; ctx.fillRect(0, los - 1, FWP, 2);
     if (this.first < 100) { ctx.fillStyle = 'rgba(255,216,74,.95)'; ctx.fillRect(0, fd - 1, FWP, 2); }
     if (this.phase === 'pre') c.side === 'O' ? this.drawRoutes(ctx) : this.drawAssignment(ctx);
+    // 패스 콜 중: 쿼터백 → 나 점선
+    if (this.sk.callT > 0 && this.mine && this.carrier === this.qb && !this.ball) { const q = this.qb, m = this.mine; ctx.save(); ctx.strokeStyle = 'rgba(255,216,74,.85)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -now / 40; ctx.beginPath(); ctx.moveTo(q.x * PPY, this.sy(q.y) - 12); ctx.lineTo(m.x * PPY, this.sy(m.y) - 12); ctx.stroke(); ctx.restore(); }
     if (this.ball) { const b = this.ball, px = b.x * PPY, py = this.sy(b.y), r = (b.type === 'lob' ? 8 : 6) + Math.sin(now / 90) * 1.2; ctx.strokeStyle = '#FFD84A'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(px, py, r + 3, r * .55, 0, 0, Math.PI * 2); ctx.stroke(); }
     for (const g of this.ghosts) { ctx.globalAlpha = g.life * 1.6; const spr = this.spriteOf(g.p, now); ctx.drawImage(spr, Math.round(g.x * PPY - spr.width / 2), Math.round(this.sy(g.y)) - spr.height + 2); ctx.globalAlpha = 1; }
     const order = [...this.P].sort((a, b) => b.y - a.y);
@@ -882,6 +901,7 @@ export class LivePlay {
     if (p.prone > 0 || p.diveT > 0 || (p.me && this.sk.diveT > 0)) return 'dive';
     if ((this.phase === 'idle' || this.phase === 'pre') && (p.role === 'OL' || p.role === 'DL')) return 'stance';
     if (p.throwT > 0) return 'throw';
+    if (p.me && this.sk.callPose > 0) return 'catch'; // 손을 들고 공을 부르는 자세
     if (this.celebrate === p && this.phase !== 'live') return 'catch';
     const b = this.ball;
     if (b && b.T - b.t < .4 && p.role !== 'OL' && p.role !== 'DL' && Math.hypot(p.x - b.x, p.y - b.y) < 2.4) return 'catch';
