@@ -504,3 +504,44 @@ kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { displa
 .diff-opt strong { font-size: 15px; }
 .diff-opt .sub { font-size: 12.5px; color: var(--muted); }
 .diff-opt.on { border-color: var(--dc); box-shadow: inset 0 0 0 1px var(--dc); background: color-mix(in srgb, var(--dc) 9%, var(--surface)); }
+
+/* ───────── 튜토리얼 · 조작법 ───────── */
+.gd-dots { display: flex; gap: 6px; margin: 10px 0 4px; }
+.gd-dots button { width: 22px; height: 6px; border-radius: 3px; border: 0; padding: 0; background: var(--line); }
+.gd-dots button.on { background: var(--accent); }
+.gd-body { margin-top: 8px; }
+.gd-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+.gd-list li { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; }
+.gd-list li b { font-size: 14.5px; }
+.gd-list li span { font-size: 13px; color: var(--muted); line-height: 1.55; }
+.gd-h { margin: 16px 0 0; font-size: 15px; }
+.gd-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+.gd-mode { margin-top: 4px; } .gd-groups { margin-top: 8px; }
+.gd-groups button { padding: 7px 10px; font-size: 13px; }
+.gd-ctx { margin-top: 14px; }
+.gd-ctx h4 { font-size: 13.5px; font-weight: 800; color: var(--accent); margin: 0 0 6px; }
+.gd-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.gd-key { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; justify-content: center; text-align: center; }
+.gd-key small { flex-basis: 100%; font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+.gd-key .kc { font-size: 11.5px; }
+.gd-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 2px 5px rgba(0, 0, 0, .3); }
+.gd-stick { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--muted); background: radial-gradient(circle, var(--muted) 0 32%, transparent 34%); opacity: .8; }
+.gd-chip { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #3BB273; color: #fff; font: 800 13px/1 inherit; font-style: normal; }
+.gd-what b { font-size: 14px; }
+.gd-what p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.gd-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.gd-stats .pill { font-size: 11px; padding: 1px 7px; }
+.gd-nav { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 16px; }
+.gd-nav button { margin: 0; }
+.gd-nav .kc, .gd-practice .kc, .sheet .ghost .kc, .sheet .primary .kc { vertical-align: 1px; }
+.gd-practice { margin-top: 8px; }
+.cl-foot { display: flex; justify-content: center; gap: 4px; }
+.cl-foot .cl-auto { margin: 6px 0 0; }
+.cl-live-tag.practice { background: #2F6FD6; animation: none; }
+.cl-help { position: absolute; inset: 0; z-index: 6; background: rgba(8, 12, 10, .72); display: grid; place-items: center; padding: 10px; }
+.cl-help[hidden] { display: none; }
+.cl-help-card { width: 100%; max-width: 500px; max-height: 100%; overflow: auto; background: #18221D; color: #fff; border: 1.5px solid rgba(255, 255, 255, .18); border-radius: 18px; padding: 14px; --line: rgba(255, 255, 255, .14); --muted: rgba(255, 255, 255, .68); --accent: #6BD88A; }
+.cl-help-card .seg button { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .2); color: #fff; padding: 7px 10px; font-size: 13px; }
+.cl-help-card .seg button.on { background: rgba(107, 216, 138, .18); border-color: #6BD88A; color: #6BD88A; }
+.cl-help-card .pill { background: rgba(255, 255, 255, .1); color: #fff; border-color: transparent; }
+.gd-sep { font-style: normal; font-size: 12px; color: var(--muted); }

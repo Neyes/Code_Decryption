@@ -6,7 +6,8 @@ import { ATTR, attrsOf } from './engine/core.js';
 import * as FX from './ui/fx.js';
 import { openClutch, clutchLevelAvg } from './ui/clutch.js';
 import { openGym } from './ui/gym.js';
-import { setInputPref, inputMode } from './ui/input.js';
+import { setInputPref, inputMode, keyName, typing } from './ui/input.js';
+import { tutorialHtml, tutorialAskHtml, guideGroupOf, guidePos, GUIDE_PAGES } from './ui/guide.js';
 import { DIFFICULTY, diffOf, diffId, setDifficulty, diffLowest } from './engine/difficulty.js';
 import { sceneUrl, iconUrl } from './ui/pixel.js';
 import { TEAM_BY_ID } from './data/teams.js';
@@ -23,6 +24,10 @@ let state = loadCareer();
 let tab = 'home', sheetView = null, pathSel = null, focusDraft = [], bcTimer = null;
 const setup = { step: 0, avatar: { skin: 1, hair: 0, style: 0, visor: 0 }, name: '', number: '7', pos: 'WR', nat: 'US', schoolId: 'img', fanTeam: '', seedN: 0, cand: null, focus: [], difficulty: 'normal' };
 let busy = false;
+// 튜토리얼은 선택: 첫 커리어를 만든 뒤 한 번만 물어보고, 보든 건너뛰든 다시 묻지 않습니다 (설정에서 언제든 다시 봄)
+const TUT_KEY = 'tdlife.tutorial.v1';
+const tutSeen = () => { try { return !!localStorage.getItem(TUT_KEY); } catch { return true; } };
+const tutMark = () => { try { localStorage.setItem(TUT_KEY, '1'); } catch { /* 무시 */ } };
 V.setCardIndex(CARD_BY_ID);
 if (state && !state.player) state = null;
 
@@ -44,11 +49,23 @@ function renderSheet() {
   root.innerHTML = v.kind === 'report' ? V.reportSheet(s, v.year) : v.kind === 'path' ? V.pathSheet(s, pathSel) : v.kind === 'turning' ? V.turningSheet(s, focusDraft)
     : v.kind === 'draft' ? V.draftSheet(s) : v.kind === 'broadcast' ? V.broadcastSheet(s, v.year, v.shown) : v.kind === 'shop' ? V.shopSheet(s)
     : v.kind === 'interview' ? V.interviewSheet(s, v.year) : v.kind === 'olympics' ? V.olympicsSheet(s, v.year) : v.kind === 'patch' ? V.patchSheet()
-    : v.kind === 'settings' ? V.settingsSheet(s, storageStatus()) : v.kind === 'image' ? V.imageSheet(v.url) : v.kind === 'text' ? V.textSheet(v.text) : v.kind === 'archive' ? V.archiveSheet(listArchive()) : v.kind === 'confirm' ? V.confirmSheet(v.title, v.body, v.action, v.label) : '';
+    : v.kind === 'settings' ? V.settingsSheet(s, storageStatus()) : v.kind === 'image' ? V.imageSheet(v.url) : v.kind === 'text' ? V.textSheet(v.text) : v.kind === 'archive' ? V.archiveSheet(listArchive()) : v.kind === 'confirm' ? V.confirmSheet(v.title, v.body, v.action, v.label)
+    : v.kind === 'tutorial' ? V.sheet(tutorialHtml(v, { pos: s?.player.pos, diffName: s ? diffOf(s).name : null, canPractice: !!s && s.phase !== 'retired' })) : v.kind === 'tutorial-ask' ? V.sheet(tutorialAskHtml(inputMode() === 'key')) : '';
   const pbp = $('#pbp'); if (pbp) pbp.scrollTop = pbp.scrollHeight;
 }
 function openSheet(v) { sheetView = v; if (v.kind !== 'path') pathSel = null; renderSheet(); }
-function closeSheet() { clearInterval(bcTimer); bcTimer = null; sheetView = null; renderSheet(); render(); }
+function closeSheet() { if (sheetView?.kind === 'tutorial-ask') tutMark(); clearInterval(bcTimer); bcTimer = null; sheetView = null; renderSheet(); render(); }
+function openTutorial(page = 0, keep = null) { tutMark(); openSheet(keep || { kind: 'tutorial', page, mode: inputMode(), group: guideGroupOf(state?.player.pos || 'QB') }); }
+function tutTurn(to) { if (sheetView?.kind !== 'tutorial') return; sheetView.page = Math.max(0, Math.min(GUIDE_PAGES - 1, to)); renderSheet(); const el = document.querySelector('#sheet-root .sheet'); if (el) el.scrollTop = 0; }
+// 연습 경기: 빅게임과 같은 화면이지만 기록·성장에 반영되지 않습니다. 끝나면 튜토리얼로 돌아옵니다.
+async function practice(group) {
+  if (busy || !state) return;
+  const back = sheetView?.kind === 'tutorial' ? { ...sheetView } : null, mine = guideGroupOf(state.player.pos) === group;
+  const player = mine ? state.player : { ...state.player, pos: guidePos(group), attrs: {}, twoWay: null };
+  busy = true; closeSheet();
+  await openClutch(document.getElementById('clutch-root'), { practice: true, player, game: { title: '연습 경기', myStr: 60, oppStr: 60, home: true }, colors: V.teamColors(state), oppColors: ['#8A1F2B', '#F2C230'], myName: state.team.short || state.team.name, oppName: '연습 상대', levelAvg: clutchLevelAvg(state), diff: diffOf(state) });
+  busy = false; render(); if (back) openTutorial(0, back);
+}
 function mutate(fn, after) {
   try { const out = fn(); persist(); render(); after?.(out); return out; }
   catch (e) { console.error(e); toast(e.message || '문제가 생겼어요.'); }
@@ -194,6 +211,13 @@ document.addEventListener('click', e => {
     case 'close-sheet': closeSheet(); break;
     case 'theme': cycleTheme(); break;
     case 'settings': openSheet({ kind: 'settings' }); break;
+    case 'tutorial': openTutorial(+v || 0); break;
+    case 'tut-skip': tutMark(); closeSheet(); break;
+    case 'tut-page': tutTurn((sheetView?.page || 0) + +v); break;
+    case 'tut-go': tutTurn(+v); break;
+    case 'tut-mode': if (sheetView?.kind === 'tutorial') { sheetView.mode = v; renderSheet(); } break;
+    case 'tut-group': if (sheetView?.kind === 'tutorial') { sheetView.group = v; renderSheet(); } break;
+    case 'tut-practice': practice(sheetView?.group || guideGroupOf(state?.player.pos || 'QB')); break;
     case 'input-pref': setInputPref(v); openSheet({ kind: 'settings' }); toast(inputMode() === 'key' ? '키보드로 조작해요 (WASD·Space·J·K·L·숫자 키)' : '터치로 조작해요 (스틱·버튼·탭)'); break;
     case 'archive': openSheet({ kind: 'archive' }); break;
     // 생성
@@ -212,6 +236,7 @@ document.addEventListener('click', e => {
       try {
         state = createCareer({ name: setup.name, number: +setup.number, pos: setup.pos, nat: setup.nat, schoolId: setup.schoolId, fanTeam: setup.fanTeam, avatar: { ...setup.avatar }, arch: c.arch, attrs: c.attrs, focus: setup.focus, difficulty: setup.difficulty });
         persist(); tab = 'home'; render(); window.scrollTo(0, 0); toast('첫 시즌이 준비됐어요.');
+        if (!tutSeen()) openSheet({ kind: 'tutorial-ask' });
       } catch (err) { toast(err.message); }
       break;
     }
@@ -293,7 +318,20 @@ document.addEventListener('change', async e => {
     catch (err) { toast(err.message); }
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (FX.fxBusy()) FX.closeFx(); else if (sheetView) closeSheet(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (FX.fxBusy()) FX.closeFx(); else if (sheetView) closeSheet(); return; }
+  // 튜토리얼 창: ←·→(A·D)로 넘기기, Enter 다음·끝내기, P 연습
+  if (!sheetView || busy || FX.fxBusy() || typing(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const k = keyName(e);
+  if (sheetView.kind === 'tutorial-ask' && k === 'enter') { e.preventDefault(); openTutorial(0); }
+  else if (sheetView.kind === 'tutorial') {
+    const page = sheetView.page || 0;
+    if (k === 'right' || k === 'd') { e.preventDefault(); tutTurn(page + 1); }
+    else if (k === 'left' || k === 'a') { e.preventDefault(); tutTurn(page - 1); }
+    else if (k === 'enter') { e.preventDefault(); page >= GUIDE_PAGES - 1 ? closeSheet() : tutTurn(page + 1); }
+    else if (k === 'p' && state && state.phase !== 'retired') { e.preventDefault(); practice(sheetView.group); }
+  }
+});
 void getTheme; void usd;
 // 업데이트가 배포돼도 진행 중인 화면을 잃지 않도록(아티팩트 뷰어의 핫 리로드 훅).
 const hot = typeof window !== 'undefined' ? window.claude?.hot : null;

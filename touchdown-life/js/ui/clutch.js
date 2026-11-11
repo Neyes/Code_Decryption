@@ -2,11 +2,14 @@
 // 공격·수비: 플레이북(포메이션 8·플레이 50여 개 / 수비 포메이션 6·플레이 21개)에서 작전 카드를 고르면
 // 위에서 내려다본 필드에서 내 선수를 직접 조작합니다 (liveplay.js · playbook.js). 코치 추천과 상대 정렬 읽기도 있습니다.
 // 키커·펀터: 키커 뒤 시점에서 위로 쓸어 올려 찹니다 (kickplay.js). 4번째 다운·2점 컨버전도 직접 정합니다.
+// ctx.practice면 연습 경기: 같은 화면으로 끝없이 해 볼 수 있고 결과는 돌려주지 않습니다(기록·성장에 반영 안 됨).
+// 고르는 화면에는 '조작법' 버튼(H)이 있어 포지션별 키·기술·능력치 표(guide.js)를 띄웁니다.
 import { POSITIONS, LEVEL_AVG, clamp } from '../engine/core.js';
 import { DIFFICULTY } from '../engine/difficulty.js';
 import { LivePlay } from './liveplay.js';
 import { KickPlay } from './kickplay.js';
-import { isKeyMode, onInputMode, keyName, typing } from './input.js';
+import { isKeyMode, onInputMode, keyName, typing, inputMode } from './input.js';
+import { guideKeysHtml, guideGroupOf, modeToggleHtml } from './guide.js';
 import { CX, OFF_CATS, DEF_CATS, FORMATIONS, DEF_FORMS, playsFor, defPlaysFor, suggestOff, suggestDef, offAdvice, defAdvice, whyOff, whyDef, aiOffPlay, aiDefPlay, playArt, defArt, CATCH_KIND_KO, CATCH_TYPE_KO, PASS_TYPE_KO } from './playbook.js';
 
 // 내 포지션 → 필드에서 조작할 선수
@@ -60,8 +63,8 @@ class Clutch {
     const p = c.player, g = c.game;
     this.p = p; this.pos = p.pos; this.side = POSITIONS[p.pos].side; this.control = CONTROL[p.pos];
     this.mode = p.pos === 'K' ? 'kick' : p.pos === 'P' ? 'punt' : this.side === 'D' ? 'defense' : 'offense';
-    this.final = !!g.final;
-    this.drivesTotal = this.final ? 4 : 3;
+    this.final = !!g.final; this.practice = !!c.practice;
+    this.drivesTotal = this.practice ? 999 : this.final ? 4 : 3;
     this.drive = 0;
     this.me = { colors: c.colors };
     this.oppColors = c.oppColors;
@@ -71,6 +74,7 @@ class Clutch {
     const td = x => Math.max(0, Math.round(x)) * 7;
     this.restFor = this.mode === 'offense' ? td(.5 + (myStr - oppStr) * .02 + R() * 1.2) : this.mode === 'kick' ? td(1.6 + (myStr - oppStr) * .03 + R() * 1.4) : td(1.8 + (myStr - oppStr) * .03 + R() * 1.6);
     this.restAgainst = this.mode === 'defense' ? td(.5 + (oppStr - myStr) * .02 + R() * 1.2) : td(1.6 + (oppStr - myStr) * .03 + R() * 1.6);
+    if (this.practice) { this.restFor = 0; this.restAgainst = 0; }
     this.pf = 0; this.pa = 0;
     this.line = {}; this.snaps = []; this.log = [];
     this.build();
@@ -84,19 +88,32 @@ class Clutch {
     if (this.closed || typing(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
     const panel = this.$('cl-panel'); if (!panel || panel.hidden) return;
     const k = keyName(e), box = this.$('cl-actions'), tabs = [...box.querySelectorAll('[data-tab]')];
+    if (!this.$('cl-help').hidden) { if (['h', 'esc', 'enter', 'space'].includes(k)) { e.preventDefault(); e.stopPropagation(); this.help(false); } return; }
+    if (k === 'h') { e.preventDefault(); return this.help(true); }
     if (tabs.length && (k === 'q' || k === 'e')) { e.preventDefault(); const i = tabs.findIndex(b => b.classList.contains('on')); tabs[(i + (k === 'e' ? 1 : -1) + tabs.length) % tabs.length].click(); return; }
     if (/^[1-9]$/.test(k)) { const b = this.keyItems()[+k - 1]; if (b) { e.preventDefault(); b.click(); } return; }
     if (k === 'enter' || k === 'space') { const items = this.keyItems(), b = box.querySelector('button.primary') || (items.length === 1 ? items[0] : null); if (b) { e.preventDefault(); b.click(); } }
+  }
+  // 조작법 창: 내 포지션의 키·버튼 → 기술 → 능력치 (컴퓨터/모바일 전환). 고르는 화면에서만 열립니다.
+  help(open, mode = this.helpMode || inputMode()) {
+    const el = this.$('cl-help'); if (!el) return;
+    this.helpMode = mode; el.hidden = !open;
+    if (!open) { el.innerHTML = ''; return; }
+    const btn = (v, label, on) => `<button class="${on ? 'on' : ''}" data-help-mode="${v}">${label}</button>`;
+    el.innerHTML = `<div class="cl-help-card" role="dialog" aria-label="조작법"><div class="row between"><strong>조작법 · ${POSITIONS[this.pos].ko}</strong><button class="gym-x" data-help-close>닫기${isKeyMode() ? ' <kbd class="cl-key">H</kbd>' : ''}</button></div>
+      ${modeToggleHtml(mode, btn)}<p class="gd-note">알약은 그 기술에 쓰이는 내 능력치예요. 버튼은 상황에 따라 바뀌어요.</p>${guideKeysHtml(guideGroupOf(this.pos), mode, this.pos)}</div>`;
+    el.onclick = e => { const m = e.target.closest('[data-help-mode]'); if (m) return this.help(true, m.dataset.helpMode); if (e.target === el || e.target.closest('[data-help-close]')) this.help(false); };
   }
   // 키보드면 고를 수 있는 것마다 키를 붙입니다
   decorate() {
     const box = this.$('cl-actions'); if (!box) return;
     const kbd = isKeyMode();
     this.root.querySelector('.clutch')?.classList.toggle('kbd', kbd);
-    box.querySelectorAll('.cl-key, .cl-key-hint').forEach(x => x.remove());
+    this.root.querySelectorAll('#cl-panel .cl-key, #cl-panel .cl-key-hint').forEach(x => x.remove());
     if (!kbd) return;
     this.keyItems().forEach((b, i) => b.insertAdjacentHTML('afterbegin', `<kbd class="cl-key">${i + 1}</kbd>`));
     box.querySelector('button.primary')?.insertAdjacentHTML('beforeend', ' <kbd class="cl-key">Enter</kbd>');
+    this.root.querySelector('[data-cl="help"]')?.insertAdjacentHTML('beforeend', ' <kbd class="cl-key">H</kbd>');
     box.querySelector('.pb-tabs')?.insertAdjacentHTML('afterbegin', '<span class="cl-key-hint" title="분류 바꾸기"><kbd class="cl-key">Q</kbd><kbd class="cl-key">E</kbd></span>');
   }
   // ───────── 화면 ─────────
@@ -104,11 +121,13 @@ class Clutch {
     const c = this.c;
     this.root.innerHTML = `<div class="clutch" role="dialog" aria-modal="true" aria-label="빅게임 직접 플레이">
       <div class="cl-top"><div class="cl-team"><b id="cl-pf">0</b><small>${esc(c.myName)}</small></div>
-        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag">LIVE</span><span id="cl-q" class="cl-q">1Q</span><span class="diff-badge" style="--dc:${this.D.color}">${this.D.tag}</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
+        <div class="cl-mid"><div class="cl-tags"><span class="cl-live-tag${this.practice ? ' practice' : ''}">${this.practice ? '연습' : 'LIVE'}</span><span id="cl-q" class="cl-q">1Q</span><span class="diff-badge" style="--dc:${this.D.color}">${this.D.tag}</span></div><small id="cl-dd"></small><em class="cl-title">${esc(c.game.title || c.game.round || '빅게임')}</em></div>
         <div class="cl-team opp"><b id="cl-pa">0</b><small>${esc(c.oppName)}</small></div></div>
       <div class="cl-stage"><div id="cl-live" class="cl-live"></div>
-        <div id="cl-panel" class="cl-panel"><p id="cl-msg" class="cl-msg"></p><div id="cl-actions" class="cl-actions"></div><button class="cl-auto" data-cl="auto">자동으로 마무리</button></div></div></div>`;
+        <div id="cl-panel" class="cl-panel"><p id="cl-msg" class="cl-msg"></p><div id="cl-actions" class="cl-actions"></div><div class="cl-foot"><button class="cl-auto" data-cl="help">조작법</button><button class="cl-auto" data-cl="auto">${this.practice ? '연습 끝내기' : '자동으로 마무리'}</button></div></div>
+        <div id="cl-help" class="cl-help" hidden></div></div></div>`;
     this.root.querySelector('[data-cl="auto"]').onclick = () => this.finish(true);
+    this.root.querySelector('[data-cl="help"]').onclick = () => this.help(true);
   }
   $(id) { return this.root.querySelector('#' + id); }
   quarter() { return Math.min(4, 1 + Math.floor(this.drive * 4 / this.drivesTotal)); }
@@ -153,6 +172,7 @@ class Clutch {
     this.actions('');
     this.snapCount = (this.snapCount || 0) + 1;
     const kbd = isKeyMode();
+    if (this.practice) this.snapCount = 1; // 연습에서는 조작 안내를 매번 보여 줍니다
     this.view.tip(this.snapCount <= 3 ? (kbd ? HINT_KEY : HINT)[this.control] : (kbd && SNAP_MSG_KEY[this.control]) || SNAP_MSG[this.control] || '스냅!', this.snapCount <= 3 ? 4.5 : 2);
     return this.view.snap(opts);
   }
@@ -201,7 +221,7 @@ class Clutch {
     if (this.drive >= this.drivesTotal) return this.finish(false);
     const last = this.drive === this.drivesTotal - 1;
     const [rf, ra] = this.restSoFar(), me = rf + this.pf, op = ra + this.pa;
-    const story = last ? (me < op ? '역전이 필요하다! 마지막 드라이브' : me > op ? '승리를 굳힐 마지막 기회' : '동점, 운명의 마지막 드라이브') : ['1쿼터, 첫 번째 결정적 순간', '흐름을 가져올 때', '후반전, 승부처', '4쿼터'][this.quarter() - 1];
+    const story = this.practice ? '연습 경기 · 기록에 남지 않아요. 마음껏 해 보세요' : last ? (me < op ? '역전이 필요하다! 마지막 드라이브' : me > op ? '승리를 굳힐 마지막 기회' : '동점, 운명의 마지막 드라이브') : ['1쿼터, 첫 번째 결정적 순간', '흐름을 가져올 때', '후반전, 승부처', '4쿼터'][this.quarter() - 1];
     if (this.mode === 'kick') return this.kickSetup(story, last);
     if (this.mode === 'punt') return this.puntSetup(story);
     const start = 20 + Math.floor(R() * 16);
@@ -215,7 +235,7 @@ class Clutch {
     this.drive++;
     this.board(this.dd());
     this.msg(esc(text));
-    this.actions(`<button class="primary" data-cl="next">${this.drive >= this.drivesTotal ? '경기 결과 보기' : '다음 장면'}</button>`);
+    this.actions(`<button class="primary" data-cl="next">${this.practice ? '한 번 더' : this.drive >= this.drivesTotal ? '경기 결과 보기' : '다음 장면'}</button>`);
     this.root.querySelector('[data-cl="next"]').onclick = () => this.startDrive();
   }
   // ───────── 공격 ─────────
@@ -377,6 +397,7 @@ class Clutch {
     if (this.closed) return;
     this.closed = true;
     window.removeEventListener('keydown', this.onKey); this.offMode?.();
+    if (this.practice) { this.clearView(); this.root.innerHTML = ''; return this.done(null); }
     this.clearView();
     if (auto && this.drive === 0 && !this.snaps.length) { this.root.innerHTML = ''; return this.done(null); }
     // 아직 남은 장면은 자동으로: 공격·수비 각각 평범한 결과로 채웁니다.
