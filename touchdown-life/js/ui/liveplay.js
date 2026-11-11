@@ -10,6 +10,9 @@
 //  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
 //    쿼터백은 숫자 키 1~5로 그 번호의 리시버에게 패스(리시버 머리 위 번호·위쪽 칩). 마우스로 버튼·칩·리시버를 눌러도 됩니다.
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
+// 조종하는 선수는 처음부터 끝까지 내 선수 하나입니다. 쿼터백이 공을 던지거나 넘겨 주면 받은 선수는 AI가 뜁니다.
+// AI 선수는 리그·팀 수준(teamRating·oppRating)에서 나온 능력치(rating과 캐치·돌파·태클, 속도·방향 전환)를 갖고, 무브는 수준이 높을수록 자주 시도하되
+// 통할지는 상대 수비와의 능력 차이로 정해집니다. 느린 리그는 수비의 읽기·블록 벗기도 그만큼 느려서 어느 리그든 공격과 수비의 균형은 비슷합니다.
 import { bigText, vivid, shade, lum, OUT } from './pixel.js';
 import { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } from './input.js';
 import { DIFFICULTY } from '../engine/difficulty.js';
@@ -26,6 +29,8 @@ const NUMS = { QB: [[1, 19]], RB: [[20, 39]], FB: [[40, 49]], WR: [[10, 19], [80
 const PASS_TYPES = ['touch', 'bullet', 'lob'];
 const PASS_BTN = { touch: '터치 패스', bullet: '불릿 패스', lob: '로브 패스' };
 const SLOT_KEYS = ['space', 'j', 'k', 'l'], LEGACY_KEYS = { z: 0, x: 1, c: 2, v: 3 }; // 버튼 1~4 키 (Z·X·C·V는 예전 키)
+// AI의 세련됨: 리그 수준이 높을수록(고교 48 → NFL 75) 무브를 자주 쓰고, 수비는 더 빨리 반응합니다
+const polish = r => clamp((r - 40) / 40, .1, 1.2);
 const OPEN_COLOR = { open: '#3BB273', mid: '#F2C230', tight: '#E85A5A', pre: '#E9EEF3' };
 
 // 한 플레이만 돌리고 정리합니다 (개발 도구·밸런스 테스트용). cfg.play·cfg.defPlay는 id(없으면 무작위).
@@ -91,6 +96,8 @@ export class LivePlay {
   focusX() {
     const m = this.mine, b = this.ball, car = this.carrier, qb = this.qb;
     if (!m || this.vwTarget() === VW_QB) return CX;
+    if (m === qb && b) return b.sx + (b.x - b.sx) * clamp(b.t / b.T, 0, 1); // 쿼터백: 던진 공을 따라갑니다
+    if (m === qb && car && car !== qb) return car.x; // 받은(넘겨받은) 우리 선수를 따라갑니다
     if (b) return (b.x * 2 + m.x) / 3;
     if (m.role === 'OL') return (m.x + qb.x) / 2;
     if (m.team === 'D') return car && car !== qb ? (m.x + car.x) / 2 : m.x * .7 + CX * .3;
@@ -122,7 +129,7 @@ export class LivePlay {
   setupTeams() {
     const c = this.cfg, P = [];
     this.used = { O: new Set(), D: new Set() };
-    const mk = (team, role, extra = {}) => { const rating = (team === 'O' ? c.teamRating : c.oppRating) + (R() - .5) * 8; const p = { team, role, x: CX, y: this.los, vx: 0, vy: 0, rating, spd: speedOf(rating) * (ROLE_SPD[role] ?? 1), num: null, skin: Math.floor(R() * SKINS.length), big: role === 'OL' || role === 'DL', ...extra }; P.push(p); return p; };
+    const mk = (team, role, extra = {}) => { const rating = (team === 'O' ? c.teamRating : c.oppRating) + (R() - .5) * 8; const v = () => rating + (R() - .5) * 10; const p = { team, role, x: CX, y: this.los, vx: 0, vy: 0, rating, hands: v(), elu: v(), tkl: v(), tempo: speedOf(rating) / speedOf(70), quick: clamp((speedOf(rating) / speedOf(70)) ** 2, .6, 1.25), spd: speedOf(rating) * (ROLE_SPD[role] ?? 1), num: null, skin: Math.floor(R() * SKINS.length), big: role === 'OL' || role === 'DL', ...extra }; P.push(p); return p; };
     for (let i = 0; i < 5; i++) mk('O', 'OL', { ol: i, slot: 'OL' + i });
     this.qb = mk('O', 'QB', { slot: 'QB' });
     for (let i = 0; i < 5; i++) mk('O', 'WR', { skill: true });
@@ -337,6 +344,7 @@ export class LivePlay {
       if (m.role === 'OL') return [S('punch', '펀치', 2.4, !!this.myMan), S('anchor', '버티기', 4)];
       if (m === this.qb && (this.phase === 'pre' || (car && this.inPocket()))) return [S('pass', '패스', .4), S('pump', '펌프 페이크', 2.5, sk.pumps < 2), S('spin', '스핀', 2.6), S('ptype', PASS_BTN[this.passType], .15)];
       if (car) return [S('spin', '스핀', 2.6), S('juke', '페이크', 2), S('turbo', '터보', 4), S('stiff', '스티프 암', 3)];
+      if (m === this.qb) return []; // 공을 던지거나 넘겨 준 쿼터백은 지켜봅니다
       if (nearBall) return [S('c_high', '하이포인트', 9, !sk.catchType), S('c_poss', '안전 캐치', 9, !sk.catchType), S('c_rac', 'RAC 캐치', 9, !sk.catchType), S('turbo', '터보', 4)];
       return [S('call', sk.callT > 0 ? '부르는 중' : '패스 콜', 1.5, this.canCall()), S('fake', '페이크', 3, !!this.nearestD(m, 3.8)), S('turbo', '터보', 4)];
     }
@@ -492,12 +500,13 @@ export class LivePlay {
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1, v = p.spd * k * (p.engaged ? (p.y > this.los + 4 ? .55 : push) : 1) * (p.stun > 0 ? .2 : 1) * (p.racT > 0 ? 1.06 : 1);
     const want = d < .3 ? 0 : 1, vx = dx / d * v * want, vy = dy / d * v * want;
     if (p.engaged) { p.vx *= .5; p.vy *= .5; }
+    // AI의 방향 전환(가속)은 속도와 함께 수준을 따라갑니다: 느린 리그는 그만큼 굼뜨게 꺾어서 어느 수준이든 추격·따돌리기의 모양이 같습니다 (기준 70)
+    if (!p.me) accel *= p.quick ?? 1;
     p.vx += clamp(vx - p.vx, -accel * dt, accel * dt); p.vy += clamp(vy - p.vy, -accel * dt, accel * dt);
   }
   give(to) {
     const qb = this.qb; this.carrier = to; this.handed = true;
-    if (this.mine === qb && to !== qb) { qb.me = false; to.me = true; this.mine = to; this.switched = true; }
-    else if (to.me) this.inc('ratt');
+    if (to.me && to !== qb) this.inc('ratt'); // 내가 쿼터백이면 넘겨 준 뒤에도 쿼터백만 조종합니다 (받은 선수는 AI)
   }
   update(dt) {
     if (this.msgT > 0) { this.msgT -= dt; if (this.msgT <= 0) this.msg = ''; }
@@ -575,7 +584,7 @@ export class LivePlay {
       const open = d.y > this.los + 4;
       const bR = blocker.me ? (ru ? (c.me.attrs.rblk ?? c.me.ovr) : (c.me.attrs.pblk ?? c.me.ovr)) : blocker.rating;
       if (blocker.me && sk.anchorT > 0) d.shed = Math.max(0, (d.shed || 0) - dt * .5);
-      else d.shed = (d.shed || 0) + dt * ((open ? 2 : .35) + Math.max(0, d.rating - bR) * .02 + (d.me ? .35 : 0) + (d.vsMe ? .15 : 0) + (!this.thrown && this.carrier === qb && !ru && this.t > this.pocket ? 2 : 0));
+      else d.shed = (d.shed || 0) + dt * ((open ? 2 : .35) + Math.max(0, d.rating - bR) * .02 + (d.me ? .35 : 0) + (d.vsMe ? .15 : 0) + (!this.thrown && this.carrier === qb && !ru && this.t > this.pocket ? 2 : 0)) * (ru && !d.me ? d.tempo ?? 1 : 1); // 런 블록: 느린 리그의 수비는 블록도 그만큼 늦게 벗겨 냅니다
       if (d.shed > 1 + R() * .6) { d.shed = 0; d.stunFree = .45; continue; }
       if (!(d.stunFree > 0)) { d.engaged = true; blocker.blocking = .15; if (blocker.me) { this.myBlockT = (this.myBlockT || 0) + dt; this.myMan = d; } if (d.me) this.myBlocker = blocker; }
     }
@@ -614,10 +623,20 @@ export class LivePlay {
           if (d.me) sk.diving = false;
           d.diveT = 0;
           const sackish = carrier === qb && carrier.y < this.los + .3 && !this.thrown && !this.qbRunning;
-          const elusive = carrier.me ? ((carrier.attrs?.agi ?? carrier.rating) + (carrier.attrs?.str ?? carrier.rating)) / 2 : carrier.rating;
-          const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.rating, spinning = carrier.me && sk.spinT > 0, stiff = carrier.me && sk.stiffT > 0;
-          const pBreak = clamp((carrier.me ? .16 : .09) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0) + (carrier.me ? this.dif.breakP : 0) - (d.me ? this.dif.breakP : 0), .03, spinning || stiff ? .85 : .55);
-          if (R() < pBreak) { d.stun = spinning || stiff ? .9 : .55; if (stiff) { d.prone = .8; sk.stiffT = 0; } this.pop(spinning ? 'SPIN MOVE!' : stiff ? 'STIFF ARM!' : 'BROKEN TACKLE', spinning || stiff ? '#FFD84A' : '#FFFFFF'); continue; }
+          const elusive = carrier.me ? ((carrier.attrs?.agi ?? carrier.rating) + (carrier.attrs?.str ?? carrier.rating)) / 2 : carrier.elu ?? carrier.rating;
+          const tk = d.me ? (c.me.attrs.tkl ?? c.me.ovr) : d.tkl ?? d.rating, spinning = carrier.me && sk.spinT > 0, stiff = carrier.me && sk.stiffT > 0;
+          // AI 볼 캐리어의 무브: 수준이 높을수록 자주 시도하고(고교 약 40% → NFL 약 54%), 통할 확률은 태클러와의 능력 차이 + 태클러 수준이 높을수록 낮아집니다.
+          // 같은 수준끼리면 어느 리그든 태클을 뚫을 확률이 약 9%로 같습니다 (무브 없이 뚫던 예전 값과 같음).
+          const aiMove = !carrier.me && !sackish && carrier !== qb && R() < clamp(.36 + .2 * polish(carrier.rating) + (elusive - tk) * .02, .1, .85) ? ['spin', 'juke', 'stiff'][Math.floor(R() * 3)] : null;
+          if (!carrier.me && !sackish && carrier !== qb) { this.aiMv ||= { tackles: 0, tries: 0, hits: 0 }; this.aiMv.tackles++; if (aiMove) this.aiMv.tries++; }
+          // AI 러닝백은 블록과 씨름하던 라인맨의 팔 태클을 더 잘 뚫습니다 (AI 런이 라인에서 번번이 막히지 않게)
+          const arm = !carrier.me && !d.me && carrier !== qb && !this.thrown ? (d.role === 'DL' ? .16 + .2 * (1.1 - polish(d.rating)) : carrier.role === 'RB' ? .04 : 0) : 0; // 라인맨 수준이 낮을수록 팔 태클이 더 잘 뚫립니다 (고교 .34 · NFL .21)
+          const pBreak = clamp((carrier.me ? .16 : carrier === qb || sackish ? .09 : aiMove ? .19 - .06 * polish(d.rating) : .03) + (elusive - tk) * .006 + (carrier.me && this.juke > 0 ? .25 : 0) + (spinning ? .4 : 0) + (stiff ? .3 + ((c.me.attrs.str ?? 60) - 60) * .004 : 0) - (sackish ? .08 : 0) + (diving && !d.me ? .12 : 0) + (carrier.me ? this.dif.breakP : 0) - (d.me ? this.dif.breakP : 0) + arm, .03, spinning || stiff ? .85 : .55);
+          if (R() < pBreak) {
+            d.stun = (spinning || stiff ? .9 : aiMove ? .62 - .14 * polish(d.rating) : .55) / (d.me ? 1 : d.tempo ?? 1); if (stiff) { d.prone = .8; sk.stiffT = 0; }
+            if (aiMove) { this.aiMv.hits++; this.ghost(carrier); if (aiMove === 'juke') carrier.vx += (carrier.x >= d.x ? 1 : -1) * carrier.spd * .6; if (aiMove === 'stiff') d.prone = .5; }
+            this.pop(spinning || aiMove === 'spin' ? 'SPIN MOVE!' : stiff || aiMove === 'stiff' ? 'STIFF ARM!' : aiMove === 'juke' ? 'JUKE!' : 'BROKEN TACKLE', spinning || stiff || aiMove ? '#FFD84A' : '#FFFFFF'); continue;
+          }
           if (sackish) { if (d.me) { this.inc('sack'); this.inc('tkl'); } return this.endPlay({ gain: carrier.y - this.los, sack: true, sacker: d, text: '색!' }); }
           const fumble = R() < clamp(.016 - ((carrier.attrs?.carry ?? 60) - 60) * .0004, .005, .03) * (sackish ? 2 : 1) * (carrier.me ? this.dif.fumble : 1);
           if (d.me) { this.inc('tkl'); if (carrier.y < this.los) this.inc('tfl'); if (fumble) this.inc('ff'); }
@@ -656,18 +675,32 @@ export class LivePlay {
       if (ru && !this.thrown && p.y < this.los + 1.5 && this.t < 2.2) {
         const hole = this.qbRunning && this.keepX != null ? this.keepX : CX + ru.hole;
         // 러닝백의 시야: 0.2초마다 설계된 구멍 ±3야드에서 수비(블록에 걸린 선수 포함)와 가장 먼 틈을 고릅니다
-        if (this.gapT == null || this.t - this.gapT > .2) {
+        // 라인 1.2야드 앞까지 오면 고른 틈으로 결정하고 그대로 뚫습니다 (라인 뒤에서 좌우로 머뭇거리지 않게)
+        if (this.gapT == null || (this.t - this.gapT > .2 && p.y < this.los - 1.2)) {
           this.gapT = this.t; let best = hole, bs = -1e9;
           const line = this.P.filter(d => d.team === 'D' && Math.abs(d.y - this.los) < 3.5 && !(d.stun > 0));
-          for (let x = hole - 3; x <= hole + 3; x += .5) { const m = line.length ? Math.min(...line.map(d => Math.hypot(d.x - x, (d.y - this.los) * .7))) : 3; const sc = Math.min(m, 3) - Math.abs(x - hole) * .25; if (sc > bs) { bs = sc; best = x; } }
+          for (let x = hole - 3; x <= hole + 3; x += .5) { const m = line.length ? Math.min(...line.map(d => Math.hypot(d.x - x, (d.y - this.los) * .7))) : 3; const sc = Math.min(m, 3) - Math.abs(x - hole) * .25 - Math.abs(x - p.x) * .1; if (sc > bs) { bs = sc; best = x; } }
           this.gapX = best;
         }
         const tx = ru.type === 'counter' && this.t < .8 ? CX - Math.sign(ru.hole) * 2.5 : ru.type === 'sneak' ? CX : this.gapX;
-        return this.seek(p, tx, this.los + 2, dt, .95 * k);
+        return this.seek(p, tx, this.los + 2, dt, (p.y > this.los - 1.2 ? 1 : .95) * k);
       }
-      const near = this.P.filter(d => d.team === 'D' && d.y > p.y - 1 && dist(d, p) < 5).sort((a, b) => dist(a, p) - dist(b, p))[0];
-      const avoid = near ? (p.x - near.x) * 1.4 : 0;
-      return this.seek(p, clamp(p.x + avoid, 1, FW - 1), p.y + 8, dt, (this.thrown ? .88 : .95) * k);
+      const see = 4.3 + 1.1 * polish(p.rating); // 수준이 높을수록 다가오는 수비를 조금 더 일찍 보고 피합니다 (고교 약 4.5야드 → NFL 약 5.3야드)
+      // 열린 길 고르기: 0.18초마다 앞쪽 일곱 방향 중 수비(0.35초 뒤 위치)와 가장 먼 길로 꺾습니다. see보다 먼 수비는 구별하지 못해 곧장 달립니다.
+      if (p.cutT == null || this.t - p.cutT > .18) {
+        p.cutT = this.t;
+        const ds = this.P.filter(d => d.team === 'D' && !(d.stun > 0) && !(d.prone > 0) && d.y > p.y - 1.5 && dist(d, p) < see + 4);
+        let best = 0, bs = -1e9;
+        for (const dx of [-5, -3, -1.5, 0, 1.5, 3, 5]) {
+          const ax = p.x + dx * .5, ay = p.y + 2.5, bx = p.x + dx, by = p.y + 5;
+          let m = 9;
+          for (const d of ds) { const ex = d.x + d.vx * .35, ey = d.y + d.vy * .35; m = Math.min(m, Math.hypot(ex - ax, ey - ay) * 1.2, Math.hypot(ex - bx, ey - by)); }
+          const sc = Math.min(m, see) - Math.abs(dx) * .22 - (bx < 2 || bx > FW - 2 ? 3 : 0) - (p.cutX && Math.sign(dx) === -Math.sign(p.cutX) ? .3 : 0);
+          if (sc > bs) { bs = sc; best = dx; }
+        }
+        p.cutX = best;
+      }
+      return this.seek(p, clamp(p.x + p.cutX, 1, FW - 1), p.y + 5, dt, (this.thrown ? .88 : .95) * k);
     }
     if (ball && p === this.target) return this.seek(p, ball.x, ball.y, dt, k, 22);
     // 핸드오프 전 런 캐리어의 움직임
@@ -728,7 +761,8 @@ export class LivePlay {
       const deep = a.t === 'zone' && isDeepZone(a.z), r = a.t === 'zone' ? (deep ? 17 : 12) : a.t === 'man' ? 7 : 3.5;
       if (Math.hypot(ball.x - p.x, ball.y - p.y) < r && ball.t > (a.t === 'man' ? .45 : .3) * rc) return this.seek(p, ball.x, ball.y, dt, .97 * k * cs, 14);
     }
-    if (runLike && this.t < .9 && p.role !== 'DL' && !p.blitz) return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k); // 런인지 읽는 시간
+    // 런인지 읽는 시간: 수준이 낮은 수비일수록 늦게 알아챕니다 (고교 약 1.34초 → NFL 약 0.97초). 느린 리그에서도 런이 라인을 넘을 시간이 생깁니다.
+    if (runLike && this.t < .9 + .55 * (1 - polish(p.rating)) && p.role !== 'DL' && !p.blitz) return this.seek(p, p.x, p.y + (p.role === 'CB' ? .5 : 0), dt, k);
     if (play.pa && !p.blitz && this.t < .7 - (p.rating - 60) * .01 && (p.role === 'LB' || (p.role === 'S' && !(a.t === 'zone' && isDeepZone(a.z))))) return this.seek(p, p.x, Math.max(this.los + 1.5, p.y - 3), dt, .7 * k); // 페이크에 끌려 나옴
     if (p.vsMe && car === qb && !this.thrown && !ru) {
       const m = this.mine;
@@ -736,6 +770,8 @@ export class LivePlay {
       const past = p.y < m.y - .4 || p.y <= this.los - 3, inside = p.counter && m.x < p.laneX + .6;
       return this.seek(p, past ? qb.x : inside ? m.x + 1.8 : p.laneX, past ? qb.y : this.los - 3.2, dt, 1.04 * k);
     }
+    // 드로: 패스 러시에 속은 러셔는 핸드오프 뒤 0.6초 동안 쿼터백 쪽으로 계속 들어갑니다
+    if (ru && ru.type === 'draw' && a.t === 'rush' && this.handed && car && car !== qb && this.t < this.handT + .6) return this.seek(p, qb.x, qb.y, dt, .6 * k);
     const rushing = a.t === 'rush' && car === qb && !this.thrown && !runLike && !this.qbRunning && car.y <= this.los;
     if (car && !rushing && (car !== qb || runLike || this.qbRunning || car.y > this.los || a.t === 'rush')) {
       if (p.diveT > 0) return; // 몸을 날린 중에는 그대로
@@ -806,7 +842,7 @@ export class LivePlay {
     const off = near.filter(x => x.p.team === 'O' && x.p.role !== 'OL' && x.p !== this.qb).map(x => x.p.me ? { p: x.p, d: Math.max(0, x.d - this.dif.reach) } : x).sort((a, b2) => a.d - b2.d)[0], def = near.find(x => x.p.team === 'D');
     const ct = off ? (off.p.me ? sk.catchType || 'norm' : this.aiCatchType(off.p, def)) : 'norm';
     const REACH = { high: .7, poss: -.1, rac: -.25, norm: 0 }, CONTEST = { high: .08, poss: .18, rac: .32, norm: .25 };
-    const hands = off ? (off.p.me ? c.me.attrs.hands ?? c.me.ovr : off.p.rating) : 0;
+    const hands = off ? (off.p.me ? c.me.attrs.hands ?? c.me.ovr : off.p.hands ?? off.p.rating) : 0;
     const reachO = off ? 1.6 + (hands - 60) * .012 + REACH[ct] : 0;
     const dMode = def?.p.me ? sk.defBall : null;
     const reachD = def ? .95 + ((def.p.me ? c.me.attrs.ball ?? c.me.attrs.cov ?? c.me.ovr : def.p.rating) - 60) * .008 + (dMode === 'int' ? .6 : dMode === 'swat' ? .45 : 0) : 0;
@@ -840,7 +876,6 @@ export class LivePlay {
         this.carrier = rc;
         if (qbMe) this.inc('cmp');
         if (rc.me) this.inc('rec');
-        if (this.mine === this.qb && !rc.me) { this.qb.me = false; rc.me = true; this.mine = rc; this.switched = true; }
         const label = { short: 'SHORT CATCH', mid: 'MID CATCH', long: 'LONG CATCH!' }[this.catchInfo.kind];
         this.pop(diving ? 'DIVING CATCH!' : label, '#F2C230');
         const tag = { high: 'HIGH POINT', poss: 'SECURE', rac: 'IN STRIDE', toe: 'TOE TAP' }[type];
@@ -876,7 +911,7 @@ export class LivePlay {
     const ci = passPlay ? this.catchInfo : null, endY = o.td ? 100 : car?.y;
     const ru = this.run, carKind = !this.thrown && car ? (car === this.qb ? 'qb' : car.role) : null;
     this.result = {
-      ...o, stats: this.stats, thrown: this.thrown, myTouch: !!car?.me, dbg: this.dbg,
+      ...o, stats: this.stats, thrown: this.thrown, myTouch: !!car?.me, dbg: this.aiMv ? { ...(this.dbg || {}), aiMv: this.aiMv } : this.dbg,
       catch: ci ? { ...ci, yac: Math.max(0, Math.round(endY - ci.y)) } : null, pass: this.thrown ? this.passUsed : null,
       run: ru && !this.thrown ? { type: this.qbRunning ? (ru.type === 'read' ? 'keep' : ru.type) : ru.type, carrier: carKind } : null,
       play: { id: this.play.id, name: this.play.name, form: FORMATIONS[this.play.form]?.name, cat: this.play.cat },
