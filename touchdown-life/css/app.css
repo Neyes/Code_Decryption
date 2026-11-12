@@ -545,3 +545,9 @@ kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { displa
 .cl-help-card .seg button.on { background: rgba(107, 216, 138, .18); border-color: #6BD88A; color: #6BD88A; }
 .cl-help-card .pill { background: rgba(255, 255, 255, .1); color: #fff; border-color: transparent; }
 .gd-sep { font-style: normal; font-size: 12px; color: var(--muted); }
+
+/* ───────── 시야(확대) 버튼 ───────── */
+.lp-zoom { position: absolute; left: 8px; top: 42%; z-index: 3; border: 1.5px solid rgba(255, 255, 255, .45); background: rgba(16, 22, 28, .6); color: #fff; border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; line-height: 1.2; touch-action: none; user-select: none; -webkit-user-select: none; opacity: .85; }
+.lp-zoom b { font-weight: 900; color: #FFD84A; }
+.lp-zoom kbd { display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 .3em; margin-left: 2px; border-radius: 5px; font: 800 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #1B2129; background: #F4F6F8; box-shadow: 0 1px 0 #9AA4B0; }
+.lp-zoom:active { transform: scale(.94); }

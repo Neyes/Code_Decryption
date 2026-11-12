@@ -36,6 +36,14 @@ function emit() {
   for (const f of [...subs]) { try { f(m); } catch (err) { console.error(err); } }
 }
 
+// 시야(확대): 실시간 필드에서 얼마나 넓게 볼지. 0 가까이 · 1 보통 · 2 넓게 (기기에 저장)
+const ZOOM_KEY = 'tdlife.zoom.v1';
+export const VIEW_ZOOMS = ['가까이', '보통', '넓게'];
+let zoom = 0;
+try { zoom = Math.max(0, Math.min(2, Math.round(+W?.localStorage.getItem(ZOOM_KEY) || 0))); } catch { /* 기본값 */ }
+export const viewZoom = () => zoom;
+export function setViewZoom(i) { zoom = ((Math.round(+i) % 3) + 3) % 3; try { W?.localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* 무시 */ } return zoom; }
+
 // 물리 키 이름 (소문자): 'w' 'a' '1' 'space' 'shift' 'enter' 'tab' 'esc' 'up' 'down' 'left' 'right' ';'
 export function keyName(e) {
   const c = e.code || '';

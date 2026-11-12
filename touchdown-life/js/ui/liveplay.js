@@ -10,16 +10,19 @@
 //  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
 //    쿼터백은 숫자 키 1~5로 그 번호의 리시버에게 패스(리시버 머리 위 번호·위쪽 칩). 마우스로 버튼·칩·리시버를 눌러도 됩니다.
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
+// 카메라는 내 선수를 따라갑니다(쿼터백은 포켓에서 필드 전체, 던진 뒤에는 공). 공이 뜨거나 다른 선수가 공을 들면 내 선수와 그곳이 함께 보이도록
+// 자동으로 넓어지고, 기본 시야(가까이·보통·넓게)는 왼쪽 가운데 '시야' 버튼(키보드 Q)이나 설정에서 고릅니다.
 // 조종하는 선수는 처음부터 끝까지 내 선수 하나입니다. 쿼터백이 공을 던지거나 넘겨 주면 받은 선수는 AI가 뜁니다.
 // AI 선수는 리그·팀 수준(teamRating·oppRating)에서 나온 능력치(rating과 캐치·돌파·태클, 속도·방향 전환)를 갖고, 무브는 수준이 높을수록 자주 시도하되
 // 통할지는 상대 수비와의 능력 차이로 정해집니다. 느린 리그는 수비의 읽기·블록 벗기도 그만큼 느려서 어느 리그든 공격과 수비의 균형은 비슷합니다.
 import { bigText, vivid, shade, lum, OUT } from './pixel.js';
-import { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } from './input.js';
+import { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing, VIEW_ZOOMS, viewZoom, setViewZoom } from './input.js';
 import { DIFFICULTY } from '../engine/difficulty.js';
 import { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } from './sprites.js';
 import { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } from './playbook.js';
 
 const WW = FIELD_W, VW_NEAR = 192, VW_QB = 344;
+const ZOOM_VW = [VW_NEAR, 256, VW_QB]; // 시야: 가까이 · 보통 · 넓게 (보이는 폭, 픽셀)
 const R = Math.random;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -43,12 +46,12 @@ export class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
     this.dif = { ...DIFFICULTY.normal.live, ...(cfg.diff || {}) }; // 난이도 (engine/difficulty.js)
-    host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
+    host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div><button class="lp-zoom" type="button" aria-label="시야 바꾸기"></button>
       <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
       <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
       <div class="lp-targets" hidden aria-label="패스할 리시버"></div><div class="lp-btns"></div></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
-    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets');
+    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets'); this.zoomEl = host.querySelector('.lp-zoom');
     this.kbd = isKeyMode(); this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.applyMode(); });
     this.H = 360; this.VW = VW_NEAR; this.scale = 2; this.inset = 0; this.camX = 0; this.oy = 0;
     this.stick = { x: 0, y: 0 }; this.sk = { cd: {}, pumps: 0 }; this.floats = []; this.ghosts = [];
@@ -83,24 +86,37 @@ export class LivePlay {
     else if (H > VW * 2.6) { H = Math.round(VW * 2.6); ch = Math.round(w * H / VW); }
     if (H !== this.H || this.canvas.width !== VW) { this.H = H; this.canvas.width = VW; this.canvas.height = H; this.ctx.imageSmoothingEnabled = false; }
     this.canvas.style.width = cw + 'px'; this.canvas.style.height = ch + 'px';
-    this.scale = ch / H;
+    this.scale = ch / H; this.aspect = H / VW;
   }
-  // 줌: 패스 전 쿼터백은 필드 전체를, 나머지는 내 선수를 크게
+  // 줌: 패스 전 쿼터백은 필드 전체를, 나머지는 고른 시야로. 내 선수와 공(떨어질 곳·볼 캐리어)이 멀면 둘 다 보이게 자동으로 넓힙니다.
   vwTarget() {
     if (this.cfg.zoom === false) return VW_QB;
     const m = this.mine;
     if (m && m === this.qb && (this.phase === 'idle' || this.phase === 'pre' || this.inPocket())) return VW_QB;
-    return VW_NEAR;
+    const base = ZOOM_VW[viewZoom()] ?? VW_NEAR, a = this.poi();
+    if (!a) return base;
+    const far = Math.max(a.w, 1 - a.w), needX = (Math.abs(a.x - m.x) * far * 2 + 10) * PPY, needY = (Math.abs(a.y - m.y) * far + 6) * PPY / .4 / (this.aspect || 1.8);
+    return clamp(Math.ceil(Math.max(base, needX, needY) / 16) * 16, base, VW_QB);
   }
+  // 내 선수와 함께 화면에 담을 곳: 뜬 공이 떨어질 곳, 또는 공을 들고 달리는 다른 선수 (공이 아직 쿼터백 손에 있으면 없음). w = 그쪽으로 치우치는 정도
+  poi() {
+    const m = this.mine, b = this.ball, car = this.carrier, qb = this.qb;
+    if (!m || m === qb || this.phase === 'idle' || this.phase === 'pre') return null;
+    if (b) return { x: b.x, y: b.y, w: this.target === m || dist(b, m) < 14 ? .5 : .65 };
+    if (car && car !== m && (car !== qb || this.qbRunning || car.y > this.los + .5)) return { x: car.x, y: car.y, w: .6 };
+    return null;
+  }
+  cycleZoom() { setViewZoom(viewZoom() + 1); this.syncZoom(); this.tip(`시야: ${VIEW_ZOOMS[viewZoom()]}`, 1.2); }
+  syncZoom() { if (this.zoomEl) this.zoomEl.innerHTML = `시야 <b>${VIEW_ZOOMS[viewZoom()]}</b>${this.kbd ? ` <kbd>${keyLabel('q')}</kbd>` : ''}`; }
   inPocket() { const q = this.qb; return this.carrier === q && !this.thrown && !this.qbRunning && q.y < this.los + .5 && (!this.run || this.fleaPhase === 2); }
   focusX() {
     const m = this.mine, b = this.ball, car = this.carrier, qb = this.qb;
     if (!m || this.vwTarget() === VW_QB) return CX;
     if (m === qb && b) return b.sx + (b.x - b.sx) * clamp(b.t / b.T, 0, 1); // 쿼터백: 던진 공을 따라갑니다
     if (m === qb && car && car !== qb) return car.x; // 받은(넘겨받은) 우리 선수를 따라갑니다
-    if (b) return (b.x * 2 + m.x) / 3;
+    const a = this.poi(); if (a) return m.x + (a.x - m.x) * a.w; // 내 선수와 공(떨어질 곳·볼 캐리어)을 함께
     if (m.role === 'OL') return (m.x + qb.x) / 2;
-    if (m.team === 'D') return car && car !== qb ? (m.x + car.x) / 2 : m.x * .7 + CX * .3;
+    if (m.team === 'D') return m.x * .7 + CX * .3;
     return m.x;
   }
   camXTarget() { return clamp((this.focusX() + SIDE) * PPY - this.VW / 2, 0, WW - this.VW); }
@@ -112,8 +128,12 @@ export class LivePlay {
   }
   camYTarget() {
     if (this.phase === 'idle' || this.phase === 'pre') return this.los - 3;
-    const b = this.ball; if (b) return b.sy + (b.y - b.sy) * (b.t / b.T);
-    return (this.carrier || this.qb).y;
+    const m = this.mine, b = this.ball;
+    if (!m || m === this.qb) { if (b) return b.sy + (b.y - b.sy) * (b.t / b.T); return (this.carrier || this.qb).y; }
+    // 내 선수를 따라갑니다. 공이 뜨거나 다른 선수가 공을 들면 그 사이를, 아니면 공격은 조금 앞쪽을, 수비는 공격 쪽(아래)을 더 보여 줍니다.
+    const a = this.poi(); if (a) return m.y + (a.y - m.y) * a.w;
+    const span = this.H / PPY;
+    return m.team === 'O' ? m.y + (m.role === 'OL' ? -2 : span * .05) : m.y - span * .13;
   }
   tip(text, sec = 3) {
     const el = this.tipEl; if (!el) return;
@@ -276,6 +296,7 @@ export class LivePlay {
     const end = e => { if (e.pointerId !== this.stickId) return; this.stickId = null; this.stick = { x: 0, y: 0 }; knob.style.transform = ''; Object.assign(base.style, { left: '', top: '', bottom: '' }); base.classList.remove('on'); };
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     this.btns.addEventListener('pointerdown', e => { const b = e.target.closest('[data-sk]'); if (!b) return; e.preventDefault(); b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); this.skill(b.dataset.sk); });
+    this.zoomEl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); this.cycleZoom(); });
     this.tgEl.addEventListener('pointerdown', e => { const b = e.target.closest('[data-tn]'); if (!b) return; e.preventDefault(); this.throwToNum(+b.dataset.tn); });
     // 키보드: WASD·방향키 이동, Space·J·K·L = 버튼 1~4, Shift 터보, 숫자 1~5 = 그 리시버에게 패스
     this.onKey = e => {
@@ -285,6 +306,7 @@ export class LivePlay {
       if (!down) return;
       if (k === 'space') e.preventDefault();
       if (e.repeat) return;
+      if (k === 'q') { if (this.phase !== 'idle') { e.preventDefault(); this.cycleZoom(); } return; } // 시야 바꾸기 (작전을 고르는 동안에는 Q가 분류 바꾸기)
       if (/^[1-5]$/.test(k)) { if (this.throwToNum(+k)) e.preventDefault(); return; }
       if (k === 'shift') { if (this.skills().some(x => x.id === 'turbo')) this.skill('turbo', true); return; }
       const slot = SLOT_KEYS.includes(k) ? SLOT_KEYS.indexOf(k) : LEGACY_KEYS[k] ?? -1;
@@ -296,7 +318,7 @@ export class LivePlay {
   // 입력 방식이 바뀌면: 스틱 ↔ 키 표시, 버튼·칩 위 키 글자
   applyMode() {
     this.ctrl.classList.toggle('kbd', this.kbd); this.host.classList.toggle('lp-kbd', this.kbd);
-    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys();
+    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys(); this.syncZoom();
     if (!this.ctrl.hidden) this.syncButtons();
   }
   syncKeys() { for (const el of this.ctrl.querySelectorAll('.lp-keys kbd')) el.classList.toggle('on', this.keys.has(el.dataset.k)); }

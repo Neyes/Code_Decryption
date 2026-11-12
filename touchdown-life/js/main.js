@@ -6,7 +6,7 @@ import { ATTR, attrsOf } from './engine/core.js';
 import * as FX from './ui/fx.js';
 import { openClutch, clutchLevelAvg } from './ui/clutch.js';
 import { openGym } from './ui/gym.js';
-import { setInputPref, inputMode, keyName, typing } from './ui/input.js';
+import { setInputPref, inputMode, keyName, typing, setViewZoom, VIEW_ZOOMS } from './ui/input.js';
 import { tutorialHtml, tutorialAskHtml, guideGroupOf, guidePos, GUIDE_PAGES } from './ui/guide.js';
 import { DIFFICULTY, diffOf, diffId, setDifficulty, diffLowest } from './engine/difficulty.js';
 import { sceneUrl, iconUrl } from './ui/pixel.js';
@@ -211,6 +211,7 @@ document.addEventListener('click', e => {
     case 'close-sheet': closeSheet(); break;
     case 'theme': cycleTheme(); break;
     case 'settings': openSheet({ kind: 'settings' }); break;
+    case 'view-zoom': setViewZoom(+v); openSheet({ kind: 'settings' }); toast(`시야: ${VIEW_ZOOMS[+v] || ''}`); break;
     case 'tutorial': openTutorial(+v || 0); break;
     case 'tut-skip': tutMark(); closeSheet(); break;
     case 'tut-page': tutTurn((sheetView?.page || 0) + +v); break;

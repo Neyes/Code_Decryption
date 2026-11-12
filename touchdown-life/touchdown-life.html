@@ -560,6 +560,12 @@ kbd.kc, .lp-btn kbd, .lp-keys kbd, .gym-pad kbd, .gym-cell kbd, .cl-key { displa
 .cl-help-card .pill { background: rgba(255, 255, 255, .1); color: #fff; border-color: transparent; }
 .gd-sep { font-style: normal; font-size: 12px; color: var(--muted); }
 
+/* ───────── 시야(확대) 버튼 ───────── */
+.lp-zoom { position: absolute; left: 8px; top: 42%; z-index: 3; border: 1.5px solid rgba(255, 255, 255, .45); background: rgba(16, 22, 28, .6); color: #fff; border-radius: 999px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; line-height: 1.2; touch-action: none; user-select: none; -webkit-user-select: none; opacity: .85; }
+.lp-zoom b { font-weight: 900; color: #FFD84A; }
+.lp-zoom kbd { display: inline-grid; place-items: center; min-width: 1.5em; height: 1.5em; padding: 0 .3em; margin-left: 2px; border-radius: 5px; font: 800 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #1B2129; background: #F4F6F8; box-shadow: 0 1px 0 #9AA4B0; }
+.lp-zoom:active { transform: scale(.94); }
+
 </style>
   <script>try{var t=localStorage.getItem('tdlife.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
   
@@ -3911,6 +3917,14 @@ function emit() {
   for (const f of [...subs]) { try { f(m); } catch (err) { console.error(err); } }
 }
 
+// 시야(확대): 실시간 필드에서 얼마나 넓게 볼지. 0 가까이 · 1 보통 · 2 넓게 (기기에 저장)
+const ZOOM_KEY = 'tdlife.zoom.v1';
+const VIEW_ZOOMS = ['가까이', '보통', '넓게'];
+let zoom = 0;
+try { zoom = Math.max(0, Math.min(2, Math.round(+W?.localStorage.getItem(ZOOM_KEY) || 0))); } catch { /* 기본값 */ }
+const viewZoom = () => zoom;
+function setViewZoom(i) { zoom = ((Math.round(+i) % 3) + 3) % 3; try { W?.localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* 무시 */ } return zoom; }
+
 // 물리 키 이름 (소문자): 'w' 'a' '1' 'space' 'shift' 'enter' 'tab' 'esc' 'up' 'down' 'left' 'right' ';'
 function keyName(e) {
   const c = e.code || '';
@@ -3942,7 +3956,7 @@ if (W) {
   if (W.document?.documentElement) emit();
 }
 
-return { inputMode, isKeyMode, inputPref, INPUT_PREFS, kbd, MOVE_KEYS, typing, setInputPref, onInputMode, keyName, keyLabel };
+return { inputMode, isKeyMode, inputPref, INPUT_PREFS, VIEW_ZOOMS, viewZoom, kbd, MOVE_KEYS, typing, setInputPref, onInputMode, setViewZoom, keyName, keyLabel };
 });
 __def("js/ui/sprites.js", function () {
 // 실시간 플레이용 고해상도 도트: 선수 15×19(외곽선 포함 17×21, 라인맨은 어깨가 더 넓음)와 6픽셀/야드 필드.
@@ -4586,16 +4600,19 @@ __def("js/ui/liveplay.js", function () {
 //  · 컴퓨터(키보드): WASD·방향키 이동(왼쪽 아래 키 표시), 버튼 1~4 = Space·J·K·L(버튼에 키 표시), Shift 터보,
 //    쿼터백은 숫자 키 1~5로 그 번호의 리시버에게 패스(리시버 머리 위 번호·위쪽 칩). 마우스로 버튼·칩·리시버를 눌러도 됩니다.
 // 패스 종류(터치·불릿·로브)와 캐치 종류(하이포인트·안전·RAC)를 고르고, 캐치는 공이 날아간 거리로 숏·미디엄·롱으로 나눕니다.
+// 카메라는 내 선수를 따라갑니다(쿼터백은 포켓에서 필드 전체, 던진 뒤에는 공). 공이 뜨거나 다른 선수가 공을 들면 내 선수와 그곳이 함께 보이도록
+// 자동으로 넓어지고, 기본 시야(가까이·보통·넓게)는 왼쪽 가운데 '시야' 버튼(키보드 Q)이나 설정에서 고릅니다.
 // 조종하는 선수는 처음부터 끝까지 내 선수 하나입니다. 쿼터백이 공을 던지거나 넘겨 주면 받은 선수는 AI가 뜁니다.
 // AI 선수는 리그·팀 수준(teamRating·oppRating)에서 나온 능력치(rating과 캐치·돌파·태클, 속도·방향 전환)를 갖고, 무브는 수준이 높을수록 자주 시도하되
 // 통할지는 상대 수비와의 능력 차이로 정해집니다. 느린 리그는 수비의 읽기·블록 벗기도 그만큼 느려서 어느 리그든 공격과 수비의 균형은 비슷합니다.
 const { bigText, vivid, shade, lum, OUT } = __req("js/ui/pixel.js");
-const { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing } = __req("js/ui/input.js");
+const { isKeyMode, onInputMode, keyName, keyLabel, MOVE_KEYS, typing, VIEW_ZOOMS, viewZoom, setViewZoom } = __req("js/ui/input.js");
 const { DIFFICULTY } = __req("js/engine/difficulty.js");
 const { playerSprite, ballSprite, fieldCanvas, SKINS, PPY, SIDE, Y_TOP, FIELD_W, FIELD_H } = __req("js/ui/sprites.js");
 const { FW, CX, FORMATIONS, DEF_FORMS, OFF_PLAYS, DEF_PLAYS, isDeepZone, ZONES, offenseSpots, defenseSpots, assignCoverage, routePath, routeInfo, playById, defById, catchKind, COV_NAME } = __req("js/ui/playbook.js");
 
 const WW = FIELD_W, VW_NEAR = 192, VW_QB = 344;
+const ZOOM_VW = [VW_NEAR, 256, VW_QB]; // 시야: 가까이 · 보통 · 넓게 (보이는 폭, 픽셀)
 const R = Math.random;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -4619,12 +4636,12 @@ class LivePlay {
   constructor(host, cfg) {
     this.host = host; this.cfg = { ...cfg };
     this.dif = { ...DIFFICULTY.normal.live, ...(cfg.diff || {}) }; // 난이도 (engine/difficulty.js)
-    host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div>
+    host.innerHTML = `<canvas class="lp-canvas" width="${VW_NEAR}" height="360" aria-label="실시간 플레이 필드"></canvas><div class="lp-tip" hidden></div><button class="lp-zoom" type="button" aria-label="시야 바꾸기"></button>
       <div class="lp-ctrl" hidden><div class="lp-zone" aria-label="이동 스틱"><div class="lp-stick"><i></i></div></div>
       <div class="lp-keys" aria-hidden="true"><kbd data-k="U">W</kbd><kbd data-k="L">A</kbd><kbd data-k="D">S</kbd><kbd data-k="R">D</kbd></div>
       <div class="lp-targets" hidden aria-label="패스할 리시버"></div><div class="lp-btns"></div></div>`;
     this.canvas = host.querySelector('canvas'); this.ctx = this.canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
-    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets');
+    this.ctrl = host.querySelector('.lp-ctrl'); this.btns = host.querySelector('.lp-btns'); this.tipEl = host.querySelector('.lp-tip'); this.tgEl = host.querySelector('.lp-targets'); this.zoomEl = host.querySelector('.lp-zoom');
     this.kbd = isKeyMode(); this.offMode = onInputMode(m => { this.kbd = m === 'key'; this.applyMode(); });
     this.H = 360; this.VW = VW_NEAR; this.scale = 2; this.inset = 0; this.camX = 0; this.oy = 0;
     this.stick = { x: 0, y: 0 }; this.sk = { cd: {}, pumps: 0 }; this.floats = []; this.ghosts = [];
@@ -4659,24 +4676,37 @@ class LivePlay {
     else if (H > VW * 2.6) { H = Math.round(VW * 2.6); ch = Math.round(w * H / VW); }
     if (H !== this.H || this.canvas.width !== VW) { this.H = H; this.canvas.width = VW; this.canvas.height = H; this.ctx.imageSmoothingEnabled = false; }
     this.canvas.style.width = cw + 'px'; this.canvas.style.height = ch + 'px';
-    this.scale = ch / H;
+    this.scale = ch / H; this.aspect = H / VW;
   }
-  // 줌: 패스 전 쿼터백은 필드 전체를, 나머지는 내 선수를 크게
+  // 줌: 패스 전 쿼터백은 필드 전체를, 나머지는 고른 시야로. 내 선수와 공(떨어질 곳·볼 캐리어)이 멀면 둘 다 보이게 자동으로 넓힙니다.
   vwTarget() {
     if (this.cfg.zoom === false) return VW_QB;
     const m = this.mine;
     if (m && m === this.qb && (this.phase === 'idle' || this.phase === 'pre' || this.inPocket())) return VW_QB;
-    return VW_NEAR;
+    const base = ZOOM_VW[viewZoom()] ?? VW_NEAR, a = this.poi();
+    if (!a) return base;
+    const far = Math.max(a.w, 1 - a.w), needX = (Math.abs(a.x - m.x) * far * 2 + 10) * PPY, needY = (Math.abs(a.y - m.y) * far + 6) * PPY / .4 / (this.aspect || 1.8);
+    return clamp(Math.ceil(Math.max(base, needX, needY) / 16) * 16, base, VW_QB);
   }
+  // 내 선수와 함께 화면에 담을 곳: 뜬 공이 떨어질 곳, 또는 공을 들고 달리는 다른 선수 (공이 아직 쿼터백 손에 있으면 없음). w = 그쪽으로 치우치는 정도
+  poi() {
+    const m = this.mine, b = this.ball, car = this.carrier, qb = this.qb;
+    if (!m || m === qb || this.phase === 'idle' || this.phase === 'pre') return null;
+    if (b) return { x: b.x, y: b.y, w: this.target === m || dist(b, m) < 14 ? .5 : .65 };
+    if (car && car !== m && (car !== qb || this.qbRunning || car.y > this.los + .5)) return { x: car.x, y: car.y, w: .6 };
+    return null;
+  }
+  cycleZoom() { setViewZoom(viewZoom() + 1); this.syncZoom(); this.tip(`시야: ${VIEW_ZOOMS[viewZoom()]}`, 1.2); }
+  syncZoom() { if (this.zoomEl) this.zoomEl.innerHTML = `시야 <b>${VIEW_ZOOMS[viewZoom()]}</b>${this.kbd ? ` <kbd>${keyLabel('q')}</kbd>` : ''}`; }
   inPocket() { const q = this.qb; return this.carrier === q && !this.thrown && !this.qbRunning && q.y < this.los + .5 && (!this.run || this.fleaPhase === 2); }
   focusX() {
     const m = this.mine, b = this.ball, car = this.carrier, qb = this.qb;
     if (!m || this.vwTarget() === VW_QB) return CX;
     if (m === qb && b) return b.sx + (b.x - b.sx) * clamp(b.t / b.T, 0, 1); // 쿼터백: 던진 공을 따라갑니다
     if (m === qb && car && car !== qb) return car.x; // 받은(넘겨받은) 우리 선수를 따라갑니다
-    if (b) return (b.x * 2 + m.x) / 3;
+    const a = this.poi(); if (a) return m.x + (a.x - m.x) * a.w; // 내 선수와 공(떨어질 곳·볼 캐리어)을 함께
     if (m.role === 'OL') return (m.x + qb.x) / 2;
-    if (m.team === 'D') return car && car !== qb ? (m.x + car.x) / 2 : m.x * .7 + CX * .3;
+    if (m.team === 'D') return m.x * .7 + CX * .3;
     return m.x;
   }
   camXTarget() { return clamp((this.focusX() + SIDE) * PPY - this.VW / 2, 0, WW - this.VW); }
@@ -4688,8 +4718,12 @@ class LivePlay {
   }
   camYTarget() {
     if (this.phase === 'idle' || this.phase === 'pre') return this.los - 3;
-    const b = this.ball; if (b) return b.sy + (b.y - b.sy) * (b.t / b.T);
-    return (this.carrier || this.qb).y;
+    const m = this.mine, b = this.ball;
+    if (!m || m === this.qb) { if (b) return b.sy + (b.y - b.sy) * (b.t / b.T); return (this.carrier || this.qb).y; }
+    // 내 선수를 따라갑니다. 공이 뜨거나 다른 선수가 공을 들면 그 사이를, 아니면 공격은 조금 앞쪽을, 수비는 공격 쪽(아래)을 더 보여 줍니다.
+    const a = this.poi(); if (a) return m.y + (a.y - m.y) * a.w;
+    const span = this.H / PPY;
+    return m.team === 'O' ? m.y + (m.role === 'OL' ? -2 : span * .05) : m.y - span * .13;
   }
   tip(text, sec = 3) {
     const el = this.tipEl; if (!el) return;
@@ -4852,6 +4886,7 @@ class LivePlay {
     const end = e => { if (e.pointerId !== this.stickId) return; this.stickId = null; this.stick = { x: 0, y: 0 }; knob.style.transform = ''; Object.assign(base.style, { left: '', top: '', bottom: '' }); base.classList.remove('on'); };
     zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
     this.btns.addEventListener('pointerdown', e => { const b = e.target.closest('[data-sk]'); if (!b) return; e.preventDefault(); b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); this.skill(b.dataset.sk); });
+    this.zoomEl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); this.cycleZoom(); });
     this.tgEl.addEventListener('pointerdown', e => { const b = e.target.closest('[data-tn]'); if (!b) return; e.preventDefault(); this.throwToNum(+b.dataset.tn); });
     // 키보드: WASD·방향키 이동, Space·J·K·L = 버튼 1~4, Shift 터보, 숫자 1~5 = 그 리시버에게 패스
     this.onKey = e => {
@@ -4861,6 +4896,7 @@ class LivePlay {
       if (!down) return;
       if (k === 'space') e.preventDefault();
       if (e.repeat) return;
+      if (k === 'q') { if (this.phase !== 'idle') { e.preventDefault(); this.cycleZoom(); } return; } // 시야 바꾸기 (작전을 고르는 동안에는 Q가 분류 바꾸기)
       if (/^[1-5]$/.test(k)) { if (this.throwToNum(+k)) e.preventDefault(); return; }
       if (k === 'shift') { if (this.skills().some(x => x.id === 'turbo')) this.skill('turbo', true); return; }
       const slot = SLOT_KEYS.includes(k) ? SLOT_KEYS.indexOf(k) : LEGACY_KEYS[k] ?? -1;
@@ -4872,7 +4908,7 @@ class LivePlay {
   // 입력 방식이 바뀌면: 스틱 ↔ 키 표시, 버튼·칩 위 키 글자
   applyMode() {
     this.ctrl.classList.toggle('kbd', this.kbd); this.host.classList.toggle('lp-kbd', this.kbd);
-    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys();
+    this.btnKey = null; this.tgKey = null; this.keys.clear(); this.syncKeys(); this.syncZoom();
     if (!this.ctrl.hidden) this.syncButtons();
   }
   syncKeys() { for (const el of this.ctrl.querySelectorAll('.lp-keys kbd')) el.classList.toggle('on', this.keys.has(el.dataset.k)); }
@@ -6067,12 +6103,14 @@ function tutorialHtml(v, o = {}) {
     ['이동', `${kc('W')}${kc('A')}${kc('S')}${kc('D')} 또는 방향키. 왼쪽 아래에 눌린 키가 표시돼요.`],
     ['기술 버튼', `오른쪽 아래 버튼 1~4 = ${kc('Space')} ${kc('J')} ${kc('K')} ${kc('L')}. 버튼마다 키가 적혀 있고 상황에 따라 바뀌어요. 터보는 ${kc('Shift')}도 돼요.`],
     ['작전 고르기', `작전 카드·선택지는 숫자 키 ${kc('1')}~${kc('9')}, 분류는 ${kc('Q')} ${kc('E')}, 스냅·다음은 ${kc('Enter')}. 조작법은 ${kc('H')}.`],
+    ['시야', `${kc('Q')} 또는 왼쪽 가운데 "시야" 버튼으로 가까이 → 보통 → 넓게. 카메라는 내 선수를 따라가고, 공이 멀리 뜨면 자동으로 넓어져요.`],
     ['마우스', '버튼, 리시버 칩, 필드의 리시버를 클릭해도 돼요.'],
   ] : [
     ['이동', '왼쪽 아래 어디든 누르면 그 자리에 스틱이 생겨요. 기울인 만큼 빨리 달려요.'],
     ['기술 버튼', '오른쪽 아래 색 버튼(최대 4개). 상황에 따라 바뀌고, 스틱을 잡은 채로 누를 수 있어요.'],
     ['작전 고르기', '작전 카드나 선택지를 탭해요. 분류 탭을 눌러 다른 작전을 봐요.'],
     ['필드 탭', '쿼터백은 리시버나 빈 곳을 탭해 패스, 리시버는 필드를 탭해 패스 콜.'],
+    ['시야', '왼쪽 가운데 "시야" 버튼으로 가까이 → 보통 → 넓게. 카메라는 내 선수를 따라가고, 공이 멀리 뜨면 자동으로 넓어져요.'],
   ])}<h4 class="gd-h">필드 읽기</h4>${li([
     ['파란 선 · 노란 선', '파란 선은 스크리미지 라인, 노란 선은 퍼스트 다운까지 가야 할 곳.'],
     ['내 선수', '발밑 노란 고리와 머리 위 노란 화살표. 스냅 전에는 "YOU"가 떠요.'],
@@ -7104,10 +7142,10 @@ const { teamPower, leagueTop, displayName } = __req("js/engine/league.js");
 const { fmtFollowers } = __req("js/engine/social.js");
 const { ITEMS, STAFF, FACILITIES, canBuy } = __req("js/engine/shop.js");
 const { GYM_TIERS, gymTier, gymState } = __req("js/engine/gym.js");
-const PATCH = { id: '2026-11-15', title: '쿼터백은 쿼터백만 · 리그 수준 AI', items: [['쿼터백만 조종', '쿼터백으로 뛸 때 공을 던지거나 넘겨 준 뒤에는 받은 선수를 조종하지 않아요. 리시버와 러닝백은 AI가 뛰고 카메라가 공을 따라가요. 내가 직접 달릴 때만 볼 캐리어 버튼이 나와요.'], ['리그·팀 수준 AI', '우리 팀과 상대 AI의 속도·캐치·무브가 리그(고교 → 대학 → NFL)와 팀 전력을 따라가요. AI 볼 캐리어가 열린 길로 꺾고 스핀·주크·스티프 암을 써요. 수비 수준도 같이 올라가서 균형은 비슷해요.'], ['AI 런 개선', 'AI 러닝백이 라인에서 머뭇거리지 않고 틈을 뚫어요. 드로 작전도 제대로 통해요.'], ['튜토리얼 (선택)', '설정 → 튜토리얼 · 조작법에서 볼 수 있어요. 게임 흐름과, 포지션마다 어떤 키·버튼이 어떤 기술이고 어떤 능력치를 쓰는지 알려 줘요. 강제로 뜨지 않아요.'], ['연습 경기', '튜토리얼의 "연습해 보기"로 원하는 포지션을 마음껏 해 볼 수 있어요. 기록과 성장에는 반영되지 않아요.'], ['조작법 버튼', '빅게임에서 작전을 고를 때 "조작법"(키보드 H)을 누르면 내 포지션의 키와 기술 표가 떠요.'], ['난이도 3단계', '쉬움·노말·하드(리얼리스틱). 새 커리어를 만들 때 고르고 설정에서 바꿔요. 성장·드래프트·선택지 확률과 직접 플레이가 함께 바뀌어요.'], ['하드 (리얼리스틱)', '성장 속도와 NFL 드래프트 확률이 현실에 가까워요(자동 진행 기준 지명 약 13%). 직접 플레이는 판정 보정이 없고 상대 커버·패스 러시가 빨라요. 리시버 열림 색도 안 보여요.'], ['같이 바뀌는 것', '성장·급성장·노쇠, 리크루팅·드래프트 평가, 선택 카드 확률, 부상, 주전 경쟁, 방출, 헬스장, 그리고 직접 플레이의 캐치·패스 오차·포켓 시간·기술 성공률·태클·인터셉트·킥 흔들림까지.'], ['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
+const PATCH = { id: '2026-11-16', title: '카메라가 내 선수를 따라가요 · 시야 조절', items: [['카메라', '리시버·수비로 뛸 때 카메라가 쿼터백이 아니라 내 선수를 따라가요. 깊이 달려도 화면 밖으로 나가지 않아요. 공이 뜨면 내 선수와 공이 떨어질 곳이 함께 보이도록 자동으로 넓어져요.'], ['시야 조절', '경기 중 왼쪽 가운데 "시야" 버튼(키보드 Q)으로 가까이 → 보통 → 넓게를 바꿔요. 설정 → 시야에서도 고를 수 있고 기기에 저장돼요.'], ['쿼터백만 조종', '쿼터백으로 뛸 때 공을 던지거나 넘겨 준 뒤에는 받은 선수를 조종하지 않아요. 리시버와 러닝백은 AI가 뛰고 카메라가 공을 따라가요. 내가 직접 달릴 때만 볼 캐리어 버튼이 나와요.'], ['리그·팀 수준 AI', '우리 팀과 상대 AI의 속도·캐치·무브가 리그(고교 → 대학 → NFL)와 팀 전력을 따라가요. AI 볼 캐리어가 열린 길로 꺾고 스핀·주크·스티프 암을 써요. 수비 수준도 같이 올라가서 균형은 비슷해요.'], ['AI 런 개선', 'AI 러닝백이 라인에서 머뭇거리지 않고 틈을 뚫어요. 드로 작전도 제대로 통해요.'], ['튜토리얼 (선택)', '설정 → 튜토리얼 · 조작법에서 볼 수 있어요. 게임 흐름과, 포지션마다 어떤 키·버튼이 어떤 기술이고 어떤 능력치를 쓰는지 알려 줘요. 강제로 뜨지 않아요.'], ['연습 경기', '튜토리얼의 "연습해 보기"로 원하는 포지션을 마음껏 해 볼 수 있어요. 기록과 성장에는 반영되지 않아요.'], ['조작법 버튼', '빅게임에서 작전을 고를 때 "조작법"(키보드 H)을 누르면 내 포지션의 키와 기술 표가 떠요.'], ['난이도 3단계', '쉬움·노말·하드(리얼리스틱). 새 커리어를 만들 때 고르고 설정에서 바꿔요. 성장·드래프트·선택지 확률과 직접 플레이가 함께 바뀌어요.'], ['하드 (리얼리스틱)', '성장 속도와 NFL 드래프트 확률이 현실에 가까워요(자동 진행 기준 지명 약 13%). 직접 플레이는 판정 보정이 없고 상대 커버·패스 러시가 빨라요. 리시버 열림 색도 안 보여요.'], ['같이 바뀌는 것', '성장·급성장·노쇠, 리크루팅·드래프트 평가, 선택 카드 확률, 부상, 주전 경쟁, 방출, 헬스장, 그리고 직접 플레이의 캐치·패스 오차·포켓 시간·기술 성공률·태클·인터셉트·킥 흔들림까지.'], ['컴퓨터 / 모바일', '컴퓨터에서는 키보드로, 폰에서는 터치로 조작해요. 화면은 같고 조작만 바뀌어요. 설정 → 조작 방식에서 직접 고를 수도 있어요.'], ['키보드 조작', 'WASD(방향키) 이동, 버튼은 Space·J·K·L(버튼에 키가 적혀 있어요), Shift 터보. 작전 카드는 숫자 키, Q·E로 분류, Enter로 스냅. 키커는 A·D로 조준하고 Space를 꾹 눌렀다 떼요. 헬스장도 키로 운동해요.'], ['리시버 지정 패스', '쿼터백일 때 리시버 머리 위에 1~5번이 뜨고 위쪽에 같은 번호 칩이 나와요. 컴퓨터는 숫자 키, 폰은 칩이나 리시버를 탭하면 그 리시버에게 던져요. 색이 초록이면 열려 있어요.'], ['캐치 범위', '내가 직접 공을 받을 때 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요.'], ['캐치 범위', '내가 직접 공을 받을 때(리시버·타이트 엔드·러닝백) 잡을 수 있는 범위를 아주 조금(0.25야드) 넓혔어요. 공에 살짝 못 미쳐도 잡히고, 수비수와 동시에 손을 뻗을 때도 조금 더 유리해요.'], ['헬스장', '상점 → 시설에서 헬스장 회원권($80)을 사면 홈 화면과 상점에서 헬스장에 들어갈 수 있어요. 벤치프레스(연타)·스쿼트(타이밍)·40야드 스프린트(좌우 번갈아 연타)·콘 드릴(방향 QTE)·박스 점프(모았다 떼기)·포지션 드릴(표적 탭)로 운동마다 능력치가 조금씩 올라요.'], ['하루 운동량', '게임 속 하루(시즌 한 단계, 오프시즌·시즌 준비)마다 체력이 정해져 있고 운동 하나는 하루 2세트까지예요. 성적이 좋을수록, 젊을수록, 회원권 단계가 높을수록 더 많이 올라요.'], ['패스 콜', '리시버·타이트 엔드·러닝백으로 루트를 뛸 때 "패스 콜" 버튼을 누르거나 필드를 탭하면, 쿼터백이 잠깐 보고(쿼터백 실력에 따라 0.2~0.55초) 나에게 던져요. 커버가 붙어 있어도 던지니 떨어지는 순간을 노리세요.'], ['고해상도 도트', '필드와 선수의 도트를 두 배로 늘렸어요. 헬멧 줄무늬·페이스마스크·등번호·팔다리 움직임, 사이드라인 벤치·관중석·골대·엔드존까지.'], ['플레이북', '공격 포메이션 8개(샷건 더블·트립스·번치·엠티, 싱글백, I, 피스톨, 골라인)에 플레이 51개, 수비 포메이션 6개(4-3, 니켈, 다임, 46 베어 등)에 커버리지 21개. 작전 그림 카드로 골라요.'], ['코치 추천', '다운·거리·상대 정렬(딥 세이프티 수)을 보고 코치가 작전을 추천해요. 상대 포메이션은 스냅 전에 필드에 그대로 보여요.'], ['패스·캐치 종류', '쿼터백은 터치·불릿·로브 패스를 고르고, 리시버는 하이포인트·안전·RAC 캐치를 골라요. 캐치는 숏·미디엄·롱으로 나뉘어 공중 거리와 캐치 후 거리가 표시돼요.'], ['수비 배정', '수비 작전을 고르면 내 배정(존 구역·맨 상대·러시)이 필드에 그려져요. 공이 뜨면 가로채기·쳐내기.'], ['새 작전', 'RPO, 존 리드, 플리 플리커, 젯 스윕, 부트렉, 파이어 존, 커버 0 올아웃, QB 스파이 등.']] };
 const { icon, sparkline, esc, AVATAR_OPTIONS, STYLE_NAMES, VISOR_NAMES } = __req("js/ui/art.js");
 const { sceneUrl, spriteUrl, portraitUrl, iconUrl } = __req("js/ui/pixel.js");
-const { INPUT_PREFS, inputPref, inputMode } = __req("js/ui/input.js");
+const { INPUT_PREFS, inputPref, inputMode, VIEW_ZOOMS, viewZoom } = __req("js/ui/input.js");
 const { DIFFICULTY, DIFF_ORDER, diffId, diffOf, diffLowest } = __req("js/engine/difficulty.js");
 const { COLLEGES } = __req("js/data/colleges.js");
 
@@ -7598,6 +7636,7 @@ const STORAGE_TEXT = { synced: '내 Claude 계정에 자동 저장 중이에요.
 function settingsSheet(s, status = 'local') {
   return sheet(`<h2>설정</h2><p class="lead">${STORAGE_TEXT[status] || STORAGE_TEXT.local}</p>
     <div class="option"><strong>${icon('settings')} 조작 방식</strong><div class="sub">직접 플레이(빅게임·킥·헬스장) 조작이에요. 컴퓨터는 키보드(WASD 이동 · Space·J·K·L 기술 · 숫자 키로 리시버 지정), 모바일은 터치(스틱·버튼·리시버 탭). 지금: <b>${inputMode() === 'key' ? '키보드' : '터치'}</b>${inputPref() === 'auto' ? ' (자동)' : ''}</div><div class="seg" style="margin-top:8px">${INPUT_PREFS.map(([v, n]) => `<button class="${inputPref() === v ? 'on' : ''}" data-action="input-pref" data-v="${v}">${esc(n)}</button>`).join('')}</div></div>
+    <div class="option"><strong>${icon('settings')} 시야 (직접 플레이 확대)</strong><div class="sub">필드를 얼마나 넓게 볼지 골라요. 넓게 볼수록 선수는 작아지고 더 멀리 보여요. 경기 중에는 왼쪽 가운데 "시야" 버튼(키보드 Q)으로도 바꿔요. 내 선수와 공이 멀어지면 자동으로 넓어져요.</div><div class="seg" style="margin-top:8px">${VIEW_ZOOMS.map((n, i) => `<button class="${viewZoom() === i ? 'on' : ''}" data-action="view-zoom" data-v="${i}">${esc(n)}</button>`).join('')}</div></div>
     ${s && s.phase !== 'retired' ? `<div class="option"><strong>${icon('settings')} 난이도</strong><div class="sub">지금: <b>${esc(diffOf(s).name)}</b>. 바꾸면 다음 진행부터 적용돼요. 은퇴 기록에는 이 커리어에서 쓴 가장 쉬운 난이도(${esc(DIFFICULTY[diffLowest(s)].name)})가 남아요.</div>${diffPicker(diffId(s), 'set-diff')}</div>` : ''}
     <button class="option" data-action="tutorial"><strong>${icon('bolt')} 튜토리얼 · 조작법</strong><div class="sub">게임 흐름, 어떤 키·버튼이 어떤 기술인지, 기록에 안 남는 연습 경기.</div></button>
     <button class="option" data-action="export"><strong>${icon('download')} 저장 파일 내보내기</strong><div class="sub">커리어와 은퇴 기록을 JSON 파일로 받아요.</div></button>
@@ -7655,7 +7694,7 @@ const { ATTR, attrsOf } = __req("js/engine/core.js");
 const FX = __req("js/ui/fx.js");
 const { openClutch, clutchLevelAvg } = __req("js/ui/clutch.js");
 const { openGym } = __req("js/ui/gym.js");
-const { setInputPref, inputMode, keyName, typing } = __req("js/ui/input.js");
+const { setInputPref, inputMode, keyName, typing, setViewZoom, VIEW_ZOOMS } = __req("js/ui/input.js");
 const { tutorialHtml, tutorialAskHtml, guideGroupOf, guidePos, GUIDE_PAGES } = __req("js/ui/guide.js");
 const { DIFFICULTY, diffOf, diffId, setDifficulty, diffLowest } = __req("js/engine/difficulty.js");
 const { sceneUrl, iconUrl } = __req("js/ui/pixel.js");
@@ -7860,6 +7899,7 @@ document.addEventListener('click', e => {
     case 'close-sheet': closeSheet(); break;
     case 'theme': cycleTheme(); break;
     case 'settings': openSheet({ kind: 'settings' }); break;
+    case 'view-zoom': setViewZoom(+v); openSheet({ kind: 'settings' }); toast(`시야: ${VIEW_ZOOMS[+v] || ''}`); break;
     case 'tutorial': openTutorial(+v || 0); break;
     case 'tut-skip': tutMark(); closeSheet(); break;
     case 'tut-page': tutTurn((sheetView?.page || 0) + +v); break;
